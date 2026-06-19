@@ -1,0 +1,41 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Pins — anyone authenticated can read; only the creator can deactivate
+    match /pins/{pinId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.message.size() <= 280;
+      allow update: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active']);
+      allow delete: if false;
+    }
+
+    // Conversations — only participants can read or write
+    match /conversations/{convId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid in resource.data.participants;
+      allow create: if request.auth != null;
+
+      // Messages inside a conversation
+      match /messages/{msgId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participants;
+        allow create: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participants
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.text.size() <= 500;
+      }
+    }
+
+    // Reports — anyone authenticated can create; no one can read via client
+    match /reports/{reportId} {
+      allow create: if request.auth != null;
+      allow read: if false;
+    }
+  }
+}

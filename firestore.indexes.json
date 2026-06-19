@@ -1,0 +1,14 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "pins",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active",    "order": "ASCENDING" },
+        { "fieldPath": "lat",       "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
