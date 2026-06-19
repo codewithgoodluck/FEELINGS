@@ -12,6 +12,20 @@ export function fuzzLocation(lat, lng) {
   }
 }
 
+// Looks up the ISO-3166-1 alpha-2 country code for a coordinate using Mapbox Geocoding
+// Returns e.g. "NG", "GB", "US", or null on failure (pin still saves without country)
+export async function reverseGeocodeCountry(lat, lng) {
+  try {
+    const token = import.meta.env.VITE_MAPBOX_TOKEN
+    const url   = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?types=country&access_token=${token}`
+    const res   = await fetch(url)
+    const json  = await res.json()
+    return json.features?.[0]?.properties?.short_code?.toUpperCase() ?? null
+  } catch {
+    return null
+  }
+}
+
 // Gets the user's current position via browser geolocation
 export function getCurrentPosition() {
   return new Promise((resolve, reject) => {

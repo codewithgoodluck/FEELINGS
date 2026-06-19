@@ -28,8 +28,11 @@ function hashString(str) {
   return Math.abs(hash)
 }
 
-export function getAnonIdentity(uid) {
-  const hash = hashString(uid)
+// Pass country (ISO-3166 code) so participants near the same location
+// get geographically-varied names; omit for a UID-only hash.
+export function getAnonIdentity(uid, country) {
+  const seed = uid && country ? `${uid}:${country}` : (uid || 'anon')
+  const hash = hashString(seed)
   const adj = ADJECTIVES[hash % ADJECTIVES.length]
   const animal = ANIMALS[Math.floor(hash / ADJECTIVES.length) % ANIMALS.length]
   return `${adj} ${animal}`
@@ -44,4 +47,15 @@ const PALETTE = [
 export function getAnonColour(uid) {
   const hash = hashString(uid)
   return PALETTE[hash % PALETTE.length]
+}
+
+// Assigns a distinct HSL colour to each country code (e.g. "NG", "GB").
+// Golden-angle step (137.508°) gives maximum hue separation across the spectrum.
+export function getCountryColour(country) {
+  if (!country) return '#888'
+  const hash = hashString(country.toUpperCase())
+  const hue  = Math.round((hash * 137.508) % 360)
+  const sat  = 62 + (hash % 18)   // 62–80 %
+  const lit  = 50 + (hash % 14)   // 50–64 %
+  return `hsl(${hue},${sat}%,${lit}%)`
 }

@@ -1,0 +1,13 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Voice notes — any authenticated user can read; only the uploader-session can write
+    match /voices/{fileName} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 2 * 1024 * 1024   // 2 MB max per voice note
+        && request.resource.contentType.matches('audio/.*');
+    }
+  }
+}
