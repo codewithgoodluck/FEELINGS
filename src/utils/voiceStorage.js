@@ -4,7 +4,8 @@ import { storage } from '../firebase'
 export async function uploadVoice(blob) {
   const name       = `voices/${Date.now()}_${Math.random().toString(36).slice(2)}.webm`
   const storageRef = ref(storage, name)
-  const snap       = await uploadBytes(storageRef, blob)
+  const metadata   = { contentType: blob.type || 'audio/webm' }
+  const snap       = await uploadBytes(storageRef, blob, metadata)
   return getDownloadURL(snap.ref)
 }
 
