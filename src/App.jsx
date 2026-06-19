@@ -5,12 +5,21 @@ import CheckInPanel from './components/CheckInPanel'
 import ChatPanel from './components/ChatPanel'
 import LocationPrompt from './components/LocationPrompt'
 import MirrorPrompt from './components/MirrorPrompt'
+import OnboardingTour from './components/OnboardingTour'
+import HelpPanel from './components/HelpPanel'
 import { createPin, deactivatePin, subscribeToUserConversations } from './utils/db'
 import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry } from './utils/location'
 import { recordCheckIn } from './utils/streak'
 import './App.css'
 
-const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat' }
+const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', HELP: 'help' }
+
+function useTip(key) {
+  const [visible, setVisible] = useState(false)
+  function show() { if (localStorage.getItem(`feelin_tip_${key}`) !== '1') setVisible(true) }
+  function dismiss() { localStorage.setItem(`feelin_tip_${key}`, '1'); setVisible(false) }
+  return [visible, show, dismiss]
+}
 
 function useKeyboardOffset() {
   useEffect(() => {
@@ -37,6 +46,10 @@ export default function App() {
   const { user, loading } = useAuth()
   useKeyboardOffset()
 
+  // ── Gates ──────────────────────────────────────────────────────────────────
+  const [onboarded, setOnboarded] = useState(
+    () => localStorage.getItem('feelin_onboarded') === '1'
+  )
   // Mirror — shown once per session before the map loads
   const [mirrorDone, setMirrorDone] = useState(
     () => sessionStorage.getItem('hay_mirror_done') === '1'
@@ -51,10 +64,46 @@ export default function App() {
   const [unreadCount, setUnreadCount]         = useState(0)
   const [unreadPinIds, setUnreadPinIds]       = useState(new Set())
   const [neighbourhood, setNeighbourhood]     = useState(null) // { mood, count }
+  const [wantCheckIn, setWantCheckIn]         = useState(false)
+  const [celebration, setCelebration]         = useState(false)
   const prevConvsRef = useRef({})
+
+  // ── Tooltips ────────────────────────────────────────────────────────────────
+  const [tipFab, showTipFab, dismissTipFab] = useTip('fab')
+  const [tipPin, showTipPin, dismissTipPin] = useTip('pin')
+
+  // Show FAB tip 1.5 s after map loads
+  useEffect(() => {
+    if (!locationAsked) return
+    const t = setTimeout(showTipFab, 1500)
+    return () => clearTimeout(t)
+  }, [locationAsked]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-open check-in after location if "Drop my first pin" was tapped in onboarding
+  useEffect(() => {
+    if (locationAsked && wantCheckIn) {
+      setPendingLocation(userLocation || { lat: 20, lng: 0 })
+      setPanel(PANEL.CHECKIN)
+      setWantCheckIn(false)
+    }
+  }, [locationAsked, wantCheckIn]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return <div className="splash"><p className="splash-text">HowAreYou</p></div>
+  }
+
+  // ── Onboarding gate ──────────────────────────────────────────────────────
+  if (!onboarded) {
+    return (
+      <OnboardingTour
+        onDone={() => setOnboarded(true)}
+        onDropPin={() => {
+          setMirrorDone(true)
+          sessionStorage.setItem('hay_mirror_done', '1')
+          setWantCheckIn(true)
+        }}
+      />
+    )
   }
 
   // ── Mirror gate ──────────────────────────────────────────────────────────
@@ -109,6 +158,19 @@ export default function App() {
     await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country, isFlash, hasStreak })
     setPanel(PANEL.NONE)
     setPendingLocation(null)
+    // First-pin celebration
+    if (localStorage.getItem('feelin_tip_celebration') !== '1') {
+      localStorage.setItem('feelin_tip_celebration', '1')
+      setCelebration(true)
+      setTimeout(() => setCelebration(false), 2800)
+    }
+  }
+
+  function handleFabClick() {
+    dismissTipFab()
+    if (panel !== PANEL.NONE) { setPanel(PANEL.NONE); return }
+    setPendingLocation(userLocation || { lat: 20, lng: 0 })
+    setPanel(PANEL.CHECKIN)
   }
 
   function handleNeighbourhoodClick({ mood, count }) {
@@ -123,6 +185,7 @@ export default function App() {
         onPinClick={handlePinClick}
         onDeletePin={handleDeletePin}
         onNeighbourhoodClick={handleNeighbourhoodClick}
+        onFirstPins={showTipPin}
         unreadPinIds={unreadPinIds}
         activePinId={panel === PANEL.CHAT ? activePin?.id : null}
       />
@@ -136,6 +199,51 @@ export default function App() {
         />
       )}
 
+      {/* Help button */}
+      <button
+        className="help-btn"
+        onClick={() => setPanel(p => p === PANEL.HELP ? PANEL.NONE : PANEL.HELP)}
+        aria-label="Help"
+      >
+        ?
+      </button>
+
+      {/* FAB — drop a pin */}
+      {panel === PANEL.NONE && (
+        <button className="fab" onClick={handleFabClick} aria-label="Share how you're feeling">
+          +
+          {unreadCount > 0 && (
+            <span className="fab-badge" aria-label={`${unreadCount} unread`}>{unreadCount}</span>
+          )}
+        </button>
+      )}
+
+      {/* FAB tooltip */}
+      {tipFab && panel === PANEL.NONE && (
+        <div className="map-tooltip map-tooltip--fab" onClick={dismissTipFab} role="status">
+          <span className="map-tooltip-text">Tap to share how you're feeling</span>
+          <button className="map-tooltip-close" onClick={(e) => { e.stopPropagation(); dismissTipFab() }} aria-label="Dismiss">✕</button>
+        </div>
+      )}
+
+      {/* First-pin tooltip */}
+      {tipPin && panel === PANEL.NONE && (
+        <div className="map-tooltip map-tooltip--top" onClick={dismissTipPin} role="status">
+          <span className="map-tooltip-text">Tap a pin to connect anonymously</span>
+          <button className="map-tooltip-close" onClick={(e) => { e.stopPropagation(); dismissTipPin() }} aria-label="Dismiss">✕</button>
+        </div>
+      )}
+
+      {/* First-pin celebration ripple */}
+      {celebration && (
+        <div className="celebration" aria-live="polite" aria-atomic="true">
+          <div className="celebration-ring" />
+          <div className="celebration-ring" />
+          <div className="celebration-ring" />
+          <p className="celebration-text">✨ Pin dropped!</p>
+        </div>
+      )}
+
       {/* Neighbourhood summary card */}
       {neighbourhood && (
         <div className="neighbourhood-overlay" onClick={() => setNeighbourhood(null)}>
@@ -145,15 +253,6 @@ export default function App() {
             <p className="neighbourhood-count">{neighbourhood.count} feeling{neighbourhood.count !== 1 ? 's' : ''} in this area</p>
             <p className="neighbourhood-hint">Tap outside to dismiss</p>
           </div>
-        </div>
-      )}
-
-      {panel === PANEL.NONE && (
-        <div className="tap-hint" aria-live="polite">
-          Tap the map to share how you're doing
-          {unreadCount > 0 && (
-            <span className="tap-hint-badge" aria-label={`${unreadCount} unread`}>{unreadCount}</span>
-          )}
         </div>
       )}
 
@@ -171,6 +270,10 @@ export default function App() {
           pin={activePin}
           onClose={() => setPanel(PANEL.NONE)}
         />
+      )}
+
+      {panel === PANEL.HELP && (
+        <HelpPanel onClose={() => setPanel(PANEL.NONE)} />
       )}
     </div>
   )

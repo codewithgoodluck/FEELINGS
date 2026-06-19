@@ -113,7 +113,15 @@ function ConversationThread({ conversationId, pin, user, onBack }) {
   const bottomRef     = useRef(null)
   const chatBottomRef = useRef(null)
   const isOwn         = user.uid === pin.uid
-  const myIdentity = getAnonIdentity(user.uid, pin.country)
+  const myIdentity    = getAnonIdentity(user.uid, pin.country)
+
+  const [chatTip, setChatTip] = useState(
+    () => !isOwn && localStorage.getItem('feelin_tip_chat') !== '1'
+  )
+  function dismissChatTip() {
+    localStorage.setItem('feelin_tip_chat', '1')
+    setChatTip(false)
+  }
 
   const voice = useVoiceRecorder(async (url) => {
     await sendMessage(conversationId, { uid: user.uid, text: '', voiceUrl: url })
@@ -218,6 +226,14 @@ function ConversationThread({ conversationId, pin, user, onBack }) {
         })}
         <div ref={bottomRef} />
       </div>
+
+      {/* One-time chat tip */}
+      {chatTip && messages.length === 0 && (
+        <div className="chat-tip" onClick={dismissChatTip}>
+          <span>💬 Messages are anonymous — say hello!</span>
+          <button className="map-tooltip-close" onClick={dismissChatTip} aria-label="Dismiss">✕</button>
+        </div>
+      )}
 
       {/* GIF picker — portal so it floats above keyboard without clipping the input row */}
       {showGifs && !voiceActive && createPortal(

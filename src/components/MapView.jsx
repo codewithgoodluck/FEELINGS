@@ -134,12 +134,13 @@ function buildGeoJSON(pins) {
 export default function MapView({
   onPinClick, onMapClick, onDeletePin,
   userLocation, unreadPinIds, activePinId,
-  onNeighbourhoodClick,
+  onNeighbourhoodClick, onFirstPins,
 }) {
   const mapContainer  = useRef(null)
   const map           = useRef(null)
   const markersRef    = useRef({})
   const styleInjected = useRef(false)
+  const firstPinsFired = useRef(false)
   const [mapReady, setMapReady] = useState(false)
   const { user } = useAuth()
 
@@ -148,10 +149,12 @@ export default function MapView({
   const onDeletePinRef         = useRef(onDeletePin)
   const onMapClickRef          = useRef(onMapClick)
   const onNeighbourhoodClickRef = useRef(onNeighbourhoodClick)
+  const onFirstPinsRef          = useRef(onFirstPins)
   onPinClickRef.current           = onPinClick
   onDeletePinRef.current          = onDeletePin
   onMapClickRef.current           = onMapClick
   onNeighbourhoodClickRef.current = onNeighbourhoodClick
+  onFirstPinsRef.current          = onFirstPins
 
   // ── Sync marker visibility to current zoom level ──────────────────────────
 
@@ -279,6 +282,12 @@ export default function MapView({
     const unsub = subscribeToPins((pins) => {
       // Update neighbourhood GeoJSON clusters
       updateNeighbourhoods(pins)
+
+      // Fire onFirstPins once when pins first arrive
+      if (!firstPinsFired.current && pins.length > 0) {
+        firstPinsFired.current = true
+        onFirstPinsRef.current?.()
+      }
 
       // Remove stale markers
       const currentIds = new Set(pins.map((p) => p.id))
