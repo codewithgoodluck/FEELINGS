@@ -59,7 +59,6 @@ export default function GifPicker({ onSelect, onClose }) {
           placeholder="Search GIFs…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          autoFocus
         />
         <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
       </div>

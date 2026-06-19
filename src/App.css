@@ -384,7 +384,8 @@
   flex-direction: column;
   overflow: hidden;           /* message list scrolls internally */
   padding-bottom: 0;          /* chat-bottom handles its own safe-area padding */
-  max-height: min(88vh, 88dvh);
+  /* --vv-height shrinks when the software keyboard opens; dvh fallback for desktop */
+  max-height: calc(var(--vv-height, 88dvh) - 0.5rem);
 }
 
 .chat-header {
@@ -773,6 +774,42 @@
   letter-spacing: 0.04em;
   width: 44px;
   border-radius: var(--r-sm);
+}
+
+.gif-toggle-btn--active {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.3);
+  color: var(--ink-0);
+}
+
+/* ── GIF portal — fixed overlay above keyboard, always visible on mobile ── */
+
+.gif-portal {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 220;
+  background: var(--sheet-bg);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 24px rgba(0,0,0,0.4);
+}
+
+.gif-portal .gif-picker {
+  margin-bottom: 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+}
+
+@media (min-width: 640px) {
+  .gif-portal {
+    left: auto;
+    right: 1.25rem;
+    width: 380px;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-radius: var(--r-md) var(--r-md) 0 0;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

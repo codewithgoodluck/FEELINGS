@@ -19,6 +19,8 @@ function useKeyboardOffset() {
     function update() {
       const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
       document.documentElement.style.setProperty('--vv-bottom', offset + 'px')
+      // --vv-height = actual visible area height (shrinks when keyboard opens)
+      document.documentElement.style.setProperty('--vv-height', vv.height + 'px')
     }
     vv.addEventListener('resize', update)
     vv.addEventListener('scroll', update)

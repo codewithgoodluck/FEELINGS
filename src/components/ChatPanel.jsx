@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   getOrCreateConversation,
   subscribeToMessages,
@@ -109,8 +110,9 @@ function ConversationThread({ conversationId, pin, user, onBack }) {
   const [sending, setSending]           = useState(false)
   const [showGifs, setShowGifs]         = useState(false)
   const [pendingGif, setPendingGif]     = useState(null)
-  const bottomRef  = useRef(null)
-  const isOwn      = user.uid === pin.uid
+  const bottomRef     = useRef(null)
+  const chatBottomRef = useRef(null)
+  const isOwn         = user.uid === pin.uid
   const myIdentity = getAnonIdentity(user.uid, pin.country)
 
   const voice = useVoiceRecorder(async (url) => {
@@ -217,8 +219,19 @@ function ConversationThread({ conversationId, pin, user, onBack }) {
         <div ref={bottomRef} />
       </div>
 
+      {/* GIF picker — portal so it floats above keyboard without clipping the input row */}
+      {showGifs && !voiceActive && createPortal(
+        <div
+          className="gif-portal"
+          style={{ bottom: `calc(var(--vv-bottom, 0px) + ${chatBottomRef.current?.offsetHeight ?? 72}px)` }}
+        >
+          <GifPicker onSelect={handleGifSelect} onClose={() => setShowGifs(false)} />
+        </div>,
+        document.body
+      )}
+
       {/* Sticky bottom */}
-      <div className="chat-bottom">
+      <div className="chat-bottom" ref={chatBottomRef}>
         {/* Voice recorder UI */}
         {voiceActive && (
           <div className="voice-bar">
@@ -247,11 +260,6 @@ function ConversationThread({ conversationId, pin, user, onBack }) {
           </div>
         )}
 
-        {/* GIF picker */}
-        {showGifs && !voiceActive && (
-          <GifPicker onSelect={handleGifSelect} onClose={() => setShowGifs(false)} />
-        )}
-
         {/* Pending GIF preview */}
         {pendingGif && !voiceActive && (
           <div className="gif-preview-bar">
@@ -264,14 +272,13 @@ function ConversationThread({ conversationId, pin, user, onBack }) {
         {!voiceActive && (
           <div className="chat-input-row">
             <button
-              className="icon-btn gif-toggle-btn"
+              className={`icon-btn gif-toggle-btn${showGifs ? ' gif-toggle-btn--active' : ''}`}
               onClick={() => { setPendingGif(null); setShowGifs(!showGifs) }}
               aria-label="Send a GIF"
               aria-pressed={showGifs}
             >
               GIF
             </button>
-            {/* Voice record button */}
             <button
               className="icon-btn voice-btn"
               onClick={voice.startRecording}
