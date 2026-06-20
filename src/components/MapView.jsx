@@ -141,6 +141,7 @@ export default function MapView({
   const markersRef    = useRef({})
   const styleInjected = useRef(false)
   const firstPinsFired = useRef(false)
+  const unreadPinIdsRef = useRef(unreadPinIds)
   const [mapReady, setMapReady] = useState(false)
   const { user } = useAuth()
 
@@ -155,6 +156,7 @@ export default function MapView({
   onMapClickRef.current           = onMapClick
   onNeighbourhoodClickRef.current = onNeighbourhoodClick
   onFirstPinsRef.current          = onFirstPins
+  unreadPinIdsRef.current         = unreadPinIds
 
   // ── Sync marker visibility to current zoom level ──────────────────────────
 
@@ -395,6 +397,13 @@ export default function MapView({
         if (zoom <= CLUSTER_ZOOM) {
           wrap.style.opacity       = '0'
           wrap.style.pointerEvents = 'none'
+        }
+
+        if (unreadPinIdsRef.current?.has(pin.id)) {
+          const msgBadge = document.createElement('div')
+          msgBadge.className   = 'hay-msg-badge'
+          msgBadge.textContent = '💬'
+          wrap.appendChild(msgBadge)
         }
 
         markersRef.current[pin.id] = { marker, wrap }

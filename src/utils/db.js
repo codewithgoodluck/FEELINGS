@@ -91,7 +91,7 @@ export function subscribeToMessages(conversationId, callback) {
   return onSnapshot(q, (snap) => {
     const messages = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
     callback(messages)
-  })
+  }, (err) => console.error('subscribeToMessages:', err))
 }
 
 // Send a message (text, GIF, or voice note)
@@ -123,7 +123,7 @@ export async function requestReveal(conversationId, uid, displayName) {
 export function subscribeToConversation(conversationId, callback) {
   return onSnapshot(doc(db, 'conversations', conversationId), (snap) => {
     if (snap.exists()) callback({ id: snap.id, ...snap.data() })
-  })
+  }, (err) => console.error('subscribeToConversation:', err))
 }
 
 // Get all conversations for a pin (for pin owner inbox) — single-field equality, no composite index
