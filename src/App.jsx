@@ -10,6 +10,8 @@ import HelpPanel from './components/HelpPanel'
 import { createPin, deactivatePin, subscribeToUserConversations } from './utils/db'
 import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry } from './utils/location'
 import { recordCheckIn } from './utils/streak'
+import { initPresence, heartbeat, markInactive } from './utils/presence'
+import StatsPanel from './components/StatsPanel'
 import './App.css'
 
 const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', HELP: 'help' }
@@ -199,6 +201,10 @@ export default function App() {
         />
       )}
 
+      {user && <PresenceTracker user={user} userLocation={userLocation} />}
+
+      <StatsPanel />
+
       {/* Help button */}
       <button
         className="help-btn"
@@ -277,6 +283,29 @@ export default function App() {
       )}
     </div>
   )
+}
+
+// ── Presence tracker ─────────────────────────────────────────────────────────
+
+function PresenceTracker({ user, userLocation }) {
+  useEffect(() => {
+    if (!user?.uid) return
+    initPresence(user.uid, userLocation?.lat ?? null, userLocation?.lng ?? null)
+    const interval = setInterval(() => heartbeat(user.uid), 30_000)
+    function onVisibility() {
+      if (document.hidden) markInactive(user.uid)
+      else heartbeat(user.uid)
+    }
+    function onUnload() { markInactive(user.uid) }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('beforeunload', onUnload)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('beforeunload', onUnload)
+    }
+  }, [user?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
+  return null
 }
 
 // ── Notification manager ──────────────────────────────────────────────────────
