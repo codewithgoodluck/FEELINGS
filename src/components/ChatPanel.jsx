@@ -43,6 +43,7 @@ function useVoiceRecorder(onSend) {
 
   function stopRecording() {
     recorderRef.current?.stop()
+    recorderRef.current = null
     clearInterval(timerRef.current)
     setRecording(false)
   }
@@ -66,16 +67,17 @@ function useVoiceRecorder(onSend) {
       setRecording(true)
       setSeconds(0)
       timerRef.current = setInterval(() => {
-        setSeconds((s) => {
-          if (s >= 9) { stopRecording(); return 10 }
-          return s + 1
-        })
+        setSeconds((s) => s + 1)
       }, 1000)
     } catch (err) {
       console.error('Mic access denied:', err)
       alert('Microphone access is needed for voice notes. Please allow it and try again.')
     }
   }
+
+  useEffect(() => {
+    if (seconds >= 10) stopRecording()
+  }, [seconds])
 
   function cancel() {
     stopRecording()
