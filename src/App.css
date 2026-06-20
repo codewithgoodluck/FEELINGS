@@ -1854,3 +1854,34 @@
   .stats-num  { font-size: 1.25rem; min-width: 3rem; }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   MESSAGE TOAST
+═══════════════════════════════════════════════════════════════════════════ */
+
+.msg-toast {
+  position: fixed;
+  top: max(1rem, env(safe-area-inset-top, 1rem));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  background: rgba(18, 18, 24, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-h);
+  border-radius: var(--r-pill);
+  padding: 0.55rem 1.25rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink-0);
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  animation: toastIn 0.3s var(--ease-out) both;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-12px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0)     scale(1);    }
+}
+

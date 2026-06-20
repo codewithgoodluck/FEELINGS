@@ -111,13 +111,15 @@ const PIN_STYLE = `
   /* ── Message badge ─────────────────────────────── */
   .hay-msg-badge {
     position: absolute; bottom: -6px; left: -6px;
-    width: 20px; height: 20px; border-radius: 50%;
+    width: 22px; height: 22px; border-radius: 50%;
     background: #5b8af5; border: 2px solid #0f1117;
     display: flex; align-items: center; justify-content: center;
-    font-size: 10px; color: #fff; pointer-events: none; z-index: 2;
-    animation: msgPop 0.3s cubic-bezier(0.22,1,0.36,1) both;
+    font-size: 11px; color: #fff; pointer-events: none; z-index: 2;
+    animation: msgPop 0.3s cubic-bezier(0.22,1,0.36,1) both,
+               msgPulse 2s ease-in-out 0.3s infinite;
   }
-  @keyframes msgPop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes msgPop   { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes msgPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(91,138,245,0.6); } 50% { box-shadow: 0 0 0 6px rgba(91,138,245,0); } }
 `
 
 function buildGeoJSON(pins) {

@@ -65,6 +65,7 @@ export default function App() {
   const [activePin, setActivePin]             = useState(null)
   const [unreadCount, setUnreadCount]         = useState(0)
   const [unreadPinIds, setUnreadPinIds]       = useState(new Set())
+  const [toast, setToast]                     = useState(null)
   const [neighbourhood, setNeighbourhood]     = useState(null) // { mood, count }
   const [wantCheckIn, setWantCheckIn]         = useState(false)
   const [celebration, setCelebration]         = useState(false)
@@ -197,8 +198,13 @@ export default function App() {
           user={user}
           onUnreadCount={setUnreadCount}
           onUnreadPinIds={setUnreadPinIds}
+          onToast={setToast}
           prevConvsRef={prevConvsRef}
         />
+      )}
+
+      {toast && (
+        <MessageToast text={toast} onDismiss={() => setToast(null)} />
       )}
 
       {user && <PresenceTracker user={user} userLocation={userLocation} />}
@@ -285,6 +291,20 @@ export default function App() {
   )
 }
 
+// ── Message toast ────────────────────────────────────────────────────────────
+
+function MessageToast({ text, onDismiss }) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 5000)
+    return () => clearTimeout(t)
+  }, [onDismiss])
+  return (
+    <div className="msg-toast" onClick={onDismiss} role="alert">
+      💬 {text}
+    </div>
+  )
+}
+
 // ── Presence tracker ─────────────────────────────────────────────────────────
 
 function PresenceTracker({ user, userLocation }) {
@@ -310,7 +330,7 @@ function PresenceTracker({ user, userLocation }) {
 
 // ── Notification manager ──────────────────────────────────────────────────────
 
-function NotificationManager({ user, onUnreadCount, onUnreadPinIds, prevConvsRef }) {
+function NotificationManager({ user, onUnreadCount, onUnreadPinIds, onToast, prevConvsRef }) {
   const notifGranted = useRef(false)
 
   useEffect(() => {
@@ -339,14 +359,18 @@ function NotificationManager({ user, onUnreadCount, onUnreadPinIds, prevConvsRef
           const prevTs = prev?.lastMessageAt?.seconds
             ? prev.lastMessageAt.seconds * 1000
             : prev?.lastMessageAt?.toDate?.()?.getTime?.() ?? 0
-          if (prev !== undefined && ts > prevTs && notifGranted.current && document.hidden) {
-            try {
-              new Notification('HowAreYou 💬', {
-                body: conv.lastMessagePreview || 'New message',
-                icon: '/favicon.svg',
-                tag:  conv.id,
-              })
-            } catch {}
+          if (prev !== undefined && ts > prevTs) {
+            if (notifGranted.current && document.hidden) {
+              try {
+                new Notification('HowAreYou 💬', {
+                  body: conv.lastMessagePreview || 'New message',
+                  icon: '/favicon.svg',
+                  tag:  conv.id,
+                })
+              } catch {}
+            } else if (!document.hidden) {
+              onToast?.(conv.lastMessagePreview || 'New message')
+            }
           }
         }
       })
