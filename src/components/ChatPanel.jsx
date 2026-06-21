@@ -12,6 +12,9 @@ import {
 import { getAnonIdentity, getAnonColour } from '../utils/identity'
 import { uploadVoice, getSupportedMimeType } from '../utils/voiceStorage'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
+import { auth } from '../firebase'
+import { linkWithPopup, GoogleAuthProvider } from 'firebase/auth'
 import GifPicker from './GifPicker'
 
 function markSeen(convId) {
@@ -31,6 +34,7 @@ function isUnread(conv, myUid) {
 // ── Voice recorder hook ───────────────────────────────────────────────────────
 
 function useVoiceRecorder(onSend) {
+  const showToast = useToast()
   const [recording, setRecording]       = useState(false)
   const [seconds, setSeconds]           = useState(0)
   const [blob, setBlob]                 = useState(null)
@@ -51,7 +55,7 @@ function useVoiceRecorder(onSend) {
 
   async function startRecording() {
     if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      alert('Voice notes are not supported in this browser. Try Chrome or Firefox.')
+      showToast('Voice notes are not supported in this browser. Try Chrome or Firefox.', 'error')
       return
     }
     try {
@@ -79,7 +83,7 @@ function useVoiceRecorder(onSend) {
       }, 1000)
     } catch (err) {
       console.error('Mic access denied:', err)
-      alert('Microphone access is needed for voice notes. Please allow it and try again.')
+      showToast('Microphone access is needed for voice notes. Please allow it and try again.', 'error')
     }
   }
 
@@ -104,7 +108,7 @@ function useVoiceRecorder(onSend) {
       cancel()
     } catch (err) {
       console.error('Voice upload failed:', err, err?.code, err?.message)
-      alert(`Failed to send voice note — ${err?.message || 'check your connection'}.`)
+      showToast(`Failed to send voice note — ${err?.message || 'check your connection'}.`, 'error')
     }
     setUploading(false)
   }
@@ -179,8 +183,22 @@ function ConversationThread({ conversationId, pin, user, onBack }) {
   function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
+  const showToast = useToast()
+
   async function handleReveal() {
-    await requestReveal(conversationId, user.uid, user.displayName || myIdentity)
+    if (user.isAnonymous) {
+      const provider = new GoogleAuthProvider()
+      try {
+        await linkWithPopup(auth.currentUser, provider)
+      } catch (err) {
+        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return
+        if (err.code === 'auth/credential-already-in-use') {
+          showToast('This Google account is already linked to another profile.', 'error'); return
+        }
+        showToast(err.message || 'Sign-in failed. Please try again.', 'error'); return
+      }
+    }
+    await requestReveal(conversationId, auth.currentUser.uid, auth.currentUser.displayName || myIdentity)
   }
 
   const voiceActive = voice.recording || !!voice.blob
@@ -410,10 +428,12 @@ export default function ChatPanel({ pin, onClose }) {
       .catch((err) => { console.error('Chat init failed:', err); setConnError(true) })
   }, [pin.id, user.uid, pin.uid, isOwn])
 
+  const showToastOuter = useToast()
+
   async function handleReport() {
     await reportPin(pin.id, user.uid, 'User report')
     setShowReport(false)
-    alert('Thanks — this pin has been reported.')
+    showToastOuter('Thanks — this pin has been reported.', 'success')
   }
 
   function retry() {

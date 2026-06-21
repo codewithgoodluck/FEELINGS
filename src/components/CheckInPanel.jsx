@@ -11,7 +11,7 @@ const MOODS = [
   { emoji: '😌', label: 'Calm' },
 ]
 
-export default function CheckInPanel({ location, onSubmit, onClose, initialMood }) {
+export default function CheckInPanel({ location, onSubmit, onClose, initialMood, placeName }) {
   const [selectedMood, setSelectedMood] = useState(
     initialMood ? (MOODS.find((m) => m.emoji === initialMood) ?? null) : null
   )
@@ -54,6 +54,9 @@ export default function CheckInPanel({ location, onSubmit, onClose, initialMood 
       </div>
 
       <h2 className="panel-title">How are you doing?</h2>
+      {placeName && (
+        <p className="checkin-location-label">📍 Posting near {placeName}</p>
+      )}
       <p className={`panel-sub ${isFlash ? 'panel-sub--flash' : ''}`}>
         {isFlash
           ? '⚡ This pin vanishes in 60 seconds — say it and let it go.'

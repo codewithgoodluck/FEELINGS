@@ -61,6 +61,13 @@ export async function deactivatePin(pinId) {
   await updateDoc(doc(db, 'pins', pinId), { active: false })
 }
 
+// Fetch a single pin by ID (works even if active: false, for conversation history)
+export async function getPin(pinId) {
+  const snap = await getDoc(doc(db, 'pins', pinId))
+  if (!snap.exists()) return null
+  return { id: snap.id, ...snap.data() }
+}
+
 // ─── CONVERSATIONS ────────────────────────────────────────────────────────────
 
 // Deterministic conversation ID — same two users on the same pin always

@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { subscribeToPins } from '../utils/db'
 import { getAnonColour, getCountryColour } from '../utils/identity'
+import { countryFlag } from '../utils/presence'
 import { useAuth } from '../contexts/AuthContext'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
@@ -120,6 +121,27 @@ const PIN_STYLE = `
   }
   @keyframes msgPop   { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   @keyframes msgPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(91,138,245,0.6); } 50% { box-shadow: 0 0 0 6px rgba(91,138,245,0); } }
+
+  /* ── Mood badge (bottom-right corner of pin) ────── */
+  .hay-pin-mood {
+    position: absolute; bottom: -5px; right: -5px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(15,17,23,0.88); border: 1.5px solid rgba(255,255,255,0.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; pointer-events: none; z-index: 4;
+  }
+
+  /* ── Location preview pulse ─────────────────────── */
+  .hay-preview-pin {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: rgba(91,138,245,0.9); border: 2.5px solid #fff;
+    animation: previewPulse 1.5s ease-out infinite;
+  }
+  @keyframes previewPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(91,138,245,0.5); }
+    70%  { box-shadow: 0 0 0 14px rgba(91,138,245,0); }
+    100% { box-shadow: 0 0 0 0 rgba(91,138,245,0); }
+  }
 `
 
 function buildGeoJSON(pins) {
@@ -136,13 +158,14 @@ function buildGeoJSON(pins) {
 export default function MapView({
   onPinClick, onMapClick, onDeletePin,
   userLocation, unreadPinIds, activePinId,
-  onNeighbourhoodClick, onFirstPins,
+  onNeighbourhoodClick, onFirstPins, previewLocation,
 }) {
-  const mapContainer  = useRef(null)
-  const map           = useRef(null)
-  const markersRef    = useRef({})
-  const styleInjected = useRef(false)
-  const firstPinsFired = useRef(false)
+  const mapContainer    = useRef(null)
+  const map             = useRef(null)
+  const markersRef      = useRef({})
+  const previewMarkerRef = useRef(null)
+  const styleInjected   = useRef(false)
+  const firstPinsFired  = useRef(false)
   const unreadPinIdsRef = useRef(unreadPinIds)
   const [mapReady, setMapReady] = useState(false)
   const { user } = useAuth()
@@ -272,10 +295,19 @@ export default function MapView({
       onMapClickRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng })
     })
 
-    // Zoom changes toggle between cluster view and individual marker view
+    // Sync markers on every zoom tick (rAF-throttled) and on zoomend
+    let rafId = null
+    function throttledSync() {
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => { syncMarkerVisibility(); rafId = null })
+    }
+    map.current.on('zoom',    throttledSync)
     map.current.on('zoomend', syncMarkerVisibility)
 
-    return () => { if (map.current) map.current.remove() }
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      if (map.current) map.current.remove()
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Subscribe to pins ─────────────────────────────────────────────────────
@@ -327,9 +359,15 @@ export default function MapView({
 
         const inner = document.createElement('span')
         inner.className   = 'hay-pin-inner'
-        inner.textContent = pin.mood || '💬'
+        inner.textContent = countryFlag(pin.country)
         el.appendChild(inner)
         wrap.appendChild(el)
+
+        // Mood badge (bottom-right corner)
+        const moodBadge = document.createElement('div')
+        moodBadge.className   = 'hay-pin-mood'
+        moodBadge.textContent = pin.mood || '💬'
+        wrap.appendChild(moodBadge)
 
         // Verified badge (top-right)
         if (pin.verified && !pin.isFlash) {
@@ -442,6 +480,20 @@ export default function MapView({
       }
     })
   }, [unreadPinIds])
+
+  // ── Preview location marker (pulsing dot while check-in panel is open) ───
+
+  useEffect(() => {
+    previewMarkerRef.current?.remove()
+    previewMarkerRef.current = null
+    if (!previewLocation || !map.current) return
+    const el = document.createElement('div')
+    el.className = 'hay-preview-pin'
+    previewMarkerRef.current = new mapboxgl.Marker({ element: el, anchor: 'center' })
+      .setLngLat([previewLocation.lng, previewLocation.lat])
+      .addTo(map.current)
+    return () => { previewMarkerRef.current?.remove(); previewMarkerRef.current = null }
+  }, [previewLocation])
 
   return (
     <div

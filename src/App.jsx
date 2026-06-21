@@ -7,14 +7,16 @@ import LocationPrompt from './components/LocationPrompt'
 import MirrorPrompt from './components/MirrorPrompt'
 import OnboardingTour from './components/OnboardingTour'
 import HelpPanel from './components/HelpPanel'
-import { createPin, deactivatePin, subscribeToUserConversations } from './utils/db'
-import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry } from './utils/location'
+import { createPin, deactivatePin, subscribeToUserConversations, getPin } from './utils/db'
+import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry, reverseGeocodePlaceName } from './utils/location'
+import { getAnonColour, getAnonIdentity } from './utils/identity'
 import { recordCheckIn } from './utils/streak'
 import { initPresence, heartbeat, markInactive } from './utils/presence'
+import { useToast } from './contexts/ToastContext'
 import StatsPanel from './components/StatsPanel'
 import './App.css'
 
-const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', HELP: 'help' }
+const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', HELP: 'help', INBOX: 'inbox' }
 
 function useTip(key) {
   const [visible, setVisible] = useState(false)
@@ -65,6 +67,8 @@ export default function App() {
   const [activePin, setActivePin]             = useState(null)
   const [unreadCount, setUnreadCount]         = useState(0)
   const [unreadPinIds, setUnreadPinIds]       = useState(new Set())
+  const [conversations, setConversations]     = useState([])
+  const [placeName, setPlaceName]             = useState(null)
   const [toast, setToast]                     = useState(null)
   const [neighbourhood, setNeighbourhood]     = useState(null) // { mood, count }
   const [wantCheckIn, setWantCheckIn]         = useState(false)
@@ -140,7 +144,9 @@ export default function App() {
   function handleMapClick(lngLat) {
     if (panel !== PANEL.NONE) { setPanel(PANEL.NONE); return }
     setPendingLocation(lngLat)
+    setPlaceName(null)
     setPanel(PANEL.CHECKIN)
+    reverseGeocodePlaceName(lngLat.lat, lngLat.lng).then(setPlaceName).catch(() => {})
   }
 
   function handlePinClick(pin) {
@@ -172,8 +178,13 @@ export default function App() {
   function handleFabClick() {
     dismissTipFab()
     if (panel !== PANEL.NONE) { setPanel(PANEL.NONE); return }
-    setPendingLocation(userLocation || { lat: 20, lng: 0 })
+    const loc = userLocation || { lat: 20, lng: 0 }
+    setPendingLocation(loc)
+    setPlaceName(null)
     setPanel(PANEL.CHECKIN)
+    if (userLocation) {
+      reverseGeocodePlaceName(loc.lat, loc.lng).then(setPlaceName).catch(() => {})
+    }
   }
 
   function handleNeighbourhoodClick({ mood, count }) {
@@ -191,6 +202,7 @@ export default function App() {
         onFirstPins={showTipPin}
         unreadPinIds={unreadPinIds}
         activePinId={panel === PANEL.CHAT ? activePin?.id : null}
+        previewLocation={panel === PANEL.CHECKIN ? pendingLocation : null}
       />
 
       {user && (
@@ -198,6 +210,7 @@ export default function App() {
           user={user}
           onUnreadCount={setUnreadCount}
           onUnreadPinIds={setUnreadPinIds}
+          onConversations={setConversations}
           onToast={setToast}
           prevConvsRef={prevConvsRef}
         />
@@ -225,7 +238,14 @@ export default function App() {
         <button className="fab" onClick={handleFabClick} aria-label="Share how you're feeling">
           +
           {unreadCount > 0 && (
-            <span className="fab-badge" aria-label={`${unreadCount} unread`}>{unreadCount}</span>
+            <span
+              className="fab-badge"
+              role="button"
+              aria-label={`${unreadCount} unread messages`}
+              onClick={(e) => { e.stopPropagation(); setPanel(PANEL.INBOX) }}
+            >
+              {unreadCount}
+            </span>
           )}
         </button>
       )}
@@ -274,6 +294,7 @@ export default function App() {
           onSubmit={handleCheckInSubmit}
           onClose={() => setPanel(PANEL.NONE)}
           initialMood={mirrorMood}
+          placeName={placeName}
         />
       )}
 
@@ -286,6 +307,15 @@ export default function App() {
 
       {panel === PANEL.HELP && (
         <HelpPanel onClose={() => setPanel(PANEL.NONE)} />
+      )}
+
+      {panel === PANEL.INBOX && (
+        <InboxSheet
+          conversations={conversations}
+          user={user}
+          onOpenPin={(pin) => { setActivePin(pin); setPanel(PANEL.CHAT) }}
+          onClose={() => setPanel(PANEL.NONE)}
+        />
       )}
     </div>
   )
@@ -328,9 +358,86 @@ function PresenceTracker({ user, userLocation }) {
   return null
 }
 
+// ── Global messages inbox ─────────────────────────────────────────────────────
+
+function InboxSheet({ conversations, user, onOpenPin, onClose }) {
+  const [loadingId, setLoadingId] = useState(null)
+  const showToast = useToast()
+
+  const withActivity = conversations.filter((c) => c.lastMessageAt)
+  const unread = withActivity.filter((c) => {
+    if (c.lastMessageUid === user.uid) return false
+    const ts = c.lastMessageAt?.seconds
+      ? c.lastMessageAt.seconds * 1000
+      : c.lastMessageAt?.toDate?.()?.getTime?.() ?? 0
+    return ts > lastSeen(c.id)
+  })
+  const responded = withActivity.filter((c) => c.lastMessageUid === user.uid)
+  const other     = withActivity.filter((c) => !unread.includes(c) && !responded.includes(c))
+
+  async function handleTap(conv) {
+    setLoadingId(conv.id)
+    try {
+      const pin = await getPin(conv.pinId)
+      if (!pin) { showToast('This pin has expired.', 'info'); setLoadingId(null); return }
+      onOpenPin(pin)
+    } catch { showToast("Couldn't open this conversation.", 'error') }
+    setLoadingId(null)
+  }
+
+  function ConvItem({ conv }) {
+    const isLoading = loadingId === conv.id
+    const isUnread  = unread.includes(conv)
+    const otherUid  = conv.participants?.find((p) => p !== user.uid)
+    const name      = otherUid ? getAnonIdentity(otherUid, null) : 'Someone'
+    const bg        = otherUid ? getAnonColour(otherUid) : '#444'
+    return (
+      <button
+        className={`inbox-item${isUnread ? ' inbox-item--unread' : ''}`}
+        onClick={() => handleTap(conv)}
+        disabled={isLoading}
+      >
+        <div className="inbox-item-avatar" style={{ background: bg }}>
+          {conv.lastMessagePreview?.slice(0, 1) || '💬'}
+        </div>
+        <div className="inbox-item-body">
+          <p className="inbox-item-name">{name}</p>
+          <p className="inbox-item-preview">{isLoading ? 'Opening…' : (conv.lastMessagePreview || 'No messages yet')}</p>
+        </div>
+        {isUnread && <span className="inbox-unread-dot" aria-label="Unread" />}
+      </button>
+    )
+  }
+
+  return (
+    <div className="panel slide-up inbox-panel" role="dialog" aria-label="Messages inbox">
+      <div className="panel-handle" />
+      <div className="inbox-header">
+        <h2 className="inbox-title">Messages</h2>
+        <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+      </div>
+      {withActivity.length === 0 ? (
+        <div className="empty-state"><p>No conversations yet.<br />Tap a pin on the map to start one.</p></div>
+      ) : (
+        <>
+          {unread.length > 0 && (
+            <><p className="inbox-section-label">Unread</p>{unread.map((c) => <ConvItem key={c.id} conv={c} />)}</>
+          )}
+          {responded.length > 0 && (
+            <><p className="inbox-section-label">Sent</p>{responded.map((c) => <ConvItem key={c.id} conv={c} />)}</>
+          )}
+          {other.length > 0 && (
+            <><p className="inbox-section-label">Earlier</p>{other.map((c) => <ConvItem key={c.id} conv={c} />)}</>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Notification manager ──────────────────────────────────────────────────────
 
-function NotificationManager({ user, onUnreadCount, onUnreadPinIds, onToast, prevConvsRef }) {
+function NotificationManager({ user, onUnreadCount, onUnreadPinIds, onConversations, onToast, prevConvsRef }) {
   const notifGranted = useRef(false)
 
   useEffect(() => {
@@ -379,6 +486,7 @@ function NotificationManager({ user, onUnreadCount, onUnreadPinIds, onToast, pre
       prevConvsRef.current = next
       onUnreadCount(unread)
       onUnreadPinIds(pinIds)
+      onConversations?.(convs)
     })
     return unsub
   }, [user?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
