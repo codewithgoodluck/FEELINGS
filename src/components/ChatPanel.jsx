@@ -46,10 +46,15 @@ function useVoiceRecorder(onSend) {
     recorderRef.current?.stop()
     recorderRef.current = null
     clearInterval(timerRef.current)
-    setRecording(false)
+    // setRecording(false) is called inside recorder.onstop to avoid a
+    // flash where voiceActive briefly becomes false before blob is set
   }
 
   async function startRecording() {
+    if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      alert('Voice notes are not supported in this browser. Try Chrome or Firefox.')
+      return
+    }
     try {
       const stream   = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
@@ -60,6 +65,7 @@ function useVoiceRecorder(onSend) {
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop())
+        setRecording(false)
         if (cancelledRef.current) return
         const b = new Blob(chunksRef.current, { type: mimeType || 'audio/webm' })
         setBlob(b)
@@ -84,7 +90,13 @@ function useVoiceRecorder(onSend) {
 
   function cancel() {
     cancelledRef.current = true
-    stopRecording()
+    clearInterval(timerRef.current)
+    if (recorderRef.current) {
+      recorderRef.current.stop()   // onstop will call setRecording(false)
+      recorderRef.current = null
+    } else {
+      setRecording(false)
+    }
     setBlob(null)
     if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null) }
     setSeconds(0)
@@ -95,11 +107,11 @@ function useVoiceRecorder(onSend) {
     setUploading(true)
     try {
       const url = await uploadVoice(blob)
-      await onSend(url)
+      await onSend(url, blob.type || 'audio/webm')
       cancel()
     } catch (err) {
-      console.error('Voice upload failed:', err)
-      alert('Failed to send voice note — check your connection.')
+      console.error('Voice upload failed:', err, err?.code, err?.message)
+      alert(`Failed to send voice note — ${err?.message || 'check your connection'}.`)
     }
     setUploading(false)
   }
@@ -129,8 +141,8 @@ function ConversationThread({ conversationId, pin, user, onBack }) {
     setChatTip(false)
   }
 
-  const voice = useVoiceRecorder(async (url) => {
-    await sendMessage(conversationId, { uid: user.uid, text: '', voiceUrl: url })
+  const voice = useVoiceRecorder(async (url, mime) => {
+    await sendMessage(conversationId, { uid: user.uid, text: '', voiceUrl: url, voiceMime: mime })
   })
 
   useEffect(() => {
@@ -218,7 +230,9 @@ function ConversationThread({ conversationId, pin, user, onBack }) {
               <p className="message-sender">{getDisplayName(msg.uid)}</p>
               {msg.voiceUrl ? (
                 <div className="message-bubble message-bubble--voice">
-                  <audio controls src={msg.voiceUrl} preload="none" className="voice-audio" />
+                  <audio controls preload="none" className="voice-audio">
+                    <source src={msg.voiceUrl} type={msg.voiceMime || 'audio/webm'} />
+                  </audio>
                 </div>
               ) : msg.gifUrl ? (
                 <div className="message-bubble message-bubble--gif">

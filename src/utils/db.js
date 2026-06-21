@@ -95,10 +95,11 @@ export function subscribeToMessages(conversationId, callback) {
 }
 
 // Send a message (text, GIF, or voice note)
-export async function sendMessage(conversationId, { uid, text, gifUrl, voiceUrl }) {
+export async function sendMessage(conversationId, { uid, text, gifUrl, voiceUrl, voiceMime }) {
   const payload = { uid, text: text || '', createdAt: serverTimestamp() }
-  if (gifUrl)   payload.gifUrl   = gifUrl
-  if (voiceUrl) payload.voiceUrl = voiceUrl
+  if (gifUrl)    payload.gifUrl    = gifUrl
+  if (voiceUrl)  payload.voiceUrl  = voiceUrl
+  if (voiceMime) payload.voiceMime = voiceMime
   await addDoc(collection(db, 'conversations', conversationId, 'messages'), payload)
   await updateDoc(doc(db, 'conversations', conversationId), {
     lastMessageAt:      serverTimestamp(),
