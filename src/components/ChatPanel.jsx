@@ -36,10 +36,11 @@ function useVoiceRecorder(onSend) {
   const [blob, setBlob]                 = useState(null)
   const [previewUrl, setPreviewUrl]     = useState(null)
   const [uploading, setUploading]       = useState(false)
-  const recorderRef = useRef(null)
-  const timerRef    = useRef(null)
-  const chunksRef   = useRef([])
-  const streamRef   = useRef(null)
+  const recorderRef   = useRef(null)
+  const timerRef      = useRef(null)
+  const chunksRef     = useRef([])
+  const streamRef     = useRef(null)
+  const cancelledRef  = useRef(false)
 
   function stopRecording() {
     recorderRef.current?.stop()
@@ -55,12 +56,14 @@ function useVoiceRecorder(onSend) {
       const mimeType = getSupportedMimeType()
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       chunksRef.current = []
+      cancelledRef.current = false
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        if (cancelledRef.current) return
         const b = new Blob(chunksRef.current, { type: mimeType || 'audio/webm' })
         setBlob(b)
         setPreviewUrl(URL.createObjectURL(b))
-        stream.getTracks().forEach((t) => t.stop())
       }
       recorder.start(100)
       recorderRef.current = recorder
@@ -80,6 +83,7 @@ function useVoiceRecorder(onSend) {
   }, [seconds])
 
   function cancel() {
+    cancelledRef.current = true
     stopRecording()
     setBlob(null)
     if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null) }
