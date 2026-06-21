@@ -46,8 +46,7 @@ function useVoiceRecorder(onSend) {
     recorderRef.current?.stop()
     recorderRef.current = null
     clearInterval(timerRef.current)
-    // setRecording(false) is called inside recorder.onstop to avoid a
-    // flash where voiceActive briefly becomes false before blob is set
+    setRecording(false)
   }
 
   async function startRecording() {
@@ -90,13 +89,7 @@ function useVoiceRecorder(onSend) {
 
   function cancel() {
     cancelledRef.current = true
-    clearInterval(timerRef.current)
-    if (recorderRef.current) {
-      recorderRef.current.stop()   // onstop will call setRecording(false)
-      recorderRef.current = null
-    } else {
-      setRecording(false)
-    }
+    stopRecording()
     setBlob(null)
     if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null) }
     setSeconds(0)
@@ -230,9 +223,13 @@ function ConversationThread({ conversationId, pin, user, onBack }) {
               <p className="message-sender">{getDisplayName(msg.uid)}</p>
               {msg.voiceUrl ? (
                 <div className="message-bubble message-bubble--voice">
-                  <audio controls preload="none" className="voice-audio">
-                    <source src={msg.voiceUrl} type={msg.voiceMime || 'audio/webm'} />
-                  </audio>
+                  {msg.voiceMime ? (
+                    <audio controls preload="none" className="voice-audio">
+                      <source src={msg.voiceUrl} type={msg.voiceMime} />
+                    </audio>
+                  ) : (
+                    <audio controls src={msg.voiceUrl} preload="none" className="voice-audio" />
+                  )}
                 </div>
               ) : msg.gifUrl ? (
                 <div className="message-bubble message-bubble--gif">
