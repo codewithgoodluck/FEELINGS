@@ -1,25 +1,27 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { storage } from '../firebase'
-
 export async function uploadVoice(blob) {
   if (!blob || blob.size === 0) throw new Error('Recording is empty — please try again.')
 
-  const name       = `voices/${Date.now()}_${Math.random().toString(36).slice(2)}.webm`
-  const storageRef = ref(storage, name)
-  const metadata   = { contentType: blob.type || 'audio/webm' }
+  const controller = new AbortController()
+  const timeoutId  = setTimeout(() => controller.abort(), 20_000)
 
-  let timeoutId
   try {
-    const snap = await Promise.race([
-      uploadBytes(storageRef, blob, metadata),
-      new Promise((_, reject) => {
-        timeoutId = setTimeout(
-          () => reject(new Error('Upload timed out — Firebase Storage may not be enabled. See console for details.')),
-          20_000
-        )
-      }),
-    ])
-    return getDownloadURL(snap.ref)
+    const res = await fetch('/api/upload-voice', {
+      method:  'POST',
+      headers: { 'Content-Type': blob.type || 'audio/webm' },
+      body:    blob,
+      signal:  controller.signal,
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `Upload failed (${res.status})`)
+    }
+
+    const { url } = await res.json()
+    return url
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Upload timed out — check your connection and try again.')
+    throw err
   } finally {
     clearTimeout(timeoutId)
   }
