@@ -3365,7 +3365,7 @@ html[data-theme="light"] .jl-toast {
 
 @keyframes livePulse {
   0%   { box-shadow: 0 0 0 0    rgba(74,222,128,0.7); }
-  60%  { box-shadow: 0 0 0 16px rgba(74,222,128,0);   }
+  60%  { box-shadow: 0 0 0 28px rgba(74,222,128,0);   }
   100% { box-shadow: 0 0 0 0    rgba(74,222,128,0);   }
 }
 
