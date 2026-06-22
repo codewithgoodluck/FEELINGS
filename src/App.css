@@ -3371,7 +3371,7 @@ html[data-theme="light"] .jl-toast {
 }
 
 .pins-panel-subtitle {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: var(--ink-2);
   line-height: 1;
 }
