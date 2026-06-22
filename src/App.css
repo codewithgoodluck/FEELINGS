@@ -3294,7 +3294,7 @@ html[data-theme="light"] .jl-toast {
   top: 0;
   height: 100%;
   width: min(420px, 100vw);
-  background: var(--sheet-bg);
+  background: var(--sheet-2);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
