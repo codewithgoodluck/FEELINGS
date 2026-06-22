@@ -8,6 +8,7 @@ import {
   sendMessage,
   requestReveal,
   reportPin,
+  setTyping,
 } from '../utils/db'
 import { getAnonIdentity, getAnonColour } from '../utils/identity'
 import { uploadVoice, getSupportedMimeType } from '../utils/voiceStorage'
@@ -147,6 +148,41 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
     setPrivacyNote(false)
   }
 
+  const [expandedMsgId, setExpandedMsgId] = useState(null)
+  const typingTimerRef = useRef(null)
+  const isTypingRef    = useRef(false)
+
+  function formatTime(msg) {
+    const ts = msg.createdAt?.toDate?.()
+            ?? (msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000) : null)
+    if (!ts) return ''
+    return ts.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  }
+
+  function notifyTyping() {
+    if (!conversationId) return
+    if (!isTypingRef.current) {
+      isTypingRef.current = true
+      setTyping(conversationId, user.uid, true).catch(() => {})
+    }
+    clearTimeout(typingTimerRef.current)
+    typingTimerRef.current = setTimeout(() => {
+      isTypingRef.current = false
+      setTyping(conversationId, user.uid, false).catch(() => {})
+    }, 2000)
+  }
+
+  function clearTyping() {
+    clearTimeout(typingTimerRef.current)
+    if (isTypingRef.current && conversationId) {
+      isTypingRef.current = false
+      setTyping(conversationId, user.uid, false).catch(() => {})
+    }
+  }
+
+  // Clear typing status when component unmounts or conversation changes
+  useEffect(() => () => clearTyping(), [conversationId]) // eslint-disable-line
+
   const voice = useVoiceRecorder(async (url, mime) => {
     await sendMessage(conversationId, { uid: user.uid, text: '', voiceUrl: url, voiceMime: mime })
   })
@@ -175,6 +211,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
 
   async function handleSend() {
     if (!input.trim() && !pendingGif) return
+    clearTyping()
     setSending(true)
     try {
       if (pendingGif) {
@@ -244,31 +281,77 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
             {isOwn ? 'Someone reached out — say hi!' : 'Say hello — they\'re waiting to hear from you.'}
           </p>
         )}
-        {messages.map((msg) => {
-          const isMe = msg.uid === user.uid
-          return (
-            <div key={msg.id} className={`message ${isMe ? 'message--mine' : 'message--theirs'}`}>
-              <p className="message-sender">{getDisplayName(msg.uid)}</p>
-              {msg.voiceUrl ? (
-                <div className="message-bubble message-bubble--voice">
-                  {msg.voiceMime ? (
-                    <audio controls preload="none" className="voice-audio">
-                      <source src={msg.voiceUrl} type={msg.voiceMime} />
-                    </audio>
-                  ) : (
-                    <audio controls src={msg.voiceUrl} preload="none" className="voice-audio" />
-                  )}
-                </div>
-              ) : msg.gifUrl ? (
-                <div className="message-bubble message-bubble--gif">
-                  <img src={msg.gifUrl} alt="GIF" className="message-gif" loading="lazy" />
-                </div>
-              ) : (
-                <div className="message-bubble">{msg.text}</div>
-              )}
-            </div>
-          )
-        })}
+        {/* Group consecutive messages from the same sender */}
+        {(() => {
+          const groups = []
+          messages.forEach((msg) => {
+            const last = groups[groups.length - 1]
+            if (last && last[0].uid === msg.uid) last.push(msg)
+            else groups.push([msg])
+          })
+          return groups.map((group) => {
+            const isMe  = group[0].uid === user.uid
+            const multi = group.length > 1
+            return (
+              <div
+                key={group[0].id + '-g'}
+                className={`msg-group ${isMe ? 'msg-group--mine' : 'msg-group--theirs'}`}
+              >
+                <p className="message-sender">{getDisplayName(group[0].uid)}</p>
+                {group.map((msg, mi) => {
+                  const isFirst = mi === 0
+                  const isLast  = mi === group.length - 1
+                  const grpMod  = multi
+                    ? isFirst ? 'msg-grp-first' : isLast ? 'msg-grp-last' : 'msg-grp-mid'
+                    : ''
+                  const bubbleClass = [
+                    'message-bubble',
+                    msg.voiceUrl ? 'message-bubble--voice' : '',
+                    msg.gifUrl   ? 'message-bubble--gif'   : '',
+                    grpMod,
+                  ].filter(Boolean).join(' ')
+                  return (
+                    <div key={msg.id} className={`message ${isMe ? 'message--mine' : 'message--theirs'}`}>
+                      <div
+                        className={bubbleClass}
+                        onClick={() => setExpandedMsgId(id => id === msg.id ? null : msg.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && setExpandedMsgId(id => id === msg.id ? null : msg.id)}
+                        aria-label="Toggle timestamp"
+                      >
+                        {msg.voiceUrl ? (
+                          msg.voiceMime ? (
+                            <audio controls preload="none" className="voice-audio">
+                              <source src={msg.voiceUrl} type={msg.voiceMime} />
+                            </audio>
+                          ) : (
+                            <audio controls src={msg.voiceUrl} preload="none" className="voice-audio" />
+                          )
+                        ) : msg.gifUrl ? (
+                          <img src={msg.gifUrl} alt="GIF" className="message-gif" loading="lazy" />
+                        ) : (
+                          msg.text
+                        )}
+                      </div>
+                      {expandedMsgId === msg.id && (
+                        <p className="msg-time">{formatTime(msg)}</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })
+        })()}
+        {/* Typing indicator */}
+        {otherUid && conversation?.typing?.[otherUid] && (
+          <div className="typing-bubble" aria-label="Other person is typing" aria-live="polite">
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -352,7 +435,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
               className="chat-input"
               placeholder={pendingGif ? 'GIF ready — hit send' : 'Say something…'}
               value={pendingGif ? '' : input}
-              onChange={(e) => !pendingGif && setInput(e.target.value)}
+              onChange={(e) => { if (!pendingGif) { setInput(e.target.value); notifyTyping() } }}
               onKeyDown={handleKeyDown}
               rows={1}
               maxLength={500}

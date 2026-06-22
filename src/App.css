@@ -627,6 +627,72 @@
   border-bottom-left-radius: 4px;
 }
 
+/* ── Message grouping ───────────────────────────────────────────────────── */
+
+.msg-group {
+  display: flex;
+  flex-direction: column;
+  max-width: 82%;
+  gap: 2px;
+}
+.msg-group--mine   { align-self: flex-end; }
+.msg-group--theirs { align-self: flex-start; }
+
+/* Each bubble row inside a group inherits full group width */
+.msg-group .message { max-width: 100%; }
+
+/* Corner radius: "inner" corners of grouped bubbles are tighter */
+.message--mine   .message-bubble.msg-grp-first { border-bottom-right-radius: 5px; }
+.message--mine   .message-bubble.msg-grp-mid   { border-top-right-radius: 5px; border-bottom-right-radius: 5px; }
+.message--mine   .message-bubble.msg-grp-last  { border-top-right-radius: 5px; border-bottom-right-radius: 4px; }
+
+.message--theirs .message-bubble.msg-grp-first { border-bottom-left-radius: 5px; }
+.message--theirs .message-bubble.msg-grp-mid   { border-top-left-radius: 5px; border-bottom-left-radius: 5px; }
+.message--theirs .message-bubble.msg-grp-last  { border-top-left-radius: 5px; border-bottom-left-radius: 4px; }
+
+/* Tap-to-reveal timestamp */
+.msg-time {
+  font-size: 0.625rem;
+  color: var(--ink-4);
+  padding: 2px 4px 3px;
+  animation: msgTimeFade 0.15s ease;
+}
+.message--mine   .msg-time { align-self: flex-end; }
+.message--theirs .msg-time { align-self: flex-start; }
+@keyframes msgTimeFade {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Typing indicator ───────────────────────────────────────────────────── */
+
+.typing-bubble {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--r-lg);
+  border-bottom-left-radius: 4px;
+  background: var(--sheet-2);
+  border: 1px solid var(--border);
+  margin-top: 2px;
+}
+.typing-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  flex-shrink: 0;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.30s; }
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0);    opacity: 0.45; }
+  30%            { transform: translateY(-4px); opacity: 1; }
+}
+
 /* ── Chat bottom — sticky footer with GIF picker + input ───────────────── */
 
 .chat-bottom {
