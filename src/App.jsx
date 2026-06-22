@@ -16,9 +16,12 @@ import StatsPanel from './components/StatsPanel'
 import AmbientPins from './components/AmbientPins'
 import PinSearch from './components/PinSearch'
 import { useTheme } from './hooks/useTheme'
+import ProfilePanel from './components/ProfilePanel'
+import JoinLeaveToast from './components/JoinLeaveToast'
+import { subscribeToLivePresence, countryFlag } from './utils/presence'
 import './App.css'
 
-const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location' }
+const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile' }
 
 // Track tip visibility once per localStorage key
 function useTip(key) {
@@ -68,6 +71,7 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(null)
 
   // ── UI state ───────────────────────────────────────────────────────────────
+  const [pins, setPins]                       = useState([])
   const [panel, setPanel]                     = useState(PANEL.NONE)
   const [showSearch, setShowSearch]           = useState(false)
   const mapFlyTo                              = useRef(null)
@@ -81,6 +85,30 @@ export default function App() {
   const [neighbourhood, setNeighbourhood]     = useState(null)
   const [celebration, setCelebration]         = useState(false)
   const prevConvsRef = useRef({})
+
+  // ── Join / leave toast queue ──────────────────────────────────────────────
+  const [jlQueue, setJlQueue] = useState([])
+  const jlTimesRef = useRef([]) // recent event timestamps for throttle
+
+  function handleJoinLeaveEvent(event) {
+    const now = Date.now()
+    jlTimesRef.current = jlTimesRef.current.filter(t => now - t < 5000)
+    jlTimesRef.current.push(now)
+
+    if (jlTimesRef.current.length > 3) {
+      // Burst: clear pending queue (keep current-showing item at [0]) and
+      // append a single collapse toast. Reset counter so next burst is fresh.
+      jlTimesRef.current = []
+      setJlQueue(q =>
+        q.length > 0
+          ? [q[0], { id: `burst-${now}`, type: 'burst' }]
+          : [{ id: `burst-${now}`, type: 'burst' }]
+      )
+      return
+    }
+
+    setJlQueue(q => [...q, { id: `jl-${now}-${Math.random()}`, ...event }])
+  }
 
   // ── Contextual tooltips ────────────────────────────────────────────────────
   // pin_seen  = "Tap + to share your mood" (shown after map loads)
@@ -223,9 +251,10 @@ export default function App() {
         activePinId={(panel === PANEL.CHAT || panel === PANEL.PEEK) ? activePin?.id : null}
         previewLocation={panel === PANEL.CHECKIN ? pendingLocation : null}
         onFlyTo={(fn) => { mapFlyTo.current = fn }}
+        onPinsUpdate={setPins}
       />
 
-      <AmbientPins />
+      <AmbientPins pins={pins} />
 
       {/* Transition overlay — fades out while map initialises behind it */}
       {transitioning && <TransitionOverlay />}
@@ -244,8 +273,28 @@ export default function App() {
       {toast && <MessageToast text={toast} onDismiss={() => setToast(null)} />}
 
       {user && <PresenceTracker user={user} userLocation={userLocation} />}
+      {user && <JoinLeaveDetector onEvent={handleJoinLeaveEvent} />}
+
+      <JoinLeaveToast
+        queue={jlQueue}
+        onDequeue={() => setJlQueue(q => q.slice(1))}
+      />
 
       <StatsPanel />
+
+      <button
+        className="profile-btn"
+        style={{ background: user ? getAnonColour(user.uid) : '#444' }}
+        onClick={() => setPanel(p => p === PANEL.PROFILE ? PANEL.NONE : PANEL.PROFILE)}
+        aria-label="Profile & settings"
+        aria-pressed={panel === PANEL.PROFILE}
+      >
+        {user
+          ? (user.isAnonymous
+              ? getAnonIdentity(user.uid, null).charAt(0).toUpperCase()
+              : (user.email?.charAt(0).toUpperCase() || '?'))
+          : '?'}
+      </button>
 
       <button
         className="theme-btn"
@@ -367,6 +416,10 @@ export default function App() {
         <HelpPanel onClose={() => setPanel(PANEL.NONE)} />
       )}
 
+      {panel === PANEL.PROFILE && (
+        <ProfilePanel onClose={() => setPanel(PANEL.NONE)} />
+      )}
+
       {panel === PANEL.INBOX && (
         <InboxSheet
           conversations={conversations}
@@ -377,6 +430,48 @@ export default function App() {
       )}
     </div>
   )
+}
+
+// ── Join / leave detector — diffs presence snapshots, fires events ────────────
+
+function JoinLeaveDetector({ onEvent }) {
+  const onEventRef  = useRef(onEvent)
+  onEventRef.current = onEvent
+  const prevMapRef  = useRef(null) // null = first snapshot, skip diff
+
+  useEffect(() => {
+    return subscribeToLivePresence((users) => {
+      const next = new Map(users.map(u => [u.uid, u]))
+
+      if (prevMapRef.current === null) {
+        prevMapRef.current = next
+        return // skip diff on initial snapshot
+      }
+
+      const prev = prevMapRef.current
+      const events = []
+
+      for (const [uid, u] of next) {
+        if (!prev.has(uid)) {
+          events.push({
+            type:        'join',
+            countryName: u.countryName || null,
+            flag:        u.country ? countryFlag(u.country) : null,
+          })
+        }
+      }
+      for (const [uid, u] of prev) {
+        if (!next.has(uid)) {
+          events.push({ type: 'leave', countryName: u.countryName || null })
+        }
+      }
+
+      prevMapRef.current = next
+      events.forEach(e => onEventRef.current(e))
+    })
+  }, [])
+
+  return null
 }
 
 // ── Transition overlay — pulse ring + fade text, covers map while it loads ────
