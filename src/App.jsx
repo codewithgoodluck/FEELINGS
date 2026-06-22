@@ -16,9 +16,10 @@ import StatsPanel from './components/StatsPanel'
 import AmbientPins from './components/AmbientPins'
 import PinSearch from './components/PinSearch'
 import { useTheme } from './hooks/useTheme'
+import ProfilePanel from './components/ProfilePanel'
 import './App.css'
 
-const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location' }
+const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile' }
 
 // Track tip visibility once per localStorage key
 function useTip(key) {
@@ -248,6 +249,20 @@ export default function App() {
       <StatsPanel />
 
       <button
+        className="profile-btn"
+        style={{ background: user ? getAnonColour(user.uid) : '#444' }}
+        onClick={() => setPanel(p => p === PANEL.PROFILE ? PANEL.NONE : PANEL.PROFILE)}
+        aria-label="Profile & settings"
+        aria-pressed={panel === PANEL.PROFILE}
+      >
+        {user
+          ? (user.isAnonymous
+              ? getAnonIdentity(user.uid, null).charAt(0).toUpperCase()
+              : (user.email?.charAt(0).toUpperCase() || '?'))
+          : '?'}
+      </button>
+
+      <button
         className="theme-btn"
         onClick={toggleTheme}
         aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -365,6 +380,10 @@ export default function App() {
 
       {panel === PANEL.HELP && (
         <HelpPanel onClose={() => setPanel(PANEL.NONE)} />
+      )}
+
+      {panel === PANEL.PROFILE && (
+        <ProfilePanel onClose={() => setPanel(PANEL.NONE)} />
       )}
 
       {panel === PANEL.INBOX && (
