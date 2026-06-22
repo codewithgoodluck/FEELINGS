@@ -25,6 +25,12 @@
   --reveal:  #1D9E75;
   --danger:  #e05b5b;
 
+  /* pin overlay popups — overridden in light theme */
+  --pin-popup-bg:         rgba(20,22,30,0.97);
+  --pin-popup-border:     rgba(255,255,255,0.12);
+  --pin-popup-btn:        rgba(255,255,255,0.05);
+  --pin-popup-btn-border: rgba(255,255,255,0.08);
+
   --r-sm: 8px;
   --r-md: 12px;
   --r-lg: 18px;
@@ -33,6 +39,25 @@
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   font-size: 16px;
+}
+
+html[data-theme="light"] {
+  --ink-0:   #111118;
+  --ink-1:   rgba(17,17,24,0.75);
+  --ink-2:   rgba(17,17,24,0.50);
+  --ink-3:   rgba(17,17,24,0.30);
+  --ink-4:   rgba(17,17,24,0.08);
+  --ink-5:   rgba(17,17,24,0.04);
+  --map-bg:  #e8eaee;
+  --sheet-bg:#ffffff;
+  --sheet-2: #f2f3f7;
+  --border:  rgba(17,17,24,0.10);
+  --border-h:rgba(17,17,24,0.20);
+  --pin-popup-bg:         rgba(255,255,255,0.97);
+  --pin-popup-border:     rgba(17,17,24,0.12);
+  --pin-popup-btn:        rgba(17,17,24,0.05);
+  --pin-popup-btn-border: rgba(17,17,24,0.10);
+  color-scheme: light;
 }
 
 html, body, #root {
