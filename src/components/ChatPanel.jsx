@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   getOrCreateConversation,
@@ -116,6 +116,134 @@ function useVoiceRecorder(onSend) {
   }
 
   return { recording, seconds, blob, previewUrl, uploading, startRecording, stopRecording, cancel, send }
+}
+
+// ── Voice UI helpers ──────────────────────────────────────────────────────────
+
+// circumference of r=16 SVG circle
+const RING_CIRC = 2 * Math.PI * 16
+
+function seededHeight(seed, i) {
+  const x = Math.sin((seed + i) * 9301.2) * 93701
+  return 4 + ((x - Math.floor(x)) * 16)
+}
+
+function fmtDuration(s) {
+  const m = Math.floor(s / 60)
+  const sec = Math.floor(s % 60)
+  return `${m}:${sec.toString().padStart(2, '0')}`
+}
+
+function RecordingWaveform() {
+  const [heights, setHeights] = useState(
+    () => Array.from({ length: 14 }, () => 4 + Math.random() * 22)
+  )
+  useEffect(() => {
+    const id = setInterval(() => {
+      setHeights(Array.from({ length: 14 }, () => 4 + Math.random() * 22))
+    }, 140)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <div className="voice-rec-wave" aria-hidden="true">
+      {heights.map((h, i) => (
+        <span key={i} className="voice-rec-bar" style={{ height: `${h}px` }} />
+      ))}
+    </div>
+  )
+}
+
+function VoicePreview({ previewUrl, onCancel, onSend, uploading }) {
+  const [playing, setPlaying] = useState(false)
+  const [duration, setDuration] = useState(0)
+  const audioRef = useRef(null)
+  const bars = useMemo(
+    () => Array.from({ length: 22 }, (_, i) => seededHeight(42, i)),
+    []
+  )
+  function toggle() {
+    const a = audioRef.current
+    if (!a) return
+    playing ? a.pause() : a.play()
+  }
+  return (
+    <>
+      <audio
+        ref={audioRef}
+        src={previewUrl}
+        style={{ display: 'none' }}
+        preload="metadata"
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+      />
+      <button
+        className="voice-play-btn"
+        onClick={toggle}
+        aria-label={playing ? 'Pause preview' : 'Play preview'}
+      >
+        {playing ? '⏸' : '▶'}
+      </button>
+      <div className="voice-waveform" aria-hidden="true">
+        {bars.map((h, i) => <span key={i} className="voice-wf-bar" style={{ height: `${h}px` }} />)}
+      </div>
+      <span className="voice-dur">{duration > 0 && isFinite(duration) ? fmtDuration(duration) : '—'}</span>
+      <button className="icon-btn gif-preview-cancel" onClick={onCancel} aria-label="Cancel">✕</button>
+      <button className="btn btn--send" onClick={onSend} disabled={uploading} aria-label="Send voice note">
+        {uploading ? '…' : '↑'}
+      </button>
+    </>
+  )
+}
+
+function VoicePlayer({ src, mime, isMe, msgId }) {
+  const [playing, setPlaying] = useState(false)
+  const [duration, setDuration] = useState(0)
+  const audioRef = useRef(null)
+  const seed = useMemo(() => {
+    let h = 0
+    for (let i = 0; i < msgId.length; i++) h = (h * 31 + msgId.charCodeAt(i)) | 0
+    return Math.abs(h)
+  }, [msgId])
+  const bars = useMemo(
+    () => Array.from({ length: 22 }, (_, i) => seededHeight(seed, i)),
+    [seed]
+  )
+  function toggle(e) {
+    e.stopPropagation()
+    const a = audioRef.current
+    if (!a) return
+    playing ? a.pause() : a.play()
+  }
+  return (
+    <div className={`voice-bubble${isMe ? ' voice-bubble--mine' : ''}`}>
+      <audio
+        ref={audioRef}
+        style={{ display: 'none' }}
+        preload="metadata"
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+      >
+        <source src={src} {...(mime ? { type: mime } : {})} />
+      </audio>
+      <button
+        className="voice-play-btn"
+        onClick={toggle}
+        aria-label={playing ? 'Pause voice note' : 'Play voice note'}
+      >
+        {playing ? '⏸' : '▶'}
+      </button>
+      <div className="voice-waveform" aria-hidden="true">
+        {bars.map((h, i) => <span key={i} className="voice-wf-bar" style={{ height: `${h}px` }} />)}
+      </div>
+      <span className="voice-dur">
+        {duration > 0 && isFinite(duration) ? fmtDuration(duration) : '—'}
+      </span>
+    </div>
+  )
 }
 
 // ── Shared thread UI ──────────────────────────────────────────────────────────
@@ -321,13 +449,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                         aria-label="Toggle timestamp"
                       >
                         {msg.voiceUrl ? (
-                          msg.voiceMime ? (
-                            <audio controls preload="none" className="voice-audio">
-                              <source src={msg.voiceUrl} type={msg.voiceMime} />
-                            </audio>
-                          ) : (
-                            <audio controls src={msg.voiceUrl} preload="none" className="voice-audio" />
-                          )
+                          <VoicePlayer src={msg.voiceUrl} mime={msg.voiceMime} isMe={isMe} msgId={msg.id} />
                         ) : msg.gifUrl ? (
                           <img src={msg.gifUrl} alt="GIF" className="message-gif" loading="lazy" />
                         ) : (
@@ -381,25 +503,29 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
           <div className="voice-bar">
             {voice.recording ? (
               <>
-                <span className="voice-recording-dot" aria-hidden="true" />
-                <span className="voice-timer">{10 - voice.seconds}s</span>
-                <div style={{ flex: 1 }} />
+                <div className="voice-rec-ring">
+                  <svg viewBox="0 0 38 38" aria-hidden="true">
+                    <circle className="voice-rec-ring-bg" cx="19" cy="19" r="16" />
+                    <circle
+                      className="voice-rec-ring-fg"
+                      cx="19" cy="19" r="16"
+                      strokeDasharray={RING_CIRC}
+                      strokeDashoffset={RING_CIRC * (voice.seconds / 10)}
+                    />
+                  </svg>
+                  <span className="voice-rec-num" aria-live="polite">{10 - voice.seconds}</span>
+                </div>
+                <RecordingWaveform />
                 <button className="btn btn--sm btn--ghost" onClick={voice.cancel}>Cancel</button>
                 <button className="btn btn--sm btn--primary" onClick={voice.stopRecording}>Done</button>
               </>
             ) : (
-              <>
-                <audio controls src={voice.previewUrl} preload="metadata" className="voice-preview-audio" />
-                <button className="icon-btn gif-preview-cancel" onClick={voice.cancel} aria-label="Cancel">✕</button>
-                <button
-                  className="btn btn--send"
-                  onClick={voice.send}
-                  disabled={voice.uploading}
-                  aria-label="Send voice note"
-                >
-                  {voice.uploading ? '…' : '↑'}
-                </button>
-              </>
+              <VoicePreview
+                previewUrl={voice.previewUrl}
+                onCancel={voice.cancel}
+                onSend={voice.send}
+                uploading={voice.uploading}
+              />
             )}
           </div>
         )}
