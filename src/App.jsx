@@ -17,10 +17,11 @@ import PinSearch from './components/PinSearch'
 import { useTheme } from './hooks/useTheme'
 import ProfilePanel from './components/ProfilePanel'
 import JoinLeaveToast from './components/JoinLeaveToast'
+import PinsPanel from './components/PinsPanel'
 import { subscribeToLivePresence, countryFlag } from './utils/presence'
 import './App.css'
 
-const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile' }
+const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile', FEED: 'feed' }
 
 // Track tip visibility once per localStorage key
 function useTip(key) {
@@ -320,6 +321,15 @@ export default function App() {
         ?
       </button>
 
+      <button
+        className="feed-btn"
+        onClick={() => setPanel(p => p === PANEL.FEED ? PANEL.NONE : PANEL.FEED)}
+        aria-label="Live pin feed"
+        aria-pressed={panel === PANEL.FEED}
+      >
+        ☰
+      </button>
+
       {showSearch && (
         <PinSearch
           onClose={() => setShowSearch(false)}
@@ -417,6 +427,13 @@ export default function App() {
 
       {panel === PANEL.PROFILE && (
         <ProfilePanel onClose={() => setPanel(PANEL.NONE)} />
+      )}
+
+      {panel === PANEL.FEED && (
+        <PinsPanel
+          onClose={() => setPanel(PANEL.NONE)}
+          onFlyTo={(lng, lat) => mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })}
+        />
       )}
 
       {panel === PANEL.INBOX && (
