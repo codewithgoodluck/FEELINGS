@@ -3345,7 +3345,7 @@ html[data-theme="light"] .jl-toast {
 }
 
 .pins-panel-title {
-  font-size: 1rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--ink-0);
   letter-spacing: -0.01em;
