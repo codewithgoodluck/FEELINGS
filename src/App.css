@@ -1969,6 +1969,171 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   PIN SHEET — peek-to-chat morphing bottom sheet
+═══════════════════════════════════════════════════════════════════════════ */
+
+.hay-pin-sheet {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  top: 100%;                          /* hidden off-screen initially */
+  background: var(--sheet-bg);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+  transition: top 0.45s cubic-bezier(.22,.8,.25,1), border-radius 0.4s ease;
+  z-index: 200;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* prefers-reduced-motion: cut transition to near-zero (global rule also handles
+   this, but an explicit override ensures the state change still occurs) */
+@media (prefers-reduced-motion: reduce) {
+  .hay-pin-sheet { transition-duration: 0.01s; }
+}
+
+.hay-pin-sheet--peek { top: calc(100% - 196px); }
+
+.hay-pin-sheet--full {
+  top: 0;
+  border-radius: 0;
+  bottom: var(--vv-bottom, 0px);      /* lifts above software keyboard */
+}
+
+.hay-sheet-handle {
+  width: 36px; height: 4px;
+  border-radius: 99px;
+  background: var(--ink-4);
+  margin: 10px auto 6px;
+  flex-shrink: 0;
+}
+
+/* ── Peek content ─────────────────────────────────────────────────────────── */
+
+.hay-sheet-peek-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0 0 16px;
+  overflow: hidden;
+}
+
+.hay-sheet-peek-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 4px 20px 12px;
+}
+
+.hay-sheet-peek-emoji {
+  font-size: 40px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.hay-sheet-peek-info {
+  flex: 1;
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.hay-sheet-peek-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-0);
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.hay-sheet-peek-msg {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.55;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hay-sheet-peek-actions {
+  display: flex;
+  gap: 10px;
+  padding: 0 20px;
+}
+
+.hay-sheet-action-btn { flex: 1; }
+
+/* ── Full content wrapper ─────────────────────────────────────────────────── */
+
+.hay-sheet-full-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 1rem max(0.875rem, env(safe-area-inset-bottom));
+}
+
+/* ── Chat panel body — flex column used inside PinSheet and ChatPanel ──────── */
+
+.chat-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Back button (← in chat header when PinSheet is in full state) ─────────── */
+
+.chat-back-btn {
+  background: none;
+  border: none;
+  color: var(--ink-2);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0 2px;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s;
+  touch-action: manipulation;
+}
+.chat-back-btn:hover { color: var(--ink-0); }
+
+/* ── Desktop: PinSheet becomes a right-aligned card ──────────────────────── */
+
+@media (min-width: 640px) {
+  .hay-pin-sheet {
+    left: auto;
+    right: 1.25rem;
+    width: 380px;
+    border-radius: var(--r-xl);
+    border: 1px solid var(--border);
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    /* switch to height transition on desktop so the card grows from the bottom */
+    transition: height 0.45s cubic-bezier(.22,.8,.25,1), border-radius 0.4s ease;
+    top: auto !important;
+    bottom: max(1.25rem, calc(var(--vv-bottom, 0px) + 1.25rem));
+  }
+  .hay-pin-sheet--peek {
+    height: 196px;
+    border-radius: var(--r-xl);
+  }
+  .hay-pin-sheet--full {
+    height: min(82vh, 82dvh);
+    border-radius: var(--r-xl);
+  }
+  .hay-sheet-handle { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    CHECK-IN LOCATION LABEL
 ═══════════════════════════════════════════════════════════════════════════ */
 

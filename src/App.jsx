@@ -3,6 +3,7 @@ import { useAuth } from './contexts/AuthContext'
 import MapView from './components/MapView'
 import CheckInPanel from './components/CheckInPanel'
 import ChatPanel from './components/ChatPanel'
+import PinSheet from './components/PinSheet'
 import MirrorPrompt from './components/MirrorPrompt'
 import HelpPanel from './components/HelpPanel'
 import { createPin, deactivatePin, subscribeToUserConversations, getPin } from './utils/db'
@@ -14,7 +15,7 @@ import { useToast } from './contexts/ToastContext'
 import StatsPanel from './components/StatsPanel'
 import './App.css'
 
-const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', HELP: 'help', INBOX: 'inbox', LOCATION: 'location' }
+const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location' }
 
 // Track tip visibility once per localStorage key
 function useTip(key) {
@@ -158,7 +159,7 @@ export default function App() {
 
   function handlePinClick(pin) {
     setActivePin(pin)
-    setPanel(PANEL.CHAT)
+    setPanel(PANEL.PEEK)
   }
 
   async function handleDeletePin(pinId) {
@@ -211,7 +212,7 @@ export default function App() {
         onNeighbourhoodClick={handleNeighbourhoodClick}
         onFirstPins={showTipPin}
         unreadPinIds={unreadPinIds}
-        activePinId={panel === PANEL.CHAT ? activePin?.id : null}
+        activePinId={(panel === PANEL.CHAT || panel === PANEL.PEEK) ? activePin?.id : null}
         previewLocation={panel === PANEL.CHECKIN ? pendingLocation : null}
       />
 
@@ -309,6 +310,14 @@ export default function App() {
           onClose={() => setPanel(PANEL.NONE)}
           initialMood={mirrorMood}
           placeName={placeName}
+        />
+      )}
+
+      {panel === PANEL.PEEK && activePin && (
+        <PinSheet
+          pin={activePin}
+          mirrorMood={mirrorMood}
+          onClose={() => setPanel(PANEL.NONE)}
         />
       )}
 

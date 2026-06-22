@@ -118,10 +118,10 @@ function useVoiceRecorder(onSend) {
 
 // ── Shared thread UI ──────────────────────────────────────────────────────────
 
-function ConversationThread({ conversationId, pin, user, onBack }) {
+function ConversationThread({ conversationId, pin, user, onBack, initialInput }) {
   const [messages, setMessages]         = useState([])
   const [conversation, setConversation] = useState(null)
-  const [input, setInput]               = useState('')
+  const [input, setInput]               = useState(initialInput || '')
   const [sending, setSending]           = useState(false)
   const [showGifs, setShowGifs]         = useState(false)
   const [pendingGif, setPendingGif]     = useState(null)
@@ -409,10 +409,9 @@ function PinInbox({ pin, user, onSelectConv }) {
   )
 }
 
-// ── Main ChatPanel ────────────────────────────────────────────────────────────
+// ── Shared panel body — used by ChatPanel (InboxSheet path) and PinSheet ─────
 
-export default function ChatPanel({ pin, onClose }) {
-  const { user } = useAuth()
+export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
   const [conversationId, setConversationId] = useState(null)
   const [inboxConvId, setInboxConvId]       = useState(null)
   const [connError, setConnError]           = useState(false)
@@ -447,12 +446,13 @@ export default function ChatPanel({ pin, onClose }) {
   const showThread   = !!activeConvId
 
   return (
-    <div className="panel slide-up chat-panel" role="dialog" aria-label="Conversation">
-      <div className="panel-handle" />
-
+    <div className="chat-panel-body">
       {/* Header */}
       <div className="chat-header">
         <div className="chat-header-info">
+          {onBack && (
+            <button className="chat-back-btn" onClick={onBack} aria-label="Back to pin">←</button>
+          )}
           <div className="chat-avatar" style={{ background: getAnonColour(pin.uid || 'anon') }} aria-hidden="true">
             {pin.mood}
           </div>
@@ -493,7 +493,7 @@ export default function ChatPanel({ pin, onClose }) {
       {/* Content */}
       {isOwn ? (
         showThread ? (
-          <ConversationThread conversationId={inboxConvId} pin={pin} user={user} onBack={() => setInboxConvId(null)} />
+          <ConversationThread conversationId={inboxConvId} pin={pin} user={user} onBack={() => setInboxConvId(null)} initialInput="" />
         ) : (
           <PinInbox pin={pin} user={user} onSelectConv={setInboxConvId} />
         )
@@ -505,10 +505,22 @@ export default function ChatPanel({ pin, onClose }) {
           <button className="btn btn--ghost btn--sm" onClick={retry}>Retry</button>
         </div>
       ) : showThread ? (
-        <ConversationThread conversationId={conversationId} pin={pin} user={user} onBack={null} />
+        <ConversationThread conversationId={conversationId} pin={pin} user={user} onBack={null} initialInput={initialInput || ''} />
       ) : (
         <div className="empty-state"><p>Connecting…</p></div>
       )}
+    </div>
+  )
+}
+
+// ── Main ChatPanel — used from InboxSheet (direct-to-chat path) ───────────────
+
+export default function ChatPanel({ pin, onClose }) {
+  const { user } = useAuth()
+  return (
+    <div className="panel slide-up chat-panel" role="dialog" aria-label="Conversation">
+      <div className="panel-handle" />
+      <ChatPanelContent pin={pin} user={user} onBack={null} onClose={onClose} initialInput="" />
     </div>
   )
 }
