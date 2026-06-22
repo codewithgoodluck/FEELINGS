@@ -197,8 +197,8 @@ const PIN_STYLE = `
   .hay-mood-pop {
     position: absolute;
     transform: translate(-50%, calc(-100% - 18px));
-    background: rgba(20,22,30,0.97);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: var(--pin-popup-bg, rgba(20,22,30,0.97));
+    border: 1px solid var(--pin-popup-border, rgba(255,255,255,0.12));
     border-radius: 16px; padding: 8px;
     display: flex; gap: 6px; flex-wrap: wrap; max-width: 224px;
     opacity: 0; pointer-events: none;
@@ -212,8 +212,8 @@ const PIN_STYLE = `
   .hay-mood-pop button {
     font-size: 20px; width: 36px; height: 36px;
     border-radius: 10px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--pin-popup-btn, rgba(255,255,255,0.05));
+    border: 1px solid var(--pin-popup-btn-border, rgba(255,255,255,0.08));
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: background 0.12s;
   }
@@ -223,9 +223,9 @@ const PIN_STYLE = `
   .hay-hint-toast {
     position: absolute;
     transform: translate(-50%, -145%);
-    background: rgba(20,22,30,0.95);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.6);
+    background: var(--pin-popup-bg, rgba(20,22,30,0.95));
+    border: 1px solid var(--pin-popup-border, rgba(255,255,255,0.1));
+    color: var(--ink-2, rgba(255,255,255,0.6));
     font-size: 11.5px; padding: 7px 12px;
     border-radius: 10px;
     opacity: 0; transition: opacity 0.22s ease;
@@ -286,7 +286,7 @@ export default function MapView({
   onPinClick, onMapClick, onDeletePin,
   userLocation, unreadPinIds, activePinId,
   onNeighbourhoodClick, onFirstPins, previewLocation, onHoldDrop,
-  onFlyTo,
+  onFlyTo, theme,
 }) {
   const mapContainer      = useRef(null)
   const map               = useRef(null)
@@ -353,7 +353,7 @@ export default function MapView({
 
     map.current = new mapboxgl.Map({
       container:  mapContainer.current,
-      style:      'mapbox://styles/mapbox/dark-v11',
+      style:      theme === 'light' ? 'mapbox://styles/mapbox/light-v11' : 'mapbox://styles/mapbox/dark-v11',
       center:     userLocation ? [userLocation.lng, userLocation.lat] : [0, 20],
       zoom:       userLocation ? 13 : 2,
       projection: 'globe',
@@ -369,13 +369,23 @@ export default function MapView({
 
     map.current.on('load', () => {
       // ── Globe atmosphere ─────────────────────────────────────────────────
-      map.current.setFog({
-        color:            'rgb(10, 14, 26)',
-        'high-color':     'rgb(20, 40, 80)',
-        'horizon-blend':  0.04,
-        'space-color':    'rgb(5, 8, 18)',
-        'star-intensity': 0.18,
-      })
+      if (theme === 'light') {
+        map.current.setFog({
+          color:            'rgb(186, 210, 235)',
+          'high-color':     'rgb(120, 170, 220)',
+          'horizon-blend':  0.04,
+          'space-color':    'rgb(135, 186, 224)',
+          'star-intensity': 0,
+        })
+      } else {
+        map.current.setFog({
+          color:            'rgb(10, 14, 26)',
+          'high-color':     'rgb(20, 40, 80)',
+          'horizon-blend':  0.04,
+          'space-color':    'rgb(5, 8, 18)',
+          'star-intensity': 0.18,
+        })
+      }
 
       // ── Day/night terminator ─────────────────────────────────────────────
       map.current.addSource('terminator', {

@@ -15,6 +15,7 @@ import { useToast } from './contexts/ToastContext'
 import StatsPanel from './components/StatsPanel'
 import AmbientPins from './components/AmbientPins'
 import PinSearch from './components/PinSearch'
+import { useTheme } from './hooks/useTheme'
 import './App.css'
 
 const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location' }
@@ -50,6 +51,7 @@ function lastSeen(convId) {
 export default function App() {
   const { user, loading } = useAuth()
   const showToast = useToast()
+  const { theme, toggle: toggleTheme } = useTheme()
   useKeyboardOffset()
 
   // ── First-run state ────────────────────────────────────────────────────────
@@ -208,6 +210,8 @@ export default function App() {
   return (
     <div className="app">
       <MapView
+        key={theme}
+        theme={theme}
         userLocation={userLocation}
         onMapClick={handleMapClick}
         onHoldDrop={handleHoldDrop}
@@ -242,6 +246,14 @@ export default function App() {
       {user && <PresenceTracker user={user} userLocation={userLocation} />}
 
       <StatsPanel />
+
+      <button
+        className="theme-btn"
+        onClick={toggleTheme}
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {theme === 'dark' ? '☀' : '🌙'}
+      </button>
 
       <button
         className="search-btn"

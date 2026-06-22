@@ -1956,6 +1956,31 @@
    SEARCH BUTTON + PANEL
 ═══════════════════════════════════════════════════════════════════════════ */
 
+.theme-btn {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top, 0px));
+  right: calc(1rem + 2*(36px + 0.5rem));
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(15,17,23,0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  color: var(--ink-1);
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100;
+  transition: background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  line-height: 1;
+}
+.theme-btn:hover { background: rgba(255,255,255,0.12); color: var(--ink-0); }
+
 .search-btn {
   position: absolute;
   top: max(1rem, env(safe-area-inset-top, 0px));
@@ -2932,4 +2957,55 @@
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT MODE — override hardcoded dark values
+   CSS variables auto-flip via html[data-theme="light"] in index.css.
+   Only elements with hardcoded dark rgba/hex backgrounds need explicit rules.
+═══════════════════════════════════════════════════════════════════════════ */
+
+html[data-theme="light"] {
+  /* Frosted-glass chrome buttons */
+  .theme-btn,
+  .search-btn,
+  .help-btn {
+    background: rgba(248,249,252,0.88);
+    color: var(--ink-1);
+  }
+  .theme-btn:hover,
+  .search-btn:hover,
+  .help-btn:hover {
+    background: rgba(240,242,248,0.96);
+    color: var(--ink-0);
+  }
+
+  /* Floating tooltip / tap-hint pill */
+  .map-tooltip,
+  .tap-hint {
+    background: rgba(255,255,255,0.93);
+  }
+
+  /* Stats panel */
+  .stats-panel { background: rgba(255,255,255,0.93); }
+
+  /* Message toast */
+  .msg-toast { background: rgba(255,255,255,0.97); }
+
+  /* Pin search panel */
+  .pin-search-panel { background: rgba(255,255,255,0.97); }
+
+  /* Celebration text pill */
+  .celebration-text { background: rgba(255,255,255,0.90); }
+
+  /* Buttons whose text sits on var(--ink-0) background */
+  .btn--primary            { color: #f8f9fc; }
+  .btn--primary:not(:disabled):hover { background: rgba(17,17,24,0.85); }
+  .btn--send               { color: #f8f9fc; }
+  .fab                     { color: #f8f9fc; }
+
+  /* My chat bubble + voice play button on white background */
+  .message--mine .message-bubble         { color: #f8f9fc; }
+  .voice-bubble--mine .voice-play-btn    { color: #f8f9fc; }
+  .voice-bubble--mine .voice-play-btn:hover { background: rgba(0,0,0,0.35); }
 }
