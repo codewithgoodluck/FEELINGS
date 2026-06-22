@@ -14,6 +14,7 @@ import { initPresence, heartbeat, markInactive } from './utils/presence'
 import { useToast } from './contexts/ToastContext'
 import StatsPanel from './components/StatsPanel'
 import AmbientPins from './components/AmbientPins'
+import PinSearch from './components/PinSearch'
 import './App.css'
 
 const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location' }
@@ -66,6 +67,8 @@ export default function App() {
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [panel, setPanel]                     = useState(PANEL.NONE)
+  const [showSearch, setShowSearch]           = useState(false)
+  const mapFlyTo                              = useRef(null)
   const [pendingLocation, setPendingLocation] = useState(null)
   const [activePin, setActivePin]             = useState(null)
   const [unreadCount, setUnreadCount]         = useState(0)
@@ -215,6 +218,7 @@ export default function App() {
         unreadPinIds={unreadPinIds}
         activePinId={(panel === PANEL.CHAT || panel === PANEL.PEEK) ? activePin?.id : null}
         previewLocation={panel === PANEL.CHECKIN ? pendingLocation : null}
+        onFlyTo={(fn) => { mapFlyTo.current = fn }}
       />
 
       <AmbientPins />
@@ -240,12 +244,28 @@ export default function App() {
       <StatsPanel />
 
       <button
+        className="search-btn"
+        onClick={() => setShowSearch((v) => !v)}
+        aria-label="Search pins"
+        aria-pressed={showSearch}
+      >
+        ⌕
+      </button>
+
+      <button
         className="help-btn"
         onClick={() => setPanel(p => p === PANEL.HELP ? PANEL.NONE : PANEL.HELP)}
         aria-label="Help"
       >
         ?
       </button>
+
+      {showSearch && (
+        <PinSearch
+          onClose={() => setShowSearch(false)}
+          onFlyTo={(lng, lat) => mapFlyTo.current?.({ center: [lng, lat], zoom: 13 })}
+        />
+      )}
 
       {/* FAB — drop a pin */}
       {panel === PANEL.NONE && (

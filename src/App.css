@@ -1947,6 +1947,208 @@
 .help-btn:hover { background: rgba(255,255,255,0.12); color: var(--ink-0); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   SEARCH BUTTON + PANEL
+═══════════════════════════════════════════════════════════════════════════ */
+
+.search-btn {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top, 0px));
+  right: calc(1rem + 36px + 0.5rem);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(15,17,23,0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  color: var(--ink-1);
+  font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  line-height: 1;
+}
+.search-btn:hover,
+.search-btn[aria-pressed="true"] {
+  background: rgba(91,138,245,0.2);
+  border-color: rgba(91,138,245,0.5);
+  color: #5b8af5;
+}
+
+/* Panel — drops from top, centred, max 480px on wide screens */
+.pin-search-panel {
+  position: fixed;
+  top: max(3.5rem, calc(env(safe-area-inset-top, 0px) + 3.5rem));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 1.5rem), 480px);
+  z-index: 210;
+  background: rgba(12,14,20,0.97);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.55);
+  display: flex;
+  flex-direction: column;
+  max-height: 65vh;
+  overflow: hidden;
+  animation: pinSearchIn 0.17s ease;
+}
+
+@keyframes pinSearchIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Input row */
+.pin-search-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.pin-search-icon {
+  font-size: 1.05rem;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.pin-search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--ink-0);
+  font-size: 0.9375rem;
+  font-family: inherit;
+  line-height: 1.4;
+  padding: 0;
+  min-width: 0;
+}
+.pin-search-input::placeholder { color: var(--ink-3); }
+
+/* clear button that browsers inject into type=search */
+.pin-search-input::-webkit-search-cancel-button { display: none; }
+
+.pin-search-close {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+/* Scrollable results */
+.pin-search-results {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  flex: 1;
+  padding: 0.375rem 0;
+}
+
+/* Result cards */
+.pin-result-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  transition: background 0.12s;
+}
+.pin-result-card:hover { background: rgba(255,255,255,0.04); }
+
+.pin-result-mood {
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.pin-result-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pin-result-msg {
+  font-size: 0.8125rem;
+  color: var(--ink-1);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.pin-result-empty-msg {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.pin-result-meta {
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+  margin: 0;
+}
+
+.pin-result-view {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+}
+
+/* Empty state */
+.pin-search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.pin-search-empty-icon {
+  font-size: 2rem;
+  opacity: 0.5;
+}
+
+.pin-search-empty-text {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Skeleton loading rows */
+.pin-result-skeleton {
+  height: 52px;
+  margin: 4px 0.875rem;
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+  opacity: 0.7;
+}
+.pin-result-skeleton--2 { opacity: 0.5; }
+.pin-result-skeleton--3 { opacity: 0.3; }
+
+@keyframes skeletonShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    HELP PANEL
 ═══════════════════════════════════════════════════════════════════════════ */
 
