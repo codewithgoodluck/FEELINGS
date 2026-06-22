@@ -433,6 +433,7 @@ export default function App() {
         <PinsPanel
           onClose={() => setPanel(PANEL.NONE)}
           onFlyTo={(lng, lat) => mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })}
+          onPinClick={(pin) => { setActivePin(pin); setPanel(PANEL.PEEK) }}
         />
       )}
 

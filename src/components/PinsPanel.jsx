@@ -16,7 +16,7 @@ function timeAgo(ts) {
 
 const CLOSE_MS = 300
 
-export default function PinsPanel({ onClose, onFlyTo }) {
+export default function PinsPanel({ onClose, onFlyTo, onPinClick }) {
   const [pins, setPins]       = useState([])
   const [closing, setClosing] = useState(false)
   const timerRef              = useRef(null)
@@ -24,27 +24,27 @@ export default function PinsPanel({ onClose, onFlyTo }) {
   useEffect(() => subscribeToPins(setPins), [])
   useEffect(() => () => clearTimeout(timerRef.current), [])
 
-  function dismiss() {
+  function dismiss(afterClose) {
     if (closing) return
     setClosing(true)
-    timerRef.current = setTimeout(onClose, CLOSE_MS)
+    timerRef.current = setTimeout(afterClose ?? onClose, CLOSE_MS)
   }
 
   function handleSelect(pin) {
     onFlyTo(pin.lng, pin.lat)
-    dismiss()
+    dismiss(() => onPinClick(pin))
   }
 
   return (
     <>
-    <div className={`pins-panel-backdrop${closing ? ' pins-panel-backdrop--out' : ''}`} onClick={dismiss} aria-hidden="true" />
+    <div className={`pins-panel-backdrop${closing ? ' pins-panel-backdrop--out' : ''}`} onClick={() => dismiss()} aria-hidden="true" />
     <div className={`pins-panel${closing ? ' pins-panel--closing' : ''}`} role="dialog" aria-label="Live pin feed">
       <div className="pins-panel-header">
         <h2 className="pins-panel-title">
           Live Pins
           <span className="pins-panel-count">{pins.length}</span>
         </h2>
-        <button className="icon-btn" onClick={dismiss} aria-label="Close">✕</button>
+        <button className="icon-btn" onClick={() => dismiss()} aria-label="Close">✕</button>
       </div>
       <div className="pins-panel-list">
         {pins.length === 0 ? (
