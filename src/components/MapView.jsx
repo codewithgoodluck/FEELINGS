@@ -260,20 +260,15 @@ const PIN_STYLE = `
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 
-  /* ── Worldwide check-in pulse ──────────────────────── */
-  .hay-globe-pulse {
+  /* ── Reduced-motion pulse fallback (static dot) ────── */
+  .hay-globe-pulse-dot {
     position: absolute;
+    width: 8px; height: 8px;
     border-radius: 50%;
-    width: 12px; height: 12px;
+    background: rgba(91,138,245,0.85);
     transform: translate(-50%, -50%);
     pointer-events: none; z-index: 20;
-    animation: hayGlobePulse 1.3s ease-out forwards;
   }
-  @keyframes hayGlobePulse {
-    0%   { width: 12px; height: 12px; opacity: 0.85; }
-    100% { width: 72px; height: 72px; opacity: 0;    }
-  }
-  @media (prefers-reduced-motion: reduce) { .hay-globe-pulse { display: none; } }
 `
 
 function buildGeoJSON(pins) {
@@ -302,6 +297,8 @@ export default function MapView({
   const lastHoldDropAtRef = useRef(0)
   const knownPinIdsRef    = useRef(new Set())
   const seenFirstSnapshot = useRef(false)
+  const pulseCanvasRef    = useRef(null)
+  const pulsesRef         = useRef([])
   const [mapReady, setMapReady] = useState(false)
   const { user } = useAuth()
   const showToast    = useToast()
@@ -691,10 +688,76 @@ export default function MapView({
       map.current.on(evt, () => { lastInteractionAt = Date.now() })
     )
 
+    // ── Pulse canvas overlay (comet-arc trail) ──────────────────────────────
+    const pulseCanvas = document.createElement('canvas')
+    pulseCanvas.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:20;'
+    pulseCanvas.width  = container.clientWidth
+    pulseCanvas.height = container.clientHeight
+    container.appendChild(pulseCanvas)
+    pulseCanvasRef.current = pulseCanvas
+
+    map.current.on('resize', () => {
+      pulseCanvas.width  = container.clientWidth
+      pulseCanvas.height = container.clientHeight
+    })
+
+    const PULSE_LIFE = 1100
+    let pulseRafId = null
+
+    function pulseTick() {
+      pulseRafId = requestAnimationFrame(pulseTick)
+      const ctx = pulseCanvas.getContext('2d')
+      const now = Date.now()
+      ctx.clearRect(0, 0, pulseCanvas.width, pulseCanvas.height)
+
+      pulsesRef.current = pulsesRef.current.filter(p => now - p.born < PULSE_LIFE)
+      if (pulsesRef.current.length === 0) return
+
+      pulsesRef.current.forEach(p => {
+        const t      = (now - p.born) / PULSE_LIFE
+        const eased  = 1 - (1 - t) * (1 - t)   // ease-out quad
+        const alpha  = 1 - t
+
+        // Expanding ripple ring
+        const radius = eased * 38
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, Math.max(0, radius), 0, Math.PI * 2)
+        ctx.strokeStyle = `rgba(120,180,255,${(alpha * 0.55).toFixed(3)})`
+        ctx.lineWidth   = 1.5
+        ctx.stroke()
+
+        // Comet arc trail
+        const arcLen = eased * 34
+        const endX   = p.x + Math.cos(p.angle) * arcLen
+        const endY   = p.y + Math.sin(p.angle) * arcLen
+        const perpX  = Math.cos(p.angle + Math.PI / 2)
+        const perpY  = Math.sin(p.angle + Math.PI / 2)
+        const cpX    = p.x + Math.cos(p.angle) * arcLen * 0.5 + perpX * arcLen * 0.32
+        const cpY    = p.y + Math.sin(p.angle) * arcLen * 0.5 + perpY * arcLen * 0.32
+
+        const grad = ctx.createLinearGradient(p.x, p.y, endX, endY)
+        grad.addColorStop(0, `rgba(255,170,100,${(alpha * 0.9).toFixed(3)})`)
+        grad.addColorStop(1, 'rgba(255,170,100,0)')
+
+        ctx.beginPath()
+        ctx.moveTo(p.x, p.y)
+        ctx.quadraticCurveTo(cpX, cpY, endX, endY)
+        ctx.strokeStyle = grad
+        ctx.lineWidth   = Math.max(0.5, 2.5 * (1 - t * 0.55))
+        ctx.lineCap     = 'round'
+        ctx.stroke()
+      })
+    }
+    pulseRafId = requestAnimationFrame(pulseTick)
+
     return () => {
       clearInterval(terminatorInterval)
       if (rafId)       cancelAnimationFrame(rafId)
       if (rotateRafId) cancelAnimationFrame(rotateRafId)
+      if (pulseRafId)  cancelAnimationFrame(pulseRafId)
+      pulseCanvas.remove()
+      pulseCanvasRef.current = null
+      pulsesRef.current = []
       cancelCharge(false)
       container.removeEventListener('pointerdown',  handlePointerDown)
       container.removeEventListener('pointerup',    handlePointerUp)
@@ -725,15 +788,20 @@ export default function MapView({
         const where = pin.country ? `${flag} ${pin.country}` : 'somewhere'
         showToastRef.current?.(`Someone in ${where} just checked in ${pin.mood}`, 'info', 2000)
 
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
         if (!map.current || !mapContainer.current) return
-        const pt    = map.current.project([pin.lng, pin.lat])
-        const pulse = document.createElement('div')
-        pulse.className  = 'hay-globe-pulse'
-        pulse.style.left = pt.x + 'px'
-        pulse.style.top  = pt.y + 'px'
-        mapContainer.current.appendChild(pulse)
-        setTimeout(() => pulse.remove(), 1350)
+        const pt = map.current.project([pin.lng, pin.lat])
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          const dot = document.createElement('div')
+          dot.className  = 'hay-globe-pulse-dot'
+          dot.style.left = pt.x + 'px'
+          dot.style.top  = pt.y + 'px'
+          mapContainer.current.appendChild(dot)
+          setTimeout(() => dot.remove(), 500)
+          return
+        }
+
+        pulsesRef.current.push({ x: pt.x, y: pt.y, angle: Math.random() * Math.PI * 2, born: Date.now() })
       })
 
       // Update neighbourhood GeoJSON clusters
