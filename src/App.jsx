@@ -13,7 +13,6 @@ import { recordCheckIn } from './utils/streak'
 import { initPresence, heartbeat, markInactive } from './utils/presence'
 import { useToast } from './contexts/ToastContext'
 import StatsPanel from './components/StatsPanel'
-import AmbientPins from './components/AmbientPins'
 import PinSearch from './components/PinSearch'
 import { useTheme } from './hooks/useTheme'
 import ProfilePanel from './components/ProfilePanel'
@@ -71,7 +70,6 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(null)
 
   // ── UI state ───────────────────────────────────────────────────────────────
-  const [pins, setPins]                       = useState([])
   const [panel, setPanel]                     = useState(PANEL.NONE)
   const [showSearch, setShowSearch]           = useState(false)
   const mapFlyTo                              = useRef(null)
@@ -255,10 +253,7 @@ export default function App() {
         activePinId={(panel === PANEL.CHAT || panel === PANEL.PEEK) ? activePin?.id : null}
         previewLocation={panel === PANEL.CHECKIN ? pendingLocation : null}
         onFlyTo={(fn) => { mapFlyTo.current = fn }}
-        onPinsUpdate={setPins}
       />
-
-      <AmbientPins pins={pins} />
 
       {/* Transition overlay — fades out while map initialises behind it */}
       {transitioning && <TransitionOverlay />}

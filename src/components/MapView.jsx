@@ -286,7 +286,7 @@ export default function MapView({
   onPinClick, onMapClick, onDeletePin,
   userLocation, unreadPinIds, activePinId,
   onNeighbourhoodClick, onFirstPins, previewLocation, onHoldDrop,
-  onFlyTo, theme, onPinsUpdate,
+  onFlyTo, theme,
 }) {
   const mapContainer      = useRef(null)
   const map               = useRef(null)
@@ -312,14 +312,12 @@ export default function MapView({
   const onHoldDropRef           = useRef(onHoldDrop)
   const onNeighbourhoodClickRef = useRef(onNeighbourhoodClick)
   const onFirstPinsRef          = useRef(onFirstPins)
-  const onPinsUpdateRef         = useRef(onPinsUpdate)
   onPinClickRef.current           = onPinClick
   onDeletePinRef.current          = onDeletePin
   onMapClickRef.current           = onMapClick
   onHoldDropRef.current           = onHoldDrop
   onNeighbourhoodClickRef.current = onNeighbourhoodClick
   onFirstPinsRef.current          = onFirstPins
-  onPinsUpdateRef.current         = onPinsUpdate
   unreadPinIdsRef.current         = unreadPinIds
   showToastRef.current            = showToast
 
@@ -991,8 +989,6 @@ export default function MapView({
         markersRef.current[pin.id] = { marker, wrap }
       })
 
-      // Notify App so it can pass pins to AmbientPins without a second subscription
-      onPinsUpdateRef.current?.(pins)
     })
 
     return unsub
