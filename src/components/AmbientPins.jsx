@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { subscribeToPins } from '../utils/db'
+import { useMemo } from 'react'
 
-const MAX_AMBIENT = 10
+const MAX_AMBIENT = 12
 const ZONES = ['left', 'right', 'bottom']
 
 // Deterministic pseudo-random values seeded by pin ID — stable across re-renders
@@ -25,18 +24,27 @@ function shortMsg(msg) {
 function pinLayout(id) {
   const r = seedRands(id)
   const zone = ZONES[Math.floor(r[0] * 3)]
-  const driftDur = 12 + Math.floor(r[4] * 6) // 12–17 s
+  const driftDur = 14 + Math.floor(r[4] * 4) // 14–17 s
+
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  // y range for left/right: keep below top 80 px (stat bar) and above bottom 20 px
+  const yTop = Math.floor(80 + r[2] * Math.max(0, vh - 100))
 
   let pos = {}
   let driftClass = 'ambient-drift-up'
 
   if (zone === 'left') {
-    pos = { left: `max(4px, ${1 + r[1] * 3}vw)`, top: `${20 + r[2] * 52}vh` }
+    pos = { left: `${Math.floor(r[1] * 50)}px`, top: `${yTop}px` }
   } else if (zone === 'right') {
-    pos = { right: `max(4px, ${1 + r[1] * 3}vw)`, top: `${20 + r[2] * 52}vh` }
+    pos = { right: `${Math.floor(r[1] * 50)}px`, top: `${yTop}px` }
   } else {
-    // bottom strip — avoid far edges so pill is fully visible
-    pos = { left: `${12 + r[1] * 60}%`, top: `${80 + r[2] * 7}vh` }
+    // Bottom strip — must NOT be in center 60 % of viewport width.
+    // Place only in left 18 % or right 18 % to leave the map focus zone clear.
+    const xPx = r[3] < 0.5
+      ? Math.floor(r[1] * vw * 0.18)
+      : Math.floor(vw * 0.82 + r[1] * vw * 0.16)
+    pos = { left: `${xPx}px`, top: `${Math.floor(vh - 74 + r[2] * 60)}px` }
     driftClass = 'ambient-drift-side'
   }
 
@@ -51,6 +59,7 @@ function AmbientPin({ pin }) {
     <div
       className={`ambient-pin ambient-pin--${zone} ${driftClass}`}
       style={{ ...pos, '--drift-dur': `${driftDur}s` }}
+      aria-hidden="true"
     >
       {text ? (
         <span className="ambient-pill">
@@ -64,16 +73,22 @@ function AmbientPin({ pin }) {
   )
 }
 
-export default function AmbientPins() {
-  const [pins, setPins] = useState([])
+export default function AmbientPins({ pins = [] }) {
+  const recent = useMemo(() => {
+    return [...pins]
+      .sort((a, b) => {
+        const ta = a.createdAt?.toMillis?.() ?? (a.createdAt?.seconds ?? 0) * 1000
+        const tb = b.createdAt?.toMillis?.() ?? (b.createdAt?.seconds ?? 0) * 1000
+        return tb - ta
+      })
+      .slice(0, MAX_AMBIENT)
+  }, [pins])
 
-  useEffect(() => subscribeToPins((all) => setPins(all.slice(0, MAX_AMBIENT))), [])
-
-  if (!pins.length) return null
+  if (!recent.length) return null
 
   return (
     <div className="ambient-layer" aria-hidden="true">
-      {pins.map((pin) => (
+      {recent.map((pin) => (
         <AmbientPin key={pin.id} pin={pin} />
       ))}
     </div>

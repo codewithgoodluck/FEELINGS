@@ -286,7 +286,7 @@ export default function MapView({
   onPinClick, onMapClick, onDeletePin,
   userLocation, unreadPinIds, activePinId,
   onNeighbourhoodClick, onFirstPins, previewLocation, onHoldDrop,
-  onFlyTo, theme,
+  onFlyTo, theme, onPinsUpdate,
 }) {
   const mapContainer      = useRef(null)
   const map               = useRef(null)
@@ -312,12 +312,14 @@ export default function MapView({
   const onHoldDropRef           = useRef(onHoldDrop)
   const onNeighbourhoodClickRef = useRef(onNeighbourhoodClick)
   const onFirstPinsRef          = useRef(onFirstPins)
+  const onPinsUpdateRef         = useRef(onPinsUpdate)
   onPinClickRef.current           = onPinClick
   onDeletePinRef.current          = onDeletePin
   onMapClickRef.current           = onMapClick
   onHoldDropRef.current           = onHoldDrop
   onNeighbourhoodClickRef.current = onNeighbourhoodClick
   onFirstPinsRef.current          = onFirstPins
+  onPinsUpdateRef.current         = onPinsUpdate
   unreadPinIdsRef.current         = unreadPinIds
   showToastRef.current            = showToast
 
@@ -586,6 +588,9 @@ export default function MapView({
           e.target.closest('.mapboxgl-control-container') ||
           e.target.closest('.hay-mood-pop') ||
           e.target.closest('.hay-hint-toast')) return
+      // If the mood picker is open (user tapping outside it), let closeOnOutside
+      // dismiss it — do NOT start a new charge from the same tap.
+      if (container.querySelector('.hay-mood-pop')) return
 
       cancelCharge(false)
 
@@ -606,9 +611,12 @@ export default function MapView({
       container.appendChild(chargeEl)
       holdState.chargeEl = chargeEl
 
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        holdState.timerId = setTimeout(() => { if (holdState.chargeEl) armDrop() }, HOLD_MS)
-      } else {
+      // Always use setTimeout for the arm trigger so cancelCharge() can reliably
+      // stop it with clearTimeout even when pointerup is intercepted by Mapbox.
+      holdState.timerId = setTimeout(() => { if (holdState.chargeEl) armDrop() }, HOLD_MS)
+
+      // RAF is purely visual — updates the progress ring, never triggers armDrop.
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         const ringEl = chargeEl.querySelector('.hay-charge-ring')
         const t0 = performance.now()
         function tick(now) {
@@ -616,8 +624,6 @@ export default function MapView({
           ringEl.style.setProperty('--p', Math.round(progress * 100))
           if (progress < 1 && holdState.chargeEl) {
             holdState.rafId = requestAnimationFrame(tick)
-          } else if (holdState.chargeEl) {
-            armDrop()
           }
         }
         holdState.rafId = requestAnimationFrame(tick)
@@ -627,6 +633,9 @@ export default function MapView({
     function handlePointerUp() {
       const elapsed = performance.now() - holdState.downTime
       const lngLat  = holdState.lngLat
+      // Reset first so any duplicate / late pointerup is a safe no-op
+      holdState.downTime = 0
+      holdState.lngLat   = null
       cancelCharge(true)
       // Short tap — forward to map-click handler (e.g. close open panel)
       if (elapsed < 200 && lngLat) {
@@ -643,10 +652,13 @@ export default function MapView({
 
     function handlePointerLeave() { cancelCharge(false) }
 
-    container.addEventListener('pointerdown',  handlePointerDown)
-    container.addEventListener('pointerup',    handlePointerUp)
-    container.addEventListener('pointermove',  handlePointerMove)
-    container.addEventListener('pointerleave', handlePointerLeave)
+    container.addEventListener('pointerdown',   handlePointerDown)
+    // Capture phase ensures pointerup fires before Mapbox can stopPropagation()
+    container.addEventListener('pointerup',     handlePointerUp,    { capture: true })
+    // pointercancel fires on system gesture / scroll takeover — treat as release
+    container.addEventListener('pointercancel', handlePointerLeave, { capture: true })
+    container.addEventListener('pointermove',   handlePointerMove)
+    container.addEventListener('pointerleave',  handlePointerLeave)
 
     // Sync markers on every zoom tick (rAF-throttled) and on zoomend
     let rafId = null
@@ -773,10 +785,11 @@ export default function MapView({
       pulseCanvasRef.current = null
       pulsesRef.current = []
       cancelCharge(false)
-      container.removeEventListener('pointerdown',  handlePointerDown)
-      container.removeEventListener('pointerup',    handlePointerUp)
-      container.removeEventListener('pointermove',  handlePointerMove)
-      container.removeEventListener('pointerleave', handlePointerLeave)
+      container.removeEventListener('pointerdown',   handlePointerDown)
+      container.removeEventListener('pointerup',     handlePointerUp,    { capture: true })
+      container.removeEventListener('pointercancel', handlePointerLeave, { capture: true })
+      container.removeEventListener('pointermove',   handlePointerMove)
+      container.removeEventListener('pointerleave',  handlePointerLeave)
       container.querySelectorAll('.hay-mood-pop, .hay-hint-toast, .hay-charge-wrap, .hay-land-ring')
         .forEach((el) => el.remove())
       if (map.current) map.current.remove()
@@ -961,6 +974,9 @@ export default function MapView({
 
         markersRef.current[pin.id] = { marker, wrap }
       })
+
+      // Notify App so it can pass pins to AmbientPins without a second subscription
+      onPinsUpdateRef.current?.(pins)
     })
 
     return unsub
