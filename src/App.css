@@ -3434,8 +3434,8 @@ html[data-theme="light"] .jl-toast {
 }
 
 .pins-panel-emoji-bubble {
-  width: 46px;
-  height: 46px;
+  width: 54px;
+  height: 54px;
   border-radius: var(--r-md);
   background: var(--ink-4);
   display: flex;
