@@ -52,17 +52,18 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick }) {
         ) : (
           pins.map(pin => (
             <button key={pin.id} className="pins-panel-item" onClick={() => handleSelect(pin)}>
-              <span className="pins-panel-emoji">{pin.mood}</span>
+              <div className="pins-panel-emoji-bubble">{pin.mood}</div>
               <div className="pins-panel-meta">
-                {pin.message && (
-                  <p className="pins-panel-message">{pin.message}</p>
-                )}
-                <p className="pins-panel-info">
-                  {pin.country ? `${countryFlag(pin.country)} ` : ''}
-                  {timeAgo(pin.createdAt)}
-                  {pin.isFlash ? ' · ⚡' : ''}
-                  {pin.hasStreak ? ' · 🔥' : ''}
-                </p>
+                {pin.message
+                  ? <p className="pins-panel-message">{pin.message}</p>
+                  : <p className="pins-panel-no-msg">No message</p>
+                }
+                <div className="pins-panel-footer">
+                  {pin.country && <span className="pins-panel-time">{countryFlag(pin.country)}</span>}
+                  <span className="pins-panel-time">{timeAgo(pin.createdAt)}</span>
+                  {pin.isFlash  && <span className="pins-panel-badge pins-panel-badge--flash">⚡ flash</span>}
+                  {pin.hasStreak && <span className="pins-panel-badge pins-panel-badge--streak">🔥 streak</span>}
+                </div>
               </div>
             </button>
           ))
