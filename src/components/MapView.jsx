@@ -472,6 +472,22 @@ export default function MapView({
         paint: { 'text-color': '#fff' },
       })
 
+      // Unclustered single pins — small emoji dot visible at low zoom
+      // (clustered ones are shown by nh-clusters; isolated single points need their own layer)
+      map.current.addLayer({
+        id:     'nh-unclustered',
+        type:   'symbol',
+        source: 'neighbourhoods',
+        filter: ['!', ['has', 'point_count']],
+        layout: {
+          'text-field':         ['get', 'mood'],
+          'text-font':          ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+          'text-size':          18,
+          'text-allow-overlap': true,
+        },
+        paint: { 'text-opacity': 0.85 },
+      })
+
       // Cluster click → compute dominant mood → call handler
       map.current.on('click', 'nh-clusters', (e) => {
         e.preventDefault()
