@@ -286,6 +286,7 @@ export default function MapView({
   onPinClick, onMapClick, onDeletePin,
   userLocation, unreadPinIds, activePinId,
   onNeighbourhoodClick, onFirstPins, previewLocation, onHoldDrop,
+  onFlyTo,
 }) {
   const mapContainer      = useRef(null)
   const map               = useRef(null)
@@ -358,6 +359,9 @@ export default function MapView({
       projection: 'globe',
       attributionControl: false,
     })
+
+    // Expose flyTo to parent so PinSearch can fly to a result
+    onFlyTo?.((opts) => map.current?.flyTo(opts))
 
     map.current.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-left')
     map.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right')
