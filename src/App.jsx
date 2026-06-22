@@ -71,7 +71,7 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(null)
 
   // ── UI state ───────────────────────────────────────────────────────────────
-  const [panel, setPanel]                     = useState(PANEL.NONE)
+  const [panel, setPanel]                     = useState(() => window.innerWidth >= 640 ? PANEL.FEED : PANEL.NONE)
   const [showSearch, setShowSearch]           = useState(false)
   const mapFlyTo                              = useRef(null)
   const [pendingLocation, setPendingLocation] = useState(null)

@@ -3284,6 +3284,10 @@ html[data-theme="light"] .jl-toast {
   z-index: 399;
 }
 
+@media (min-width: 640px) {
+  .pins-panel-backdrop { display: none; }
+}
+
 .pins-panel {
   position: fixed;
   left: 0;
