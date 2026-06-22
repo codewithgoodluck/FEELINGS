@@ -6,6 +6,7 @@ import { getAnonColour, getCountryColour } from '../utils/identity'
 import { countryFlag } from '../utils/presence'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
+import { getSubsolarPoint, getTerminatorGeoJSON, isPinInNight } from '../utils/solarPosition'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
@@ -81,6 +82,7 @@ const PIN_STYLE = `
   .hay-pin-inner { transform: rotate(45deg); font-size: 18px; line-height: 1; user-select: none; }
   .hay-pin--own      { border-color: rgba(255,255,255,1); box-shadow: 0 0 0 3px rgba(255,255,255,0.25), 0 4px 16px rgba(0,0,0,0.45); }
   .hay-pin--verified { border-color: #5de3ae; }
+  .hay-pin--night    { border-color: rgba(255,180,80,0.6); filter: brightness(0.72) sepia(0.3); }
 
   /* ── Flash pin ─────────────────────────────────── */
   .hay-pin--flash {
@@ -374,6 +376,50 @@ export default function MapView({
         'star-intensity': 0.18,
       })
 
+      // ── Day/night terminator ─────────────────────────────────────────────
+      map.current.addSource('terminator', {
+        type: 'geojson',
+        data: getTerminatorGeoJSON(new Date()),
+      })
+
+      // Wide faint glow underneath
+      map.current.addLayer({
+        id:     'terminator-glow',
+        type:   'line',
+        source: 'terminator',
+        paint: {
+          'line-color': '#ff8c3a',
+          'line-width': 8,
+          'line-blur':  10,
+          'line-opacity': 0.22,
+        },
+      })
+
+      // Crisp warm line on top
+      map.current.addLayer({
+        id:     'terminator-line',
+        type:   'line',
+        source: 'terminator',
+        paint: {
+          'line-color': '#ffaa64',
+          'line-width': 1.4,
+          'line-blur':  0.8,
+          'line-opacity': 0.75,
+        },
+      })
+
+      // Night-side fill — added before neighbourhoods source exists,
+      // so it naturally renders below the cluster bubbles.
+      map.current.addLayer({
+        id:     'terminator-fill',
+        type:   'fill',
+        source: 'terminator',
+        paint: {
+          'fill-color':   'rgba(10,12,20,0.38)',
+          'fill-opacity': 1,
+        },
+      })
+
       // ── Neighbourhood clustering ─────────────────────────────────────────
       map.current.addSource('neighbourhoods', {
         type:              'geojson',
@@ -600,6 +646,32 @@ export default function MapView({
     map.current.on('zoom',    throttledSync)
     map.current.on('zoomend', syncMarkerVisibility)
 
+    // ── Terminator + night-pin tint refresh (every 60 s) ────────────────────
+    function refreshTerminator() {
+      const now      = new Date()
+      const subsolar = getSubsolarPoint(now)
+
+      // Update terminator polygon
+      const src = map.current?.getSource?.('terminator')
+      if (src) src.setData(getTerminatorGeoJSON(now))
+
+      // Tint markers that are on the night side
+      Object.values(markersRef.current).forEach(({ marker, wrap }) => {
+        const ll  = marker.getLngLat()
+        const pin = wrap.querySelector('.hay-pin')
+        if (!pin) return
+        if (isPinInNight(ll.lat, ll.lng, subsolar)) {
+          pin.classList.add('hay-pin--night')
+        } else {
+          pin.classList.remove('hay-pin--night')
+        }
+      })
+    }
+    // Run once after map is loaded (load event fires before this, but the
+    // interval registration is synchronous inside the same useEffect)
+    map.current.once('idle', refreshTerminator)
+    const terminatorInterval = setInterval(refreshTerminator, 60_000)
+
     // ── Idle auto-rotation ──────────────────────────────────────────────────
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     let lastInteractionAt = 0
@@ -620,6 +692,7 @@ export default function MapView({
     )
 
     return () => {
+      clearInterval(terminatorInterval)
       if (rafId)       cancelAnimationFrame(rafId)
       if (rotateRafId) cancelAnimationFrame(rotateRafId)
       cancelCharge(false)
@@ -696,11 +769,13 @@ export default function MapView({
         wrap.setAttribute('aria-label', `Check-in: ${pin.mood}`)
 
         const el = document.createElement('div')
+        const isNight = isPinInNight(pin.lat, pin.lng, getSubsolarPoint(new Date()))
         el.className = [
           'hay-pin',
           isOwn        ? 'hay-pin--own'      : '',
           pin.verified ? 'hay-pin--verified'  : '',
           pin.isFlash  ? 'hay-pin--flash'     : '',
+          isNight      ? 'hay-pin--night'     : '',
         ].filter(Boolean).join(' ')
         el.style.background = pin.country ? getCountryColour(pin.country) : getAnonColour(pin.uid)
 
