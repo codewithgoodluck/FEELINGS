@@ -3307,8 +3307,23 @@ html[data-theme="light"] .jl-toast {
   to   { transform: translateX(0);     opacity: 1; }
 }
 
+.pins-panel--closing {
+  animation: slideOutLeft 0.3s var(--ease-out) both;
+  pointer-events: none;
+}
+
+@keyframes slideOutLeft {
+  from { transform: translateX(0);     opacity: 1; }
+  to   { transform: translateX(-100%); opacity: 0; }
+}
+
+.pins-panel-backdrop--out {
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .pins-panel { animation: none; }
+  .pins-panel,
+  .pins-panel--closing { animation: none; }
 }
 
 .pins-panel-header {

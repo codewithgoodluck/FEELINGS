@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { subscribeToPins } from '../utils/db'
 import { countryFlag } from '../utils/presence'
 
@@ -14,26 +14,37 @@ function timeAgo(ts) {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
+const CLOSE_MS = 300
+
 export default function PinsPanel({ onClose, onFlyTo }) {
-  const [pins, setPins] = useState([])
+  const [pins, setPins]       = useState([])
+  const [closing, setClosing] = useState(false)
+  const timerRef              = useRef(null)
 
   useEffect(() => subscribeToPins(setPins), [])
+  useEffect(() => () => clearTimeout(timerRef.current), [])
+
+  function dismiss() {
+    if (closing) return
+    setClosing(true)
+    timerRef.current = setTimeout(onClose, CLOSE_MS)
+  }
 
   function handleSelect(pin) {
     onFlyTo(pin.lng, pin.lat)
-    onClose()
+    dismiss()
   }
 
   return (
     <>
-    <div className="pins-panel-backdrop" onClick={onClose} aria-hidden="true" />
-    <div className="pins-panel" role="dialog" aria-label="Live pin feed">
+    <div className={`pins-panel-backdrop${closing ? ' pins-panel-backdrop--out' : ''}`} onClick={dismiss} aria-hidden="true" />
+    <div className={`pins-panel${closing ? ' pins-panel--closing' : ''}`} role="dialog" aria-label="Live pin feed">
       <div className="pins-panel-header">
         <h2 className="pins-panel-title">
           Live Pins
           <span className="pins-panel-count">{pins.length}</span>
         </h2>
-        <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+        <button className="icon-btn" onClick={dismiss} aria-label="Close">✕</button>
       </div>
       <div className="pins-panel-list">
         {pins.length === 0 ? (
