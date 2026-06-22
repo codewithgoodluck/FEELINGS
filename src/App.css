@@ -3417,7 +3417,7 @@ html[data-theme="light"] .jl-toast {
   transition: background 0.15s, border-color 0.15s, transform 0.12s;
   width: 100%;
   text-align: left;
-  background: var(--sheet-2);
+  background: var(--ink-4);
   border: 1px solid var(--border);
   color: inherit;
   margin-bottom: 0.375rem;
