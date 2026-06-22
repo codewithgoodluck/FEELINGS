@@ -5,10 +5,39 @@ import { subscribeToPins } from '../utils/db'
 import { getAnonColour, getCountryColour } from '../utils/identity'
 import { countryFlag } from '../utils/presence'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
 const CLUSTER_ZOOM = 9   // below this: show clusters; above: show markers
+
+const MOOD_COLORS = {
+  '😊': '#e8c468',
+  '😌': '#06D6A0',
+  '🥳': '#FFB703',
+  '🤔': '#81B29A',
+  '😔': '#5B8AF5',
+  '😰': '#E07A5F',
+  '😤': '#FB5607',
+  '😴': '#8338EC',
+}
+const MOOD_LIST = Object.keys(MOOD_COLORS)
+
+// Sum 1 per pin per mood so each cluster carries a per-mood count
+const CLUSTER_MOOD_PROPS = Object.fromEntries(
+  MOOD_LIST.map(m => [m, ['+', ['case', ['==', ['get', 'mood'], m], 1, 0]]])
+)
+
+// Pick the color of whichever mood has the highest count in the cluster
+const CLUSTER_MOOD_COLOR = (() => {
+  const parts = []
+  MOOD_LIST.forEach(mood => {
+    const others = MOOD_LIST.filter(m => m !== mood)
+    const cond = ['all', ...others.map(o => ['>=', ['get', mood], ['get', o]])]
+    parts.push(cond, MOOD_COLORS[mood])
+  })
+  return ['case', ...parts, 'rgba(91,138,245,0.55)']
+})()
 
 const PIN_STYLE = `
   .hay-pin-wrap {
@@ -228,6 +257,21 @@ const PIN_STYLE = `
     from { opacity: 0; transform: translateY(-40%) scale(0.5); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
+
+  /* ── Worldwide check-in pulse ──────────────────────── */
+  .hay-globe-pulse {
+    position: absolute;
+    border-radius: 50%;
+    width: 12px; height: 12px;
+    transform: translate(-50%, -50%);
+    pointer-events: none; z-index: 20;
+    animation: hayGlobePulse 1.3s ease-out forwards;
+  }
+  @keyframes hayGlobePulse {
+    0%   { width: 12px; height: 12px; opacity: 0.85; }
+    100% { width: 72px; height: 72px; opacity: 0;    }
+  }
+  @media (prefers-reduced-motion: reduce) { .hay-globe-pulse { display: none; } }
 `
 
 function buildGeoJSON(pins) {
@@ -254,8 +298,12 @@ export default function MapView({
   const firstPinsFired    = useRef(false)
   const unreadPinIdsRef   = useRef(unreadPinIds)
   const lastHoldDropAtRef = useRef(0)
+  const knownPinIdsRef    = useRef(new Set())
+  const seenFirstSnapshot = useRef(false)
   const [mapReady, setMapReady] = useState(false)
   const { user } = useAuth()
+  const showToast    = useToast()
+  const showToastRef = useRef(showToast)
 
   // Always-fresh callback refs — never stale, never in effect deps
   const onPinClickRef           = useRef(onPinClick)
@@ -271,6 +319,7 @@ export default function MapView({
   onNeighbourhoodClickRef.current = onNeighbourhoodClick
   onFirstPinsRef.current          = onFirstPins
   unreadPinIdsRef.current         = unreadPinIds
+  showToastRef.current            = showToast
 
   // ── Sync marker visibility to current zoom level ──────────────────────────
 
@@ -303,10 +352,11 @@ export default function MapView({
     }
 
     map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style:     'mapbox://styles/mapbox/dark-v11',
-      center:    userLocation ? [userLocation.lng, userLocation.lat] : [0, 20],
-      zoom:      userLocation ? 13 : 2,
+      container:  mapContainer.current,
+      style:      'mapbox://styles/mapbox/dark-v11',
+      center:     userLocation ? [userLocation.lng, userLocation.lat] : [0, 20],
+      zoom:       userLocation ? 13 : 2,
+      projection: 'globe',
       attributionControl: false,
     })
 
@@ -315,13 +365,23 @@ export default function MapView({
     map.current.addControl(new mapboxgl.GeolocateControl({ trackUserLocation: false, showUserLocation: false }), 'bottom-right')
 
     map.current.on('load', () => {
+      // ── Globe atmosphere ─────────────────────────────────────────────────
+      map.current.setFog({
+        color:            'rgb(10, 14, 26)',
+        'high-color':     'rgb(20, 40, 80)',
+        'horizon-blend':  0.04,
+        'space-color':    'rgb(5, 8, 18)',
+        'star-intensity': 0.18,
+      })
+
       // ── Neighbourhood clustering ─────────────────────────────────────────
       map.current.addSource('neighbourhoods', {
-        type:          'geojson',
-        data:          buildGeoJSON([]),
-        cluster:       true,
-        clusterMaxZoom: CLUSTER_ZOOM,
-        clusterRadius: 60,
+        type:              'geojson',
+        data:              buildGeoJSON([]),
+        cluster:           true,
+        clusterMaxZoom:    CLUSTER_ZOOM,
+        clusterRadius:     60,
+        clusterProperties: CLUSTER_MOOD_PROPS,
       })
 
       // Cluster bubble
@@ -331,7 +391,7 @@ export default function MapView({
         source: 'neighbourhoods',
         filter: ['has', 'point_count'],
         paint: {
-          'circle-color':        'rgba(91,138,245,0.55)',
+          'circle-color':        CLUSTER_MOOD_COLOR,
           'circle-radius':       ['step', ['get', 'point_count'], 22, 5, 30, 20, 40],
           'circle-stroke-width': 2.5,
           'circle-stroke-color': 'rgba(255,255,255,0.22)',
@@ -540,8 +600,28 @@ export default function MapView({
     map.current.on('zoom',    throttledSync)
     map.current.on('zoomend', syncMarkerVisibility)
 
+    // ── Idle auto-rotation ──────────────────────────────────────────────────
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    let lastInteractionAt = 0
+    let rotateRafId = null
+
+    function rotateTick() {
+      rotateRafId = requestAnimationFrame(rotateTick)
+      if (reducedMotion || !map.current) return
+      if (map.current.getZoom() > CLUSTER_ZOOM) return
+      if (Date.now() - lastInteractionAt < 1500) return
+      const c = map.current.getCenter()
+      map.current.easeTo({ center: [c.lng + 0.015, c.lat], duration: 0 })
+    }
+    rotateRafId = requestAnimationFrame(rotateTick)
+
+    ;['mousedown', 'touchstart', 'wheel', 'dragstart', 'mouseup', 'touchend', 'dragend'].forEach(evt =>
+      map.current.on(evt, () => { lastInteractionAt = Date.now() })
+    )
+
     return () => {
-      if (rafId) cancelAnimationFrame(rafId)
+      if (rafId)       cancelAnimationFrame(rafId)
+      if (rotateRafId) cancelAnimationFrame(rotateRafId)
       cancelCharge(false)
       container.removeEventListener('pointerdown',  handlePointerDown)
       container.removeEventListener('pointerup',    handlePointerUp)
@@ -559,6 +639,30 @@ export default function MapView({
     if (!mapReady) return
 
     const unsub = subscribeToPins((pins) => {
+      // Detect newly added pins — skip the first snapshot (all existing pins)
+      const newPins = seenFirstSnapshot.current
+        ? pins.filter(p => !knownPinIdsRef.current.has(p.id))
+        : []
+      seenFirstSnapshot.current = true
+      knownPinIdsRef.current    = new Set(pins.map(p => p.id))
+
+      newPins.forEach(pin => {
+        if (pin.uid === user?.uid) return
+        const flag  = countryFlag(pin.country)
+        const where = pin.country ? `${flag} ${pin.country}` : 'somewhere'
+        showToastRef.current?.(`Someone in ${where} just checked in ${pin.mood}`, 'info', 2000)
+
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+        if (!map.current || !mapContainer.current) return
+        const pt    = map.current.project([pin.lng, pin.lat])
+        const pulse = document.createElement('div')
+        pulse.className  = 'hay-globe-pulse'
+        pulse.style.left = pt.x + 'px'
+        pulse.style.top  = pt.y + 'px'
+        mapContainer.current.appendChild(pulse)
+        setTimeout(() => pulse.remove(), 1350)
+      })
+
       // Update neighbourhood GeoJSON clusters
       updateNeighbourhoods(pins)
 
@@ -703,7 +807,7 @@ export default function MapView({
     })
 
     return unsub
-  }, [mapReady, user]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mapReady, user])
 
   // ── Show/hide delete button for active pin ────────────────────────────────
 
