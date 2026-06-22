@@ -13,7 +13,8 @@ import { getAnonIdentity, getAnonColour } from '../utils/identity'
 import { uploadVoice, getSupportedMimeType } from '../utils/voiceStorage'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
-import { auth } from '../firebase'
+import { doc, onSnapshot } from 'firebase/firestore'
+import { auth, db } from '../firebase'
 import { linkWithPopup, GoogleAuthProvider } from 'firebase/auth'
 import GifPicker from './GifPicker'
 
@@ -138,6 +139,14 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
     setChatTip(false)
   }
 
+  const [privacyNote, setPrivacyNote] = useState(
+    () => !isOwn && localStorage.getItem('feelin_seen_privacy_note') !== '1'
+  )
+  function dismissPrivacyNote() {
+    localStorage.setItem('feelin_seen_privacy_note', '1')
+    setPrivacyNote(false)
+  }
+
   const voice = useVoiceRecorder(async (url, mime) => {
     await sendMessage(conversationId, { uid: user.uid, text: '', voiceUrl: url, voiceMime: mime })
   })
@@ -207,28 +216,29 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
     <>
       {onBack && <button className="inbox-back-btn" onClick={onBack}>← Inbox</button>}
 
-      {!isOwn && (
-        <>
-          {!bothRevealed && !myHasRevealed && (
-            <button className="btn btn--reveal" onClick={handleReveal} style={{ marginBottom: '0.875rem' }}>
-              👋 Reveal who you are
-            </button>
-          )}
-          {!bothRevealed && myHasRevealed && (
-            <div className="reveal-bar" style={{ marginBottom: '0.875rem' }}>
-              <p className="reveal-waiting">⏳ Waiting for {otherName} to reveal…</p>
-            </div>
-          )}
-          {bothRevealed && (
-            <div className="reveal-bar reveal-bar--confirmed" style={{ marginBottom: '0.875rem' }}>
-              ✓ You both know each other now
-            </div>
-          )}
-        </>
-      )}
+      {/* Context bar: mood + truncated message + reveal pill */}
+      <div className="chat-context-bar">
+        <span className="chat-ctx-mood">{pin.mood}</span>
+        <p className="chat-ctx-msg">{pin.message || 'No message — just a feeling.'}</p>
+        {!isOwn && (
+          bothRevealed ? (
+            <span className="chat-ctx-pill chat-ctx-pill--done">✓ Revealed</span>
+          ) : myHasRevealed ? (
+            <span className="chat-ctx-pill chat-ctx-pill--waiting">⏳ Waiting…</span>
+          ) : (
+            <button className="chat-ctx-pill chat-ctx-pill--cta" onClick={handleReveal}>👋 Reveal</button>
+          )
+        )}
+      </div>
 
       {/* Scrollable messages */}
       <div className="message-list" role="log" aria-live="polite">
+        {privacyNote && (
+          <div className="chat-privacy-note">
+            <span>🔒 Stay anonymous — never share personal details</span>
+            <button onClick={dismissPrivacyNote} aria-label="Dismiss">✕</button>
+          </div>
+        )}
         {messages.length === 0 && (
           <p className="empty-state">
             {isOwn ? 'Someone reached out — say hi!' : 'Say hello — they\'re waiting to hear from you.'}
@@ -416,7 +426,20 @@ export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
   const [inboxConvId, setInboxConvId]       = useState(null)
   const [connError, setConnError]           = useState(false)
   const [showReport, setShowReport]         = useState(false)
+  const [isActive, setIsActive]             = useState(false)
   const isOwn = user.uid === pin.uid
+
+  useEffect(() => {
+    if (isOwn || !pin.uid) return
+    const presRef = doc(db, 'presence', pin.uid)
+    return onSnapshot(presRef, (snap) => {
+      const data = snap.data()
+      if (!data) { setIsActive(false); return }
+      const ts = data.lastSeen?.toDate?.()?.getTime?.()
+              ?? (data.lastSeen?.seconds ? data.lastSeen.seconds * 1000 : 0)
+      setIsActive(Date.now() - ts < 2 * 60 * 1000)
+    })
+  }, [pin.uid, isOwn])
 
   useEffect(() => {
     if (isOwn || !pin.uid) return
@@ -458,9 +481,15 @@ export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
           </div>
           <div>
             <p className="chat-name">{getAnonIdentity(pin.uid, pin.country)}</p>
-            <p className="chat-sub">
-              {pin.isFlash ? '⚡ Flash pin' : isOwn ? 'Your pin · inbox' : 'Anonymous · tap to chat'}
-            </p>
+            {!isOwn && isActive ? (
+              <p className="chat-sub chat-sub--active">
+                <span className="online-dot" aria-hidden="true" />Active now
+              </p>
+            ) : (
+              <p className="chat-sub">
+                {pin.isFlash ? '⚡ Flash pin' : isOwn ? 'Your pin · inbox' : 'Anonymous · tap to chat'}
+              </p>
+            )}
           </div>
         </div>
         <div className="chat-header-actions">
@@ -469,15 +498,6 @@ export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
           )}
           <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
-      </div>
-
-      <div className="privacy-notice" role="note">
-        🔒 Stay anonymous — never share your real name, number, or personal details.
-      </div>
-
-      <div className="pin-context">
-        <span className="pin-mood">{pin.mood}</span>
-        <p className="pin-message">{pin.message || 'No message — just a feeling.'}</p>
       </div>
 
       {showReport && (
