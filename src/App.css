@@ -3360,14 +3360,13 @@ html[data-theme="light"] .jl-toast {
   border-radius: 50%;
   background: #4ade80;
   flex-shrink: 0;
-  filter: drop-shadow(0 0 6px rgba(74,222,128,0.95));
   animation: livePulse 2.4s ease-out infinite;
 }
 
 @keyframes livePulse {
-  0%   { box-shadow: 0 0 0 0    rgba(74,222,128,0.7); transform: scale(1);    }
-  50%  { box-shadow: 0 0 0 28px rgba(74,222,128,0);   transform: scale(1.25); }
-  100% { box-shadow: 0 0 0 0    rgba(74,222,128,0);   transform: scale(1);    }
+  0%   { box-shadow: 0 0 0 0    rgba(74,222,128,0.7); transform: scale(1);    filter: drop-shadow(0 0 4px rgba(74,222,128,0.6));  }
+  50%  { box-shadow: 0 0 0 28px rgba(74,222,128,0);   transform: scale(1.25); filter: drop-shadow(0 0 10px rgba(74,222,128,1));   }
+  100% { box-shadow: 0 0 0 0    rgba(74,222,128,0);   transform: scale(1);    filter: drop-shadow(0 0 4px rgba(74,222,128,0.6));  }
 }
 
 .pins-panel-subtitle {
