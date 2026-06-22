@@ -142,6 +142,92 @@ const PIN_STYLE = `
     70%  { box-shadow: 0 0 0 14px rgba(91,138,245,0); }
     100% { box-shadow: 0 0 0 0 rgba(91,138,245,0); }
   }
+
+  /* ── Press-and-hold charge ring ─────────────────── */
+  .hay-charge-wrap {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    z-index: 15;
+    pointer-events: none;
+  }
+  .hay-charge-ring {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: conic-gradient(rgba(91,138,245,0.9) calc(var(--p,0) * 1%), rgba(255,255,255,0.12) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+            mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  }
+  .hay-charge-ghost {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -200%);
+    font-size: 20px; opacity: 0.65;
+  }
+
+  /* ── Mood drop popover ──────────────────────────── */
+  .hay-mood-pop {
+    position: absolute;
+    transform: translate(-50%, calc(-100% - 18px));
+    background: rgba(20,22,30,0.97);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px; padding: 8px;
+    display: flex; gap: 6px; flex-wrap: wrap; max-width: 224px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    z-index: 30;
+  }
+  .hay-mood-pop.hay-mood-pop--show {
+    opacity: 1; pointer-events: auto;
+    transform: translate(-50%, calc(-100% - 10px));
+  }
+  .hay-mood-pop button {
+    font-size: 20px; width: 36px; height: 36px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.12s;
+  }
+  .hay-mood-pop button:active { background: rgba(91,138,245,0.25); }
+
+  /* ── Short-press hint toast ─────────────────────── */
+  .hay-hint-toast {
+    position: absolute;
+    transform: translate(-50%, -145%);
+    background: rgba(20,22,30,0.95);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.6);
+    font-size: 11.5px; padding: 7px 12px;
+    border-radius: 10px;
+    opacity: 0; transition: opacity 0.22s ease;
+    pointer-events: none; z-index: 30;
+    white-space: nowrap; font-family: system-ui, sans-serif;
+  }
+  .hay-hint-toast--show { opacity: 1; }
+
+  /* ── Land ring (drop confirmation ripple) ───────── */
+  .hay-land-ring {
+    position: absolute; border-radius: 50%;
+    width: 12px; height: 12px;
+    transform: translate(-50%, -50%);
+    border: 1.5px solid rgba(91,138,245,0.65);
+    pointer-events: none; z-index: 11;
+    animation: hayLandRing 0.85s ease-out forwards;
+  }
+  @media (prefers-reduced-motion: reduce) { .hay-land-ring { display: none; } }
+  @keyframes hayLandRing {
+    0%   { width: 12px;  height: 12px;  opacity: 0.9; }
+    100% { width: 96px;  height: 96px;  opacity: 0; }
+  }
+
+  /* ── New-drop pin entry bounce ───────────────────── */
+  @media (prefers-reduced-motion: no-preference) {
+    .hay-pin-wrap--new-drop {
+      animation: hayPinDrop 0.55s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+  }
+  @keyframes hayPinDrop {
+    from { opacity: 0; transform: translateY(-40%) scale(0.5); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
 `
 
 function buildGeoJSON(pins) {
@@ -158,27 +244,30 @@ function buildGeoJSON(pins) {
 export default function MapView({
   onPinClick, onMapClick, onDeletePin,
   userLocation, unreadPinIds, activePinId,
-  onNeighbourhoodClick, onFirstPins, previewLocation,
+  onNeighbourhoodClick, onFirstPins, previewLocation, onHoldDrop,
 }) {
-  const mapContainer    = useRef(null)
-  const map             = useRef(null)
-  const markersRef      = useRef({})
-  const previewMarkerRef = useRef(null)
-  const styleInjected   = useRef(false)
-  const firstPinsFired  = useRef(false)
-  const unreadPinIdsRef = useRef(unreadPinIds)
+  const mapContainer      = useRef(null)
+  const map               = useRef(null)
+  const markersRef        = useRef({})
+  const previewMarkerRef  = useRef(null)
+  const styleInjected     = useRef(false)
+  const firstPinsFired    = useRef(false)
+  const unreadPinIdsRef   = useRef(unreadPinIds)
+  const lastHoldDropAtRef = useRef(0)
   const [mapReady, setMapReady] = useState(false)
   const { user } = useAuth()
 
   // Always-fresh callback refs — never stale, never in effect deps
-  const onPinClickRef          = useRef(onPinClick)
-  const onDeletePinRef         = useRef(onDeletePin)
-  const onMapClickRef          = useRef(onMapClick)
+  const onPinClickRef           = useRef(onPinClick)
+  const onDeletePinRef          = useRef(onDeletePin)
+  const onMapClickRef           = useRef(onMapClick)
+  const onHoldDropRef           = useRef(onHoldDrop)
   const onNeighbourhoodClickRef = useRef(onNeighbourhoodClick)
   const onFirstPinsRef          = useRef(onFirstPins)
   onPinClickRef.current           = onPinClick
   onDeletePinRef.current          = onDeletePin
   onMapClickRef.current           = onMapClick
+  onHoldDropRef.current           = onHoldDrop
   onNeighbourhoodClickRef.current = onNeighbourhoodClick
   onFirstPinsRef.current          = onFirstPins
   unreadPinIdsRef.current         = unreadPinIds
@@ -290,10 +379,157 @@ export default function MapView({
       syncMarkerVisibility()
     })
 
-    // Canvas click → map handler (always reads latest via ref)
-    map.current.on('click', (e) => {
-      onMapClickRef.current({ lat: e.lngLat.lat, lng: e.lngLat.lng })
-    })
+    // ── Press-and-hold pin drop ──────────────────────────────────────────────
+    const container = mapContainer.current
+    const HOLD_MS   = 550
+    const MOODS_POP = ['😊', '😔', '😤', '😴', '🤔', '🥳', '😰', '😌']
+    const holdState = {
+      rafId: null, timerId: null, chargeEl: null,
+      startPt: null, lngLat: null,
+      startClientX: 0, startClientY: 0, downTime: 0,
+    }
+
+    function showHint(pt) {
+      const el = document.createElement('div')
+      el.className   = 'hay-hint-toast'
+      el.textContent = 'Press & hold to drop a pin'
+      el.style.left  = pt.x + 'px'
+      el.style.top   = pt.y + 'px'
+      container.appendChild(el)
+      requestAnimationFrame(() => el.classList.add('hay-hint-toast--show'))
+      setTimeout(() => {
+        el.classList.remove('hay-hint-toast--show')
+        setTimeout(() => el.remove(), 250)
+      }, 1200)
+    }
+
+    function dropMood(pt, lngLat, mood) {
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const ring = document.createElement('div')
+        ring.className = 'hay-land-ring'
+        ring.style.left = pt.x + 'px'
+        ring.style.top  = pt.y + 'px'
+        container.appendChild(ring)
+        setTimeout(() => ring.remove(), 900)
+      }
+      lastHoldDropAtRef.current = Date.now()
+      onHoldDropRef.current?.({ lat: lngLat.lat, lng: lngLat.lng }, mood)
+    }
+
+    function armDrop() {
+      const { chargeEl, startPt, lngLat } = holdState
+      if (chargeEl) { chargeEl.remove(); holdState.chargeEl = null }
+
+      const pop = document.createElement('div')
+      pop.className  = 'hay-mood-pop'
+      pop.style.left = startPt.x + 'px'
+      pop.style.top  = startPt.y + 'px'
+
+      function closeOnOutside(e) {
+        if (!pop.contains(e.target)) {
+          pop.remove()
+          document.removeEventListener('pointerdown', closeOnOutside)
+        }
+      }
+
+      MOODS_POP.forEach((mood) => {
+        const btn = document.createElement('button')
+        btn.textContent = mood
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation()
+          pop.remove()
+          document.removeEventListener('pointerdown', closeOnOutside)
+          dropMood(startPt, lngLat, mood)
+        })
+        pop.appendChild(btn)
+      })
+
+      setTimeout(() => document.addEventListener('pointerdown', closeOnOutside), 0)
+      container.appendChild(pop)
+      requestAnimationFrame(() => pop.classList.add('hay-mood-pop--show'))
+    }
+
+    function cancelCharge(showHintToast) {
+      if (holdState.rafId)   { cancelAnimationFrame(holdState.rafId); holdState.rafId = null }
+      if (holdState.timerId) { clearTimeout(holdState.timerId); holdState.timerId = null }
+      if (holdState.chargeEl) {
+        const pVal = parseInt(
+          holdState.chargeEl.querySelector('.hay-charge-ring')?.style.getPropertyValue('--p') || '0',
+          10
+        )
+        if (showHintToast && pVal < 70 && holdState.startPt) showHint(holdState.startPt)
+        holdState.chargeEl.remove()
+        holdState.chargeEl = null
+      }
+    }
+
+    function handlePointerDown(e) {
+      if (e.button && e.button !== 0) return
+      if (e.target.closest('.hay-pin-wrap') ||
+          e.target.closest('.mapboxgl-control-container') ||
+          e.target.closest('.hay-mood-pop') ||
+          e.target.closest('.hay-hint-toast')) return
+
+      cancelCharge(false)
+
+      const rect = container.getBoundingClientRect()
+      const px   = e.clientX - rect.left
+      const py   = e.clientY - rect.top
+      holdState.startPt      = { x: px, y: py }
+      holdState.startClientX = e.clientX
+      holdState.startClientY = e.clientY
+      holdState.downTime     = performance.now()
+      holdState.lngLat       = map.current.unproject([px, py])
+
+      const chargeEl = document.createElement('div')
+      chargeEl.className = 'hay-charge-wrap'
+      chargeEl.style.left = px + 'px'
+      chargeEl.style.top  = py + 'px'
+      chargeEl.innerHTML  = '<div class="hay-charge-ring"></div><div class="hay-charge-ghost">📍</div>'
+      container.appendChild(chargeEl)
+      holdState.chargeEl = chargeEl
+
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        holdState.timerId = setTimeout(() => { if (holdState.chargeEl) armDrop() }, HOLD_MS)
+      } else {
+        const ringEl = chargeEl.querySelector('.hay-charge-ring')
+        const t0 = performance.now()
+        function tick(now) {
+          const progress = Math.min(1, (now - t0) / HOLD_MS)
+          ringEl.style.setProperty('--p', Math.round(progress * 100))
+          if (progress < 1 && holdState.chargeEl) {
+            holdState.rafId = requestAnimationFrame(tick)
+          } else if (holdState.chargeEl) {
+            armDrop()
+          }
+        }
+        holdState.rafId = requestAnimationFrame(tick)
+      }
+    }
+
+    function handlePointerUp() {
+      const elapsed = performance.now() - holdState.downTime
+      const lngLat  = holdState.lngLat
+      cancelCharge(true)
+      // Short tap — forward to map-click handler (e.g. close open panel)
+      if (elapsed < 200 && lngLat) {
+        onMapClickRef.current?.({ lat: lngLat.lat, lng: lngLat.lng })
+      }
+    }
+
+    function handlePointerMove(e) {
+      if (!holdState.chargeEl) return
+      const dx = e.clientX - holdState.startClientX
+      const dy = e.clientY - holdState.startClientY
+      if (Math.sqrt(dx * dx + dy * dy) > 12) cancelCharge(false)
+    }
+
+    function handlePointerLeave() { cancelCharge(false) }
+
+    container.addEventListener('pointerdown',  handlePointerDown)
+    container.addEventListener('pointerup',    handlePointerUp)
+    container.addEventListener('pointermove',  handlePointerMove)
+    container.addEventListener('pointerleave', handlePointerLeave)
 
     // Sync markers on every zoom tick (rAF-throttled) and on zoomend
     let rafId = null
@@ -306,6 +542,13 @@ export default function MapView({
 
     return () => {
       if (rafId) cancelAnimationFrame(rafId)
+      cancelCharge(false)
+      container.removeEventListener('pointerdown',  handlePointerDown)
+      container.removeEventListener('pointerup',    handlePointerUp)
+      container.removeEventListener('pointermove',  handlePointerMove)
+      container.removeEventListener('pointerleave', handlePointerLeave)
+      container.querySelectorAll('.hay-mood-pop, .hay-hint-toast, .hay-charge-wrap, .hay-land-ring')
+        .forEach((el) => el.remove())
       if (map.current) map.current.remove()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -444,6 +687,15 @@ export default function MapView({
           msgBadge.className   = 'hay-msg-badge'
           msgBadge.textContent = '💬'
           wrap.appendChild(msgBadge)
+        }
+
+        // Animate the user's own pin when dropped via press-and-hold
+        const isRecentDrop = isOwn &&
+          lastHoldDropAtRef.current > 0 &&
+          Date.now() - lastHoldDropAtRef.current < 5000
+        if (isRecentDrop) {
+          wrap.classList.add('hay-pin-wrap--new-drop')
+          lastHoldDropAtRef.current = 0
         }
 
         markersRef.current[pin.id] = { marker, wrap }

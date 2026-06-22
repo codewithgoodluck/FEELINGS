@@ -46,6 +46,7 @@ function lastSeen(convId) {
 
 export default function App() {
   const { user, loading } = useAuth()
+  const showToast = useToast()
   useKeyboardOffset()
 
   // ── First-run state ────────────────────────────────────────────────────────
@@ -133,12 +134,26 @@ export default function App() {
 
   // ── Map + panel event handlers ────────────────────────────────────────────
 
-  function handleMapClick(lngLat) {
-    if (panel !== PANEL.NONE) { setPanel(PANEL.NONE); return }
-    setPendingLocation(lngLat)
-    setPlaceName(null)
-    setPanel(PANEL.CHECKIN)
-    reverseGeocodePlaceName(lngLat.lat, lngLat.lng).then(setPlaceName).catch(() => {})
+  function handleMapClick() {
+    if (panel !== PANEL.NONE) setPanel(PANEL.NONE)
+  }
+
+  async function handleHoldDrop(lngLat, mood) {
+    if (!user) return
+    try {
+      const { lat, lng } = fuzzLocation(lngLat.lat, lngLat.lng)
+      const country      = await reverseGeocodeCountry(lat, lng)
+      const streakCount  = recordCheckIn()
+      const hasStreak    = streakCount >= 7
+      await createPin({ uid: user.uid, lat, lng, mood, message: '', verified: userLocation !== null, country, isFlash: false, hasStreak })
+      if (localStorage.getItem('feelin_tip_celebration') !== '1') {
+        localStorage.setItem('feelin_tip_celebration', '1')
+        setCelebration(true)
+        setTimeout(() => setCelebration(false), 2800)
+      }
+    } catch (err) {
+      showToast(err?.message || 'Failed to drop pin — check your connection.', 'error')
+    }
   }
 
   function handlePinClick(pin) {
@@ -190,6 +205,7 @@ export default function App() {
       <MapView
         userLocation={userLocation}
         onMapClick={handleMapClick}
+        onHoldDrop={handleHoldDrop}
         onPinClick={handlePinClick}
         onDeletePin={handleDeletePin}
         onNeighbourhoodClick={handleNeighbourhoodClick}
