@@ -183,3 +183,29 @@ export async function reportMessage(conversationId, messageId, reporterUid, reas
     createdAt: serverTimestamp(),
   })
 }
+
+// Cancel a pending reveal request — removes uid from revealedBy and displayNames.
+// Only valid before the other participant has also revealed (callers should check bothRevealed).
+export async function unrequestReveal(conversationId, uid) {
+  const ref  = doc(db, 'conversations', conversationId)
+  const snap = await getDoc(ref)
+  const data = snap.data() || {}
+  const revealedBy   = (data.revealedBy || []).filter((u) => u !== uid)
+  const displayNames = { ...(data.displayNames || {}) }
+  delete displayNames[uid]
+  await updateDoc(ref, { revealedBy, displayNames })
+}
+
+// Writes a single system message marking the mutual reveal. Uses a fixed document ID
+// so concurrent calls from both clients are idempotent — no duplicate messages.
+export async function addRevealSystemMessage(conversationId) {
+  await setDoc(
+    doc(db, 'conversations', conversationId, 'messages', '_reveal'),
+    {
+      uid:       '_system',
+      type:      'reveal',
+      text:      '🎉 You both revealed — say hello for real!',
+      createdAt: serverTimestamp(),
+    }
+  )
+}

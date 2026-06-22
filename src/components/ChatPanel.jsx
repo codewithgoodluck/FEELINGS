@@ -7,6 +7,8 @@ import {
   subscribeToConversationsForPin,
   sendMessage,
   requestReveal,
+  unrequestReveal,
+  addRevealSystemMessage,
   reportPin,
   reportMessage,
   setTyping,
@@ -16,8 +18,7 @@ import { uploadVoice, getSupportedMimeType } from '../utils/voiceStorage'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { doc, onSnapshot } from 'firebase/firestore'
-import { auth, db } from '../firebase'
-import { linkWithPopup, GoogleAuthProvider } from 'firebase/auth'
+import { db } from '../firebase'
 import GifPicker from './GifPicker'
 
 function markSeen(convId) {
@@ -123,6 +124,16 @@ function useVoiceRecorder(onSend) {
 
 // circumference of r=16 SVG circle
 const RING_CIRC = 2 * Math.PI * 16
+
+const AUTH_ERROR_MSGS = {
+  EMAIL_IN_USE:      'This email is already registered. Try the Log in tab.',
+  INVALID_EMAIL:     'Please enter a valid email address.',
+  WEAK_PASSWORD:     'Password must be at least 6 characters.',
+  WRONG_CREDENTIALS: 'Incorrect email or password.',
+  TOO_MANY_REQUESTS: 'Too many attempts — try again in a moment.',
+  NETWORK_ERROR:     'Connection error — check your network.',
+  UNKNOWN:           'Something went wrong. Please try again.',
+}
 
 function seededHeight(seed, i) {
   const x = Math.sin((seed + i) * 9301.2) * 93701
@@ -260,6 +271,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
   const chatBottomRef = useRef(null)
   const isOwn         = user.uid === pin.uid
   const myIdentity    = getAnonIdentity(user.uid, pin.country)
+  const { registerAccount, loginAccount } = useAuth()
 
   const [chatTip, setChatTip] = useState(
     () => !isOwn && localStorage.getItem('feelin_tip_chat') !== '1'
@@ -280,6 +292,20 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
   const [expandedMsgId, setExpandedMsgId] = useState(null)
   const typingTimerRef = useRef(null)
   const isTypingRef    = useRef(false)
+
+  // Reveal flow state
+  const [revealStep, setRevealStep]           = useState(null) // null | 'auth-gate' | 'name-choice'
+  const [authTab, setAuthTab]                 = useState('signup')
+  const [authEmail, setAuthEmail]             = useState('')
+  const [authPassword, setAuthPassword]       = useState('')
+  const [authError, setAuthError]             = useState(null)
+  const [authLoading, setAuthLoading]         = useState(false)
+  const [revealName, setRevealName]           = useState('')
+  const [revealNameError, setRevealNameError] = useState(null)
+  const [showCelebration, setShowCelebration] = useState(false)
+  const conversationLoadedRef = useRef(false)
+  const prevBothRevealedRef   = useRef(false)
+  const celebrationTimerRef   = useRef(null)
 
   function formatTime(msg) {
     const ts = msg.createdAt?.toDate?.()
@@ -312,6 +338,13 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
   // Clear typing status when component unmounts or conversation changes
   useEffect(() => () => clearTyping(), [conversationId]) // eslint-disable-line
 
+  // Clear pending timer refs on unmount
+  useEffect(() => () => {
+    clearTimeout(longPressTimerRef.current)
+    clearTimeout(reportAutoDismissRef.current)
+    clearTimeout(celebrationTimerRef.current)
+  }, [])
+
   const voice = useVoiceRecorder(async (url, mime) => {
     await sendMessage(conversationId, { uid: user.uid, text: '', voiceUrl: url, voiceMime: mime })
   })
@@ -329,6 +362,23 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
 
   const bothRevealed  = conversation?.revealedBy?.includes(user.uid) && conversation?.revealedBy?.includes(pin.uid)
   const myHasRevealed = conversation?.revealedBy?.includes(user.uid)
+
+  // Fire celebration overlay exactly once when bothRevealed first transitions false→true in this session.
+  // Seeds refs on first conversation load to avoid replaying celebration on re-open.
+  useEffect(() => {
+    if (!conversation) return
+    if (!conversationLoadedRef.current) {
+      conversationLoadedRef.current = true
+      prevBothRevealedRef.current = !!bothRevealed
+      return
+    }
+    if (bothRevealed && !prevBothRevealedRef.current) {
+      setShowCelebration(true)
+      addRevealSystemMessage(conversationId).catch(() => {})
+      celebrationTimerRef.current = setTimeout(() => setShowCelebration(false), 2600)
+    }
+    prevBothRevealedRef.current = !!bothRevealed
+  }, [bothRevealed, conversation]) // eslint-disable-line
 
   function getDisplayName(uid) {
     if (bothRevealed && conversation?.displayNames?.[uid]) return conversation.displayNames[uid]
@@ -360,20 +410,42 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
   }
   const showToast = useToast()
 
-  async function handleReveal() {
+  function handleRevealCta() {
     if (user.isAnonymous) {
-      const provider = new GoogleAuthProvider()
-      try {
-        await linkWithPopup(auth.currentUser, provider)
-      } catch (err) {
-        if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') return
-        if (err.code === 'auth/credential-already-in-use') {
-          showToast('This Google account is already linked to another profile.', 'error'); return
-        }
-        showToast(err.message || 'Sign-in failed. Please try again.', 'error'); return
-      }
+      setRevealStep('auth-gate')
+    } else {
+      setRevealStep('name-choice')
     }
-    await requestReveal(conversationId, auth.currentUser.uid, auth.currentUser.displayName || myIdentity)
+  }
+
+  async function handleAuthSubmit() {
+    setAuthLoading(true)
+    setAuthError(null)
+    const result = authTab === 'signup'
+      ? await registerAccount(authEmail.trim(), authPassword)
+      : await loginAccount(authEmail.trim(), authPassword)
+    setAuthLoading(false)
+    if (result.error) { setAuthError(result.error); return }
+    setAuthEmail('')
+    setAuthPassword('')
+    setRevealStep('name-choice')
+  }
+
+  async function handleConfirmReveal() {
+    const name = revealName.trim()
+    if (!name) { setRevealNameError('Please enter a name.'); return }
+    setRevealStep(null)
+    setRevealName('')
+    await requestReveal(conversationId, user.uid, name).catch((err) => {
+      console.error('requestReveal failed:', err)
+      showToast('Could not send reveal — try again.', 'error')
+    })
+  }
+
+  async function handleCancelReveal() {
+    await unrequestReveal(conversationId, user.uid).catch((err) => {
+      console.error('unrequestReveal failed:', err)
+    })
   }
 
   const [reportPopMsgId, setReportPopMsgId]   = useState(null)
@@ -424,9 +496,12 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
           bothRevealed ? (
             <span className="chat-ctx-pill chat-ctx-pill--done">✓ Revealed</span>
           ) : myHasRevealed ? (
-            <span className="chat-ctx-pill chat-ctx-pill--waiting">⏳ Waiting…</span>
+            <span className="chat-ctx-pill chat-ctx-pill--waiting">
+              ⏳ Waiting…
+              <button className="chat-ctx-cancel-reveal" onClick={handleCancelReveal}>cancel</button>
+            </span>
           ) : (
-            <button className="chat-ctx-pill chat-ctx-pill--cta" onClick={handleReveal}>👋 Reveal</button>
+            <button className="chat-ctx-pill chat-ctx-pill--cta" onClick={handleRevealCta}>👋 Reveal</button>
           )
         )}
       </div>
@@ -453,6 +528,11 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
             else groups.push([msg])
           })
           return groups.map((group) => {
+            if (group[0].uid === '_system') {
+              return (
+                <p key={group[0].id + '-g'} className="system-msg-row">{group[0].text}</p>
+              )
+            }
             const isMe  = group[0].uid === user.uid
             const multi = group.length > 1
             return (
@@ -547,6 +627,78 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
           <GifPicker onSelect={handleGifSelect} onClose={() => setShowGifs(false)} />
         </div>,
         document.body
+      )}
+
+      {/* ── Reveal: auth-gate overlay ── */}
+      {revealStep === 'auth-gate' && (
+        <div className="reveal-overlay" role="dialog" aria-label="Create account to reveal">
+          <div className="reveal-sheet">
+            <button className="reveal-sheet-close" onClick={() => setRevealStep(null)} aria-label="Close">✕</button>
+            <p className="reveal-sheet-eyebrow">👋 Reveal your name</p>
+            <h2 className="reveal-sheet-title">Save your profile first</h2>
+            <p className="reveal-sheet-sub">Your pins, streak, and history carry over — nothing is lost.</p>
+            <div className="reveal-auth-tabs" role="tablist">
+              <button role="tab" aria-selected={authTab === 'signup'} className={`reveal-auth-tab${authTab === 'signup' ? ' reveal-auth-tab--active' : ''}`} onClick={() => { setAuthTab('signup'); setAuthError(null) }}>Sign up</button>
+              <button role="tab" aria-selected={authTab === 'login'}  className={`reveal-auth-tab${authTab === 'login'  ? ' reveal-auth-tab--active' : ''}`} onClick={() => { setAuthTab('login');  setAuthError(null) }}>Log in</button>
+            </div>
+            <div className="reveal-auth-form">
+              {authError && (
+                <p className="reveal-auth-error">
+                  {AUTH_ERROR_MSGS[authError] ?? AUTH_ERROR_MSGS.UNKNOWN}
+                  {authError === 'EMAIL_IN_USE' && (
+                    <button className="reveal-auth-error-switch" onClick={() => { setAuthTab('login'); setAuthError(null) }}>Switch to Log in →</button>
+                  )}
+                </p>
+              )}
+              <input className="reveal-auth-input" type="email" placeholder="Email address" value={authEmail} onChange={(e) => { setAuthEmail(e.target.value); setAuthError(null) }} autoComplete="email" inputMode="email" />
+              <input className="reveal-auth-input" type="password" placeholder="Password" value={authPassword} onChange={(e) => { setAuthPassword(e.target.value); setAuthError(null) }} autoComplete={authTab === 'signup' ? 'new-password' : 'current-password'} />
+              <button className="btn btn--primary btn--full" onClick={handleAuthSubmit} disabled={authLoading || !authEmail.trim() || !authPassword}>
+                {authLoading ? '…' : authTab === 'signup' ? 'Create account & continue' : 'Log in & continue'}
+              </button>
+            </div>
+            <button className="reveal-maybe-later" onClick={() => setRevealStep(null)}>Maybe later</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reveal: name-choice overlay ── */}
+      {revealStep === 'name-choice' && (
+        <div className="reveal-overlay" role="dialog" aria-label="Choose your reveal name">
+          <div className="reveal-sheet">
+            <button className="reveal-sheet-close" onClick={() => setRevealStep(null)} aria-label="Close">✕</button>
+            <p className="reveal-sheet-eyebrow">👋 Almost there</p>
+            <h2 className="reveal-sheet-title">What should we call you?</h2>
+            <p className="reveal-sheet-sub">Only your chosen name is shared — never your email, location, or contact info.</p>
+            <div className="reveal-auth-form">
+              {revealNameError && <p className="reveal-auth-error">{revealNameError}</p>}
+              <input className="reveal-auth-input" type="text" placeholder="Your first name or nickname" value={revealName} onChange={(e) => { setRevealName(e.target.value); setRevealNameError(null) }} maxLength={40} autoComplete="off" autoFocus />
+              <button className="btn btn--primary btn--full" onClick={handleConfirmReveal} disabled={!revealName.trim()}>
+                Send reveal request
+              </button>
+            </div>
+            <button className="reveal-maybe-later" onClick={() => setRevealStep(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reveal: mutual celebration overlay ── */}
+      {showCelebration && (
+        <div className="reveal-celebration" aria-live="assertive" aria-atomic="true">
+          <div className="reveal-celeb-avatars">
+            <div className="reveal-celeb-avatar" style={{ background: getAnonColour(user.uid) }}>
+              {getDisplayName(user.uid).charAt(0).toUpperCase()}
+            </div>
+            <div className="reveal-celeb-avatar" style={{ background: getAnonColour(otherUid || '') }}>
+              {getDisplayName(otherUid || '').charAt(0).toUpperCase()}
+            </div>
+          </div>
+          <div className="reveal-celeb-names">
+            <span>{getDisplayName(user.uid)}</span>
+            <span className="reveal-celeb-amp">&amp;</span>
+            <span>{getDisplayName(otherUid || '')}</span>
+          </div>
+          <p className="reveal-celeb-note">You both revealed 🎉</p>
+        </div>
       )}
 
       {/* Sticky bottom */}
