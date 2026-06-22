@@ -40,16 +40,16 @@ function pinLayout(id) {
     driftClass = 'ambient-drift-side'
   }
 
-  return { pos, driftClass, driftDur }
+  return { pos, driftClass, driftDur, zone }
 }
 
 function AmbientPin({ pin }) {
-  const { pos, driftClass, driftDur } = useMemo(() => pinLayout(pin.id), [pin.id])
+  const { pos, driftClass, driftDur, zone } = useMemo(() => pinLayout(pin.id), [pin.id])
   const text = useMemo(() => shortMsg(pin.message), [pin.message])
 
   return (
     <div
-      className={`ambient-pin ${driftClass}`}
+      className={`ambient-pin ambient-pin--${zone} ${driftClass}`}
       style={{ ...pos, '--drift-dur': `${driftDur}s` }}
     >
       {text ? (

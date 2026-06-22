@@ -987,6 +987,12 @@
   }
 }
 
+/* Right-strip pins fall within the sidebar panel's horizontal footprint on
+   desktop — hide them so they don't silently disappear behind the panel */
+@media (min-width: 640px) {
+  .ambient-pin--right { display: none; }
+}
+
 @keyframes ambientFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
