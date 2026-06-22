@@ -25,6 +25,8 @@ export default function PinsPanel({ onClose, onFlyTo }) {
   }
 
   return (
+    <>
+    <div className="pins-panel-backdrop" onClick={onClose} aria-hidden="true" />
     <div className="pins-panel" role="dialog" aria-label="Live pin feed">
       <div className="pins-panel-header">
         <h2 className="pins-panel-title">
@@ -56,5 +58,6 @@ export default function PinsPanel({ onClose, onFlyTo }) {
         )}
       </div>
     </div>
+    </>
   )
 }

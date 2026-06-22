@@ -3278,6 +3278,12 @@ html[data-theme="light"] .jl-toast {
   color: #5b8af5;
 }
 
+.pins-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 399;
+}
+
 .pins-panel {
   position: fixed;
   left: 0;
