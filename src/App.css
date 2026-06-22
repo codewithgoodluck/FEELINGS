@@ -607,6 +607,7 @@
 }
 
 .message-bubble {
+  position: relative;
   padding: 0.5625rem 0.875rem;
   border-radius: var(--r-lg);
   font-size: 0.9rem;
@@ -662,6 +663,45 @@
 @keyframes msgTimeFade {
   from { opacity: 0; transform: translateY(-3px); }
   to   { opacity: 1; transform: none; }
+}
+
+/* ── Per-message report popover ─────────────────────────────────────────── */
+
+.msg-report-pop {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: rgba(18,20,30,0.97);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 5px;
+  white-space: nowrap;
+  z-index: 10;
+  animation: reportPopIn 0.18s ease both;
+}
+
+@keyframes reportPopIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+.msg-report-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #e57373;
+  font-size: 0.71875rem;
+  padding: 7px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.msg-report-btn:active {
+  background: rgba(255,255,255,0.06);
 }
 
 /* ── Typing indicator ───────────────────────────────────────────────────── */

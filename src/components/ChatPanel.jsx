@@ -8,6 +8,7 @@ import {
   sendMessage,
   requestReveal,
   reportPin,
+  reportMessage,
   setTyping,
 } from '../utils/db'
 import { getAnonIdentity, getAnonColour } from '../utils/identity'
@@ -375,6 +376,40 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
     await requestReveal(conversationId, auth.currentUser.uid, auth.currentUser.displayName || myIdentity)
   }
 
+  const [reportPopMsgId, setReportPopMsgId]   = useState(null)
+  const longPressTimerRef    = useRef(null)
+  const didLongPressRef      = useRef(false)
+  const reportAutoDismissRef = useRef(null)
+
+  function openReportPop(msgId) {
+    setReportPopMsgId(msgId)
+    clearTimeout(reportAutoDismissRef.current)
+    reportAutoDismissRef.current = setTimeout(() => setReportPopMsgId(null), 2500)
+  }
+
+  function startLongPress(msgId) {
+    longPressTimerRef.current = setTimeout(() => {
+      didLongPressRef.current = true
+      openReportPop(msgId)
+    }, 480)
+  }
+
+  function cancelLongPress() {
+    clearTimeout(longPressTimerRef.current)
+  }
+
+  async function handleReportMessage(msgId) {
+    setReportPopMsgId(null)
+    clearTimeout(reportAutoDismissRef.current)
+    try {
+      await reportMessage(conversationId, msgId, user.uid, 'User report')
+      showToast('Message reported.', 'success')
+    } catch (err) {
+      console.error('reportMessage failed:', err)
+      showToast('Could not report — try again.', 'error')
+    }
+  }
+
   const voiceActive = voice.recording || !!voice.blob
 
   return (
@@ -397,7 +432,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
       </div>
 
       {/* Scrollable messages */}
-      <div className="message-list" role="log" aria-live="polite">
+      <div className="message-list" role="log" aria-live="polite" onClick={(e) => { if (!e.target.closest('.msg-report-pop')) setReportPopMsgId(null) }}>
         {privacyNote && (
           <div className="chat-privacy-note">
             <span>🔒 Stay anonymous — never share personal details</span>
@@ -442,11 +477,22 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                     <div key={msg.id} className={`message ${isMe ? 'message--mine' : 'message--theirs'}`}>
                       <div
                         className={bubbleClass}
-                        onClick={() => setExpandedMsgId(id => id === msg.id ? null : msg.id)}
+                        onClick={() => {
+                          if (didLongPressRef.current) { didLongPressRef.current = false; return }
+                          setExpandedMsgId(id => id === msg.id ? null : msg.id)
+                        }}
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => e.key === 'Enter' && setExpandedMsgId(id => id === msg.id ? null : msg.id)}
                         aria-label="Toggle timestamp"
+                        {...(!isMe && {
+                          onMouseDown: () => startLongPress(msg.id),
+                          onMouseUp: cancelLongPress,
+                          onMouseLeave: cancelLongPress,
+                          onTouchStart: () => startLongPress(msg.id),
+                          onTouchEnd: cancelLongPress,
+                          onTouchCancel: cancelLongPress,
+                        })}
                       >
                         {msg.voiceUrl ? (
                           <VoicePlayer src={msg.voiceUrl} mime={msg.voiceMime} isMe={isMe} msgId={msg.id} />
@@ -454,6 +500,13 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                           <img src={msg.gifUrl} alt="GIF" className="message-gif" loading="lazy" />
                         ) : (
                           msg.text
+                        )}
+                        {!isMe && reportPopMsgId === msg.id && (
+                          <div className="msg-report-pop" onClick={e => e.stopPropagation()}>
+                            <button className="msg-report-btn" onClick={() => handleReportMessage(msg.id)}>
+                              ⚑ Report this message
+                            </button>
+                          </div>
                         )}
                       </div>
                       {expandedMsgId === msg.id && (
