@@ -3299,12 +3299,16 @@ html[data-theme="light"] .jl-toast {
   display: flex;
   flex-direction: column;
   z-index: 400;
-  animation: slideInLeft 0.25s var(--ease-out);
+  animation: slideInLeft 0.35s var(--ease-out) both;
 }
 
 @keyframes slideInLeft {
-  from { transform: translateX(-100%); }
-  to   { transform: translateX(0); }
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pins-panel { animation: none; }
 }
 
 .pins-panel-header {
