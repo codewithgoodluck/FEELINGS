@@ -3250,3 +3250,84 @@ html[data-theme="light"] {
   display: flex;
   gap: 0.5rem;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   JOIN / LEAVE TOASTS
+═══════════════════════════════════════════════════════════════════════════ */
+
+.jl-toast {
+  position: fixed;
+  /* mobile default: bottom-centre above FAB */
+  bottom: calc(max(1.5rem, env(safe-area-inset-bottom, 0px)) + 56px + 0.75rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 450;
+  background: rgba(18, 18, 24, 0.90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-h);
+  border-radius: var(--r-pill);
+  padding: 0.45rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-0);
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+}
+
+/* ── Mobile animations (slide up / slide down) ── */
+
+.jl-toast--in {
+  animation: jlUpIn 0.3s var(--ease-out) both;
+}
+.jl-toast--out {
+  animation: jlUpOut 0.3s ease forwards;
+}
+
+@keyframes jlUpIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1);    }
+}
+@keyframes jlUpOut {
+  from { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1);    }
+  to   { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.96); }
+}
+
+/* ── Desktop: top-right corner below the button cluster ── */
+
+@media (min-width: 640px) {
+  .jl-toast {
+    bottom: auto;
+    top: calc(max(1rem, env(safe-area-inset-top, 0px)) + 36px + 0.5rem);
+    left: auto;
+    right: 1rem;
+    transform: none;
+  }
+
+  .jl-toast--in  { animation: jlDropIn  0.3s var(--ease-out) both; }
+  .jl-toast--out { animation: jlDropOut 0.3s ease forwards; }
+}
+
+@keyframes jlDropIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+@keyframes jlDropOut {
+  from { opacity: 1; transform: translateY(0)    scale(1);    }
+  to   { opacity: 0; transform: translateY(-8px) scale(0.96); }
+}
+
+/* ── Reduced motion: no animation, instant appear/disappear ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .jl-toast--in,
+  .jl-toast--out { animation: none !important; }
+  .jl-toast--out { opacity: 0; }
+}
+
+/* ── Light mode ── */
+
+html[data-theme="light"] .jl-toast {
+  background: rgba(255,255,255,0.95);
+}
