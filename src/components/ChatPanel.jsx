@@ -8,12 +8,14 @@ import {
   sendMessage,
   requestReveal,
   reportPin,
+  setTyping,
 } from '../utils/db'
 import { getAnonIdentity, getAnonColour } from '../utils/identity'
 import { uploadVoice, getSupportedMimeType } from '../utils/voiceStorage'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
-import { auth } from '../firebase'
+import { doc, onSnapshot } from 'firebase/firestore'
+import { auth, db } from '../firebase'
 import { linkWithPopup, GoogleAuthProvider } from 'firebase/auth'
 import GifPicker from './GifPicker'
 
@@ -138,6 +140,49 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
     setChatTip(false)
   }
 
+  const [privacyNote, setPrivacyNote] = useState(
+    () => !isOwn && localStorage.getItem('feelin_seen_privacy_note') !== '1'
+  )
+  function dismissPrivacyNote() {
+    localStorage.setItem('feelin_seen_privacy_note', '1')
+    setPrivacyNote(false)
+  }
+
+  const [expandedMsgId, setExpandedMsgId] = useState(null)
+  const typingTimerRef = useRef(null)
+  const isTypingRef    = useRef(false)
+
+  function formatTime(msg) {
+    const ts = msg.createdAt?.toDate?.()
+            ?? (msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000) : null)
+    if (!ts) return ''
+    return ts.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  }
+
+  function notifyTyping() {
+    if (!conversationId) return
+    if (!isTypingRef.current) {
+      isTypingRef.current = true
+      setTyping(conversationId, user.uid, true).catch(() => {})
+    }
+    clearTimeout(typingTimerRef.current)
+    typingTimerRef.current = setTimeout(() => {
+      isTypingRef.current = false
+      setTyping(conversationId, user.uid, false).catch(() => {})
+    }, 2000)
+  }
+
+  function clearTyping() {
+    clearTimeout(typingTimerRef.current)
+    if (isTypingRef.current && conversationId) {
+      isTypingRef.current = false
+      setTyping(conversationId, user.uid, false).catch(() => {})
+    }
+  }
+
+  // Clear typing status when component unmounts or conversation changes
+  useEffect(() => () => clearTyping(), [conversationId]) // eslint-disable-line
+
   const voice = useVoiceRecorder(async (url, mime) => {
     await sendMessage(conversationId, { uid: user.uid, text: '', voiceUrl: url, voiceMime: mime })
   })
@@ -166,6 +211,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
 
   async function handleSend() {
     if (!input.trim() && !pendingGif) return
+    clearTyping()
     setSending(true)
     try {
       if (pendingGif) {
@@ -207,58 +253,105 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
     <>
       {onBack && <button className="inbox-back-btn" onClick={onBack}>← Inbox</button>}
 
-      {!isOwn && (
-        <>
-          {!bothRevealed && !myHasRevealed && (
-            <button className="btn btn--reveal" onClick={handleReveal} style={{ marginBottom: '0.875rem' }}>
-              👋 Reveal who you are
-            </button>
-          )}
-          {!bothRevealed && myHasRevealed && (
-            <div className="reveal-bar" style={{ marginBottom: '0.875rem' }}>
-              <p className="reveal-waiting">⏳ Waiting for {otherName} to reveal…</p>
-            </div>
-          )}
-          {bothRevealed && (
-            <div className="reveal-bar reveal-bar--confirmed" style={{ marginBottom: '0.875rem' }}>
-              ✓ You both know each other now
-            </div>
-          )}
-        </>
-      )}
+      {/* Context bar: mood + truncated message + reveal pill */}
+      <div className="chat-context-bar">
+        <span className="chat-ctx-mood">{pin.mood}</span>
+        <p className="chat-ctx-msg">{pin.message || 'No message — just a feeling.'}</p>
+        {!isOwn && (
+          bothRevealed ? (
+            <span className="chat-ctx-pill chat-ctx-pill--done">✓ Revealed</span>
+          ) : myHasRevealed ? (
+            <span className="chat-ctx-pill chat-ctx-pill--waiting">⏳ Waiting…</span>
+          ) : (
+            <button className="chat-ctx-pill chat-ctx-pill--cta" onClick={handleReveal}>👋 Reveal</button>
+          )
+        )}
+      </div>
 
       {/* Scrollable messages */}
       <div className="message-list" role="log" aria-live="polite">
+        {privacyNote && (
+          <div className="chat-privacy-note">
+            <span>🔒 Stay anonymous — never share personal details</span>
+            <button onClick={dismissPrivacyNote} aria-label="Dismiss">✕</button>
+          </div>
+        )}
         {messages.length === 0 && (
           <p className="empty-state">
             {isOwn ? 'Someone reached out — say hi!' : 'Say hello — they\'re waiting to hear from you.'}
           </p>
         )}
-        {messages.map((msg) => {
-          const isMe = msg.uid === user.uid
-          return (
-            <div key={msg.id} className={`message ${isMe ? 'message--mine' : 'message--theirs'}`}>
-              <p className="message-sender">{getDisplayName(msg.uid)}</p>
-              {msg.voiceUrl ? (
-                <div className="message-bubble message-bubble--voice">
-                  {msg.voiceMime ? (
-                    <audio controls preload="none" className="voice-audio">
-                      <source src={msg.voiceUrl} type={msg.voiceMime} />
-                    </audio>
-                  ) : (
-                    <audio controls src={msg.voiceUrl} preload="none" className="voice-audio" />
-                  )}
-                </div>
-              ) : msg.gifUrl ? (
-                <div className="message-bubble message-bubble--gif">
-                  <img src={msg.gifUrl} alt="GIF" className="message-gif" loading="lazy" />
-                </div>
-              ) : (
-                <div className="message-bubble">{msg.text}</div>
-              )}
-            </div>
-          )
-        })}
+        {/* Group consecutive messages from the same sender */}
+        {(() => {
+          const groups = []
+          messages.forEach((msg) => {
+            const last = groups[groups.length - 1]
+            if (last && last[0].uid === msg.uid) last.push(msg)
+            else groups.push([msg])
+          })
+          return groups.map((group) => {
+            const isMe  = group[0].uid === user.uid
+            const multi = group.length > 1
+            return (
+              <div
+                key={group[0].id + '-g'}
+                className={`msg-group ${isMe ? 'msg-group--mine' : 'msg-group--theirs'}`}
+              >
+                <p className="message-sender">{getDisplayName(group[0].uid)}</p>
+                {group.map((msg, mi) => {
+                  const isFirst = mi === 0
+                  const isLast  = mi === group.length - 1
+                  const grpMod  = multi
+                    ? isFirst ? 'msg-grp-first' : isLast ? 'msg-grp-last' : 'msg-grp-mid'
+                    : ''
+                  const bubbleClass = [
+                    'message-bubble',
+                    msg.voiceUrl ? 'message-bubble--voice' : '',
+                    msg.gifUrl   ? 'message-bubble--gif'   : '',
+                    grpMod,
+                  ].filter(Boolean).join(' ')
+                  return (
+                    <div key={msg.id} className={`message ${isMe ? 'message--mine' : 'message--theirs'}`}>
+                      <div
+                        className={bubbleClass}
+                        onClick={() => setExpandedMsgId(id => id === msg.id ? null : msg.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && setExpandedMsgId(id => id === msg.id ? null : msg.id)}
+                        aria-label="Toggle timestamp"
+                      >
+                        {msg.voiceUrl ? (
+                          msg.voiceMime ? (
+                            <audio controls preload="none" className="voice-audio">
+                              <source src={msg.voiceUrl} type={msg.voiceMime} />
+                            </audio>
+                          ) : (
+                            <audio controls src={msg.voiceUrl} preload="none" className="voice-audio" />
+                          )
+                        ) : msg.gifUrl ? (
+                          <img src={msg.gifUrl} alt="GIF" className="message-gif" loading="lazy" />
+                        ) : (
+                          msg.text
+                        )}
+                      </div>
+                      {expandedMsgId === msg.id && (
+                        <p className="msg-time">{formatTime(msg)}</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })
+        })()}
+        {/* Typing indicator */}
+        {otherUid && conversation?.typing?.[otherUid] && (
+          <div className="typing-bubble" aria-label="Other person is typing" aria-live="polite">
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
@@ -342,7 +435,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
               className="chat-input"
               placeholder={pendingGif ? 'GIF ready — hit send' : 'Say something…'}
               value={pendingGif ? '' : input}
-              onChange={(e) => !pendingGif && setInput(e.target.value)}
+              onChange={(e) => { if (!pendingGif) { setInput(e.target.value); notifyTyping() } }}
               onKeyDown={handleKeyDown}
               rows={1}
               maxLength={500}
@@ -416,7 +509,20 @@ export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
   const [inboxConvId, setInboxConvId]       = useState(null)
   const [connError, setConnError]           = useState(false)
   const [showReport, setShowReport]         = useState(false)
+  const [isActive, setIsActive]             = useState(false)
   const isOwn = user.uid === pin.uid
+
+  useEffect(() => {
+    if (isOwn || !pin.uid) return
+    const presRef = doc(db, 'presence', pin.uid)
+    return onSnapshot(presRef, (snap) => {
+      const data = snap.data()
+      if (!data) { setIsActive(false); return }
+      const ts = data.lastSeen?.toDate?.()?.getTime?.()
+              ?? (data.lastSeen?.seconds ? data.lastSeen.seconds * 1000 : 0)
+      setIsActive(Date.now() - ts < 2 * 60 * 1000)
+    })
+  }, [pin.uid, isOwn])
 
   useEffect(() => {
     if (isOwn || !pin.uid) return
@@ -458,9 +564,15 @@ export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
           </div>
           <div>
             <p className="chat-name">{getAnonIdentity(pin.uid, pin.country)}</p>
-            <p className="chat-sub">
-              {pin.isFlash ? '⚡ Flash pin' : isOwn ? 'Your pin · inbox' : 'Anonymous · tap to chat'}
-            </p>
+            {!isOwn && isActive ? (
+              <p className="chat-sub chat-sub--active">
+                <span className="online-dot" aria-hidden="true" />Active now
+              </p>
+            ) : (
+              <p className="chat-sub">
+                {pin.isFlash ? '⚡ Flash pin' : isOwn ? 'Your pin · inbox' : 'Anonymous · tap to chat'}
+              </p>
+            )}
           </div>
         </div>
         <div className="chat-header-actions">
@@ -469,15 +581,6 @@ export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
           )}
           <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
-      </div>
-
-      <div className="privacy-notice" role="note">
-        🔒 Stay anonymous — never share your real name, number, or personal details.
-      </div>
-
-      <div className="pin-context">
-        <span className="pin-mood">{pin.mood}</span>
-        <p className="pin-message">{pin.message || 'No message — just a feeling.'}</p>
       </div>
 
       {showReport && (

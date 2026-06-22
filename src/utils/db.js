@@ -115,6 +115,13 @@ export async function sendMessage(conversationId, { uid, text, gifUrl, voiceUrl,
   })
 }
 
+// Write / clear the typing indicator for one participant
+export async function setTyping(conversationId, uid, isTyping) {
+  await updateDoc(doc(db, 'conversations', conversationId), {
+    [`typing.${uid}`]: isTyping,
+  })
+}
+
 // Request identity reveal
 export async function requestReveal(conversationId, uid, displayName) {
   const ref = doc(db, 'conversations', conversationId)
