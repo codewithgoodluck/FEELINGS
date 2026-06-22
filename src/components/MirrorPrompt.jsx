@@ -5,6 +5,12 @@ const MOODS = ['😊', '😔', '😤', '😴', '🤔', '🥳', '😰', '😌']
 export default function MirrorPrompt({ onAnswer }) {
   const [selected, setSelected] = useState(null)
 
+  function handlePick(emoji) {
+    if (selected) return  // prevent double-tap mid-animation
+    setSelected(emoji)
+    setTimeout(() => onAnswer(emoji), 380)
+  }
+
   return (
     <div className="mirror-screen">
       <div className="mirror-card">
@@ -16,22 +22,19 @@ export default function MirrorPrompt({ onAnswer }) {
           {MOODS.map((emoji) => (
             <button
               key={emoji}
-              className={`mirror-mood-btn ${selected === emoji ? 'mirror-mood-btn--active' : ''}`}
-              onClick={() => setSelected(emoji)}
+              className={[
+                'mirror-mood-btn',
+                selected === emoji  ? 'mirror-mood-btn--active' : '',
+                selected && selected !== emoji ? 'mirror-mood-btn--faded' : '',
+              ].join(' ')}
+              onClick={() => handlePick(emoji)}
               aria-pressed={selected === emoji}
+              disabled={!!selected}
             >
               {emoji}
             </button>
           ))}
         </div>
-
-        <button
-          className="btn btn--primary btn--full mirror-continue-btn"
-          disabled={!selected}
-          onClick={() => onAnswer(selected)}
-        >
-          Continue →
-        </button>
       </div>
     </div>
   )

@@ -3,9 +3,7 @@ import { useAuth } from './contexts/AuthContext'
 import MapView from './components/MapView'
 import CheckInPanel from './components/CheckInPanel'
 import ChatPanel from './components/ChatPanel'
-import LocationPrompt from './components/LocationPrompt'
 import MirrorPrompt from './components/MirrorPrompt'
-import OnboardingTour from './components/OnboardingTour'
 import HelpPanel from './components/HelpPanel'
 import { createPin, deactivatePin, subscribeToUserConversations, getPin } from './utils/db'
 import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry, reverseGeocodePlaceName } from './utils/location'
@@ -16,12 +14,13 @@ import { useToast } from './contexts/ToastContext'
 import StatsPanel from './components/StatsPanel'
 import './App.css'
 
-const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', HELP: 'help', INBOX: 'inbox' }
+const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', HELP: 'help', INBOX: 'inbox', LOCATION: 'location' }
 
+// Track tip visibility once per localStorage key
 function useTip(key) {
   const [visible, setVisible] = useState(false)
-  function show() { if (localStorage.getItem(`feelin_tip_${key}`) !== '1') setVisible(true) }
-  function dismiss() { localStorage.setItem(`feelin_tip_${key}`, '1'); setVisible(false) }
+  function show() { if (localStorage.getItem(`hay_tip_${key}`) !== '1') setVisible(true) }
+  function dismiss() { localStorage.setItem(`hay_tip_${key}`, '1'); setVisible(false) }
   return [visible, show, dismiss]
 }
 
@@ -32,7 +31,6 @@ function useKeyboardOffset() {
     function update() {
       const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
       document.documentElement.style.setProperty('--vv-bottom', offset + 'px')
-      // --vv-height = actual visible area height (shrinks when keyboard opens)
       document.documentElement.style.setProperty('--vv-height', vv.height + 'px')
     }
     vv.addEventListener('resize', update)
@@ -50,18 +48,20 @@ export default function App() {
   const { user, loading } = useAuth()
   useKeyboardOffset()
 
-  // ── Gates ──────────────────────────────────────────────────────────────────
-  const [onboarded, setOnboarded] = useState(
-    () => localStorage.getItem('feelin_onboarded') === '1'
-  )
-  // Mirror — shown once per session before the map loads
+  // ── First-run state ────────────────────────────────────────────────────────
   const [mirrorDone, setMirrorDone] = useState(
     () => sessionStorage.getItem('hay_mirror_done') === '1'
   )
-  const [mirrorMood, setMirrorMood] = useState(null)
+  const [transitioning, setTransitioning] = useState(false)
+  const [mirrorMood, setMirrorMood]       = useState(null)
 
-  const [locationAsked, setLocationAsked]     = useState(false)
-  const [userLocation, setUserLocation]       = useState(null)
+  // ── Location — deferred to first FAB tap ───────────────────────────────────
+  const [locationAsked, setLocationAsked] = useState(
+    () => sessionStorage.getItem('hay_location_asked') === '1'
+  )
+  const [userLocation, setUserLocation] = useState(null)
+
+  // ── UI state ───────────────────────────────────────────────────────────────
   const [panel, setPanel]                     = useState(PANEL.NONE)
   const [pendingLocation, setPendingLocation] = useState(null)
   const [activePin, setActivePin]             = useState(null)
@@ -70,76 +70,68 @@ export default function App() {
   const [conversations, setConversations]     = useState([])
   const [placeName, setPlaceName]             = useState(null)
   const [toast, setToast]                     = useState(null)
-  const [neighbourhood, setNeighbourhood]     = useState(null) // { mood, count }
-  const [wantCheckIn, setWantCheckIn]         = useState(false)
+  const [neighbourhood, setNeighbourhood]     = useState(null)
   const [celebration, setCelebration]         = useState(false)
   const prevConvsRef = useRef({})
 
-  // ── Tooltips ────────────────────────────────────────────────────────────────
-  const [tipFab, showTipFab, dismissTipFab] = useTip('fab')
-  const [tipPin, showTipPin, dismissTipPin] = useTip('pin')
+  // ── Contextual tooltips ────────────────────────────────────────────────────
+  // pin_seen  = "Tap + to share your mood" (shown after map loads)
+  // chat_seen = "Tap any pin to chat anonymously" (shown when first pin appears)
+  const [tipFab, showTipFab, dismissTipFab] = useTip('pin_seen')
+  const [tipPin, showTipPin, dismissTipPin] = useTip('chat_seen')
 
-  // Show FAB tip 1.5 s after map loads
+  // Show FAB tip 1.5 s after mirror is done
   useEffect(() => {
-    if (!locationAsked) return
+    if (!mirrorDone) return
     const t = setTimeout(showTipFab, 1500)
     return () => clearTimeout(t)
-  }, [locationAsked]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mirrorDone]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-open check-in after location if "Drop my first pin" was tapped in onboarding
-  useEffect(() => {
-    if (locationAsked && wantCheckIn) {
-      setPendingLocation(userLocation || { lat: 20, lng: 0 })
-      setPanel(PANEL.CHECKIN)
-      setWantCheckIn(false)
-    }
-  }, [locationAsked, wantCheckIn]) // eslint-disable-line react-hooks/exhaustive-deps
-
+  // ── Auth loading splash ────────────────────────────────────────────────────
   if (loading) {
     return <div className="splash"><p className="splash-text">HowAreYou</p></div>
   }
 
-  // ── Onboarding gate ──────────────────────────────────────────────────────
-  if (!onboarded) {
-    return (
-      <OnboardingTour
-        onDone={() => setOnboarded(true)}
-        onDropPin={() => {
-          setMirrorDone(true)
-          sessionStorage.setItem('hay_mirror_done', '1')
-          setWantCheckIn(true)
-        }}
-      />
-    )
-  }
-
-  // ── Mirror gate ──────────────────────────────────────────────────────────
-
-  if (!mirrorDone) {
+  // ── Mirror gate — only first-run screen ───────────────────────────────────
+  if (!mirrorDone && !transitioning) {
     return (
       <MirrorPrompt
         onAnswer={(mood) => {
           setMirrorMood(mood)
-          setMirrorDone(true)
-          sessionStorage.setItem('hay_mirror_done', '1')
+          setTransitioning(true)
+          setTimeout(() => {
+            sessionStorage.setItem('hay_mirror_done', '1')
+            setMirrorDone(true)
+            setTransitioning(false)
+          }, 1400)
         }}
       />
     )
   }
 
-  // ── Location gate ────────────────────────────────────────────────────────
+  // ── Location handlers (used by LocationSheet) ─────────────────────────────
 
-  async function handleAllowLocation() {
-    try { setUserLocation(await getCurrentPosition()) } catch { setUserLocation(null) }
+  async function handleLocationAllow() {
+    let loc = null
+    try { loc = await getCurrentPosition() } catch {}
+    setUserLocation(loc)
     setLocationAsked(true)
+    sessionStorage.setItem('hay_location_asked', '1')
+    const finalLoc = loc || { lat: 20, lng: 0 }
+    setPendingLocation(finalLoc)
+    setPlaceName(null)
+    setPanel(PANEL.CHECKIN)
+    if (loc) reverseGeocodePlaceName(loc.lat, loc.lng).then(setPlaceName).catch(() => {})
   }
-  function handleSkipLocation() { setLocationAsked(true); setUserLocation(null) }
 
-  if (!locationAsked) {
-    return <LocationPrompt onAllow={handleAllowLocation} onSkip={handleSkipLocation} />
+  function handleLocationSkip() {
+    setLocationAsked(true)
+    sessionStorage.setItem('hay_location_asked', '1')
+    setPendingLocation({ lat: 20, lng: 0 })
+    setPanel(PANEL.CHECKIN)
   }
 
-  // ── Event handlers ───────────────────────────────────────────────────────
+  // ── Map + panel event handlers ────────────────────────────────────────────
 
   function handleMapClick(lngLat) {
     if (panel !== PANEL.NONE) { setPanel(PANEL.NONE); return }
@@ -167,7 +159,6 @@ export default function App() {
     await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country, isFlash, hasStreak })
     setPanel(PANEL.NONE)
     setPendingLocation(null)
-    // First-pin celebration
     if (localStorage.getItem('feelin_tip_celebration') !== '1') {
       localStorage.setItem('feelin_tip_celebration', '1')
       setCelebration(true)
@@ -178,13 +169,16 @@ export default function App() {
   function handleFabClick() {
     dismissTipFab()
     if (panel !== PANEL.NONE) { setPanel(PANEL.NONE); return }
+    // First FAB tap → show location sheet instead of going straight to check-in
+    if (!locationAsked) {
+      setPanel(PANEL.LOCATION)
+      return
+    }
     const loc = userLocation || { lat: 20, lng: 0 }
     setPendingLocation(loc)
     setPlaceName(null)
     setPanel(PANEL.CHECKIN)
-    if (userLocation) {
-      reverseGeocodePlaceName(loc.lat, loc.lng).then(setPlaceName).catch(() => {})
-    }
+    if (userLocation) reverseGeocodePlaceName(loc.lat, loc.lng).then(setPlaceName).catch(() => {})
   }
 
   function handleNeighbourhoodClick({ mood, count }) {
@@ -205,6 +199,9 @@ export default function App() {
         previewLocation={panel === PANEL.CHECKIN ? pendingLocation : null}
       />
 
+      {/* Transition overlay — fades out while map initialises behind it */}
+      {transitioning && <TransitionOverlay />}
+
       {user && (
         <NotificationManager
           user={user}
@@ -216,15 +213,12 @@ export default function App() {
         />
       )}
 
-      {toast && (
-        <MessageToast text={toast} onDismiss={() => setToast(null)} />
-      )}
+      {toast && <MessageToast text={toast} onDismiss={() => setToast(null)} />}
 
       {user && <PresenceTracker user={user} userLocation={userLocation} />}
 
       <StatsPanel />
 
-      {/* Help button */}
       <button
         className="help-btn"
         onClick={() => setPanel(p => p === PANEL.HELP ? PANEL.NONE : PANEL.HELP)}
@@ -250,18 +244,18 @@ export default function App() {
         </button>
       )}
 
-      {/* FAB tooltip */}
+      {/* FAB tooltip: "Tap + to share your mood" */}
       {tipFab && panel === PANEL.NONE && (
         <div className="map-tooltip map-tooltip--fab" onClick={dismissTipFab} role="status">
-          <span className="map-tooltip-text">Tap to share how you're feeling</span>
+          <span className="map-tooltip-text">Tap + to share your mood</span>
           <button className="map-tooltip-close" onClick={(e) => { e.stopPropagation(); dismissTipFab() }} aria-label="Dismiss">✕</button>
         </div>
       )}
 
-      {/* First-pin tooltip */}
+      {/* Pin tooltip: "Tap any pin to chat anonymously" */}
       {tipPin && panel === PANEL.NONE && (
         <div className="map-tooltip map-tooltip--top" onClick={dismissTipPin} role="status">
-          <span className="map-tooltip-text">Tap a pin to connect anonymously</span>
+          <span className="map-tooltip-text">Tap any pin to chat anonymously</span>
           <button className="map-tooltip-close" onClick={(e) => { e.stopPropagation(); dismissTipPin() }} aria-label="Dismiss">✕</button>
         </div>
       )}
@@ -286,6 +280,10 @@ export default function App() {
             <p className="neighbourhood-hint">Tap outside to dismiss</p>
           </div>
         </div>
+      )}
+
+      {panel === PANEL.LOCATION && (
+        <LocationSheet onAllow={handleLocationAllow} onSkip={handleLocationSkip} />
       )}
 
       {panel === PANEL.CHECKIN && pendingLocation && (
@@ -321,7 +319,38 @@ export default function App() {
   )
 }
 
-// ── Message toast ────────────────────────────────────────────────────────────
+// ── Transition overlay — pulse ring + fade text, covers map while it loads ────
+
+function TransitionOverlay() {
+  return (
+    <div className="transition-overlay" aria-hidden="true">
+      <div className="transition-pulse-ring" />
+      <p className="transition-text">joining people feeling things right now…</p>
+    </div>
+  )
+}
+
+// ── Location sheet — compact ask at first FAB tap ─────────────────────────────
+
+function LocationSheet({ onAllow, onSkip }) {
+  return (
+    <div className="panel slide-up location-sheet" role="dialog" aria-label="Location permission">
+      <div className="panel-handle" />
+      <p className="location-sheet-icon" aria-hidden="true">📍</p>
+      <h2 className="location-sheet-title">Place your pin nearby</h2>
+      <p className="location-sheet-body">
+        To place your pin near you — always approximate, never exact.
+        Your exact coordinates are never stored or shared.
+      </p>
+      <button className="btn btn--primary btn--full" onClick={onAllow}>Share my location</button>
+      <button className="btn btn--ghost btn--full" style={{ marginTop: '0.5rem' }} onClick={onSkip}>
+        Pick a spot on the map instead
+      </button>
+    </div>
+  )
+}
+
+// ── Message toast ─────────────────────────────────────────────────────────────
 
 function MessageToast({ text, onDismiss }) {
   useEffect(() => {
@@ -335,7 +364,7 @@ function MessageToast({ text, onDismiss }) {
   )
 }
 
-// ── Presence tracker ─────────────────────────────────────────────────────────
+// ── Presence tracker ──────────────────────────────────────────────────────────
 
 function PresenceTracker({ user, userLocation }) {
   useEffect(() => {
