@@ -173,3 +173,13 @@ export async function reportPin(pinId, reporterUid, reason) {
     createdAt: serverTimestamp(),
   })
 }
+
+export async function reportMessage(conversationId, messageId, reporterUid, reason) {
+  await addDoc(collection(db, 'messageReports'), {
+    conversationId,
+    messageId,
+    reporterUid,
+    reason,
+    createdAt: serverTimestamp(),
+  })
+}
