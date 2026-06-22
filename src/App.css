@@ -704,6 +704,255 @@
   background: rgba(255,255,255,0.06);
 }
 
+/* ── Reveal flow ────────────────────────────────────────────────────────── */
+
+.reveal-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: var(--sheet-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
+}
+
+.reveal-sheet {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.reveal-sheet-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s;
+}
+.reveal-sheet-close:hover { color: var(--ink-0); }
+
+.reveal-sheet-eyebrow {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  margin: 0 1.5rem 0 0;
+  letter-spacing: 0.02em;
+}
+
+.reveal-sheet-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ink-0);
+  margin: 0 1.5rem 0 0;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.reveal-sheet-sub {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.reveal-auth-tabs {
+  display: flex;
+  background: var(--ink-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 3px;
+  gap: 3px;
+}
+
+.reveal-auth-tab {
+  flex: 1;
+  padding: 0.45rem;
+  border-radius: calc(var(--r-sm) - 2px);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.reveal-auth-tab--active {
+  background: var(--sheet-bg);
+  color: var(--ink-0);
+  border: 1px solid var(--border);
+}
+
+.reveal-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reveal-auth-input {
+  width: 100%;
+  background: var(--ink-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0.75rem 0.875rem;
+  color: var(--ink-0);
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.reveal-auth-input::placeholder { color: var(--ink-3); }
+.reveal-auth-input:focus { border-color: var(--border-h, rgba(255,255,255,0.35)); }
+
+.reveal-auth-error {
+  font-size: 0.78125rem;
+  color: #f08080;
+  line-height: 1.45;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reveal-auth-error-switch {
+  background: none;
+  border: none;
+  color: #5b8af5;
+  font-size: 0.78125rem;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.reveal-maybe-later {
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s;
+}
+.reveal-maybe-later:hover { color: var(--ink-1); }
+
+.btn--full { width: 100%; }
+
+/* Cancel link inside the waiting pill */
+.chat-ctx-cancel-reveal {
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  font-size: 0.65rem;
+  cursor: pointer;
+  padding: 0 0 0 5px;
+  -webkit-tap-highlight-color: transparent;
+  text-decoration: underline;
+  font-family: inherit;
+}
+.chat-ctx-cancel-reveal:hover { color: var(--ink-1); }
+
+/* System message row (mutual reveal, etc.) */
+.system-msg-row {
+  align-self: center;
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 0.2rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  margin: 0.25rem 0;
+}
+
+/* Mutual reveal celebration overlay */
+.reveal-celebration {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  background: rgba(8,10,15,0.93);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  animation: celebOverlayFade 2.6s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes celebOverlayFade {
+  0%   { opacity: 0; }
+  12%  { opacity: 1; }
+  75%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.reveal-celeb-avatars {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  animation: celebAvatarsIn 0.5s var(--ease-out, cubic-bezier(0.22,1,0.36,1)) 0.2s both;
+}
+
+@keyframes celebAvatarsIn {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.reveal-celeb-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  border: 2px solid rgba(255,255,255,0.2);
+}
+
+.reveal-celeb-names {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink-0);
+  animation: celebNamesIn 0.5s var(--ease-out, cubic-bezier(0.22,1,0.36,1)) 0.45s both;
+}
+
+@keyframes celebNamesIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.reveal-celeb-amp {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+.reveal-celeb-note {
+  font-size: 0.875rem;
+  color: var(--ink-2);
+  margin: 0;
+  animation: celebNamesIn 0.5s var(--ease-out, cubic-bezier(0.22,1,0.36,1)) 0.65s both;
+}
+
 /* ── Typing indicator ───────────────────────────────────────────────────── */
 
 .typing-bubble {
@@ -2323,6 +2572,7 @@
 /* ── Chat panel body — flex column used inside PinSheet and ChatPanel ──────── */
 
 .chat-panel-body {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
