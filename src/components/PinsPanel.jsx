@@ -40,11 +40,16 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick }) {
     <div className={`pins-panel-backdrop${closing ? ' pins-panel-backdrop--out' : ''}`} onClick={() => dismiss()} aria-hidden="true" />
     <div className={`pins-panel${closing ? ' pins-panel--closing' : ''}`} role="dialog" aria-label="Live pin feed">
       <div className="pins-panel-header">
-        <h2 className="pins-panel-title">
-          Live Pins
-          <span className="pins-panel-count">{pins.length}</span>
-        </h2>
-        <button className="icon-btn" onClick={() => dismiss()} aria-label="Close">✕</button>
+        <div className="pins-panel-header-text">
+          <h2 className="pins-panel-title">
+            <span className="pins-panel-live-dot" aria-hidden="true" />
+            Live Pins
+          </h2>
+          <p className="pins-panel-subtitle">
+            {pins.length} {pins.length === 1 ? 'pin' : 'pins'} active right now
+          </p>
+        </div>
+        <button className="pins-panel-close" onClick={() => dismiss()} aria-label="Close">✕</button>
       </div>
       <div className="pins-panel-list">
         {pins.length === 0 ? (
