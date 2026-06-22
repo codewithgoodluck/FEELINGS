@@ -3283,7 +3283,7 @@ html[data-theme="light"] .jl-toast {
   left: 0;
   top: 0;
   height: 100%;
-  width: min(320px, 100vw);
+  width: min(420px, 100vw);
   background: var(--sheet-bg);
   border-right: 1px solid var(--border);
   display: flex;
