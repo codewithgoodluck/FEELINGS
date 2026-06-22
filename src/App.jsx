@@ -13,7 +13,6 @@ import { recordCheckIn } from './utils/streak'
 import { initPresence, heartbeat, markInactive } from './utils/presence'
 import { useToast } from './contexts/ToastContext'
 import StatsPanel from './components/StatsPanel'
-import AmbientPins from './components/AmbientPins'
 import './App.css'
 
 const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location' }
@@ -216,8 +215,6 @@ export default function App() {
         activePinId={(panel === PANEL.CHAT || panel === PANEL.PEEK) ? activePin?.id : null}
         previewLocation={panel === PANEL.CHECKIN ? pendingLocation : null}
       />
-
-      <AmbientPins />
 
       {/* Transition overlay — fades out while map initialises behind it */}
       {transitioning && <TransitionOverlay />}
