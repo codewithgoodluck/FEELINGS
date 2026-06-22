@@ -3355,8 +3355,8 @@ html[data-theme="light"] .jl-toast {
 }
 
 .pins-panel-live-dot {
-  width: 12px;
-  height: 12px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: #5b8af5;
   flex-shrink: 0;
