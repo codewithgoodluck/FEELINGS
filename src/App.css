@@ -3358,7 +3358,7 @@ html[data-theme="light"] .jl-toast {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #4ade80;
+  background: #5b8af5;
   flex-shrink: 0;
   animation: livePulse 3.2s ease-in-out infinite;
 }
