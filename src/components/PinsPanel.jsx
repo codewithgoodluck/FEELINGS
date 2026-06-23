@@ -111,7 +111,7 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, activePinId })
                   {pin.country
                     ? <span className="pins-panel-location">
                         {countryFlag(pin.country)}
-                        {countryName(pin.country) && <span>{countryName(pin.country)}</span>}
+                        <span>{countryName(pin.country) ?? pin.country}</span>
                       </span>
                     : <span />
                   }

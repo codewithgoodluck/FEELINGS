@@ -93,7 +93,12 @@ export default function PinSearch({ onClose, onFlyTo }) {
           )}
 
           {showResults && results.map((pin) => (
-            <div key={pin.id} className="pin-result-card" role="listitem">
+            <button
+              key={pin.id}
+              className="pin-result-card"
+              onClick={() => handleView(pin)}
+              aria-label={`Go to ${MOOD_LABELS[pin.mood] ?? 'pin'} pin on map${pin.message ? ': ' + truncate(pin.message, 30) : ''}`}
+            >
               <div className="pin-result-mood-col">
                 <span className="pin-result-mood" aria-hidden="true">{pin.mood}</span>
                 <span className="pin-result-mood-name">{MOOD_LABELS[pin.mood] ?? ''}</span>
@@ -110,14 +115,8 @@ export default function PinSearch({ onClose, onFlyTo }) {
                     : '🌍 Unknown'}
                 </p>
               </div>
-              <button
-                className="btn btn--sm btn--ghost pin-result-view"
-                onClick={() => handleView(pin)}
-                aria-label={`View pin on map: ${pin.mood} ${pin.message || ''}`}
-              >
-                View on map
-              </button>
-            </div>
+              <span className="pin-result-view" aria-hidden="true">→</span>
+            </button>
           ))}
         </div>
       )}
