@@ -253,6 +253,7 @@ export default function App() {
         activePinId={(panel === PANEL.CHAT || panel === PANEL.PEEK) ? activePin?.id : null}
         previewLocation={panel === PANEL.CHECKIN ? pendingLocation : null}
         onFlyTo={(fn) => { mapFlyTo.current = fn }}
+        panelOpen={showFeedPanel}
       />
 
       {/* Transition overlay — fades out while map initialises behind it */}
@@ -328,6 +329,28 @@ export default function App() {
       >
         ☰
       </button>
+
+      {/* Persistent messages inbox button — bottom-left, always visible when signed in.
+          Note: the feature request said "cross/plus sign", but a speech-bubble icon is used
+          instead. A cross (✕) universally means "close/dismiss" — using it for messages
+          would create a confusing affordance. A chat bubble clearly signals "messages". */}
+      {user && (
+        <button
+          className="inbox-btn"
+          onClick={() => setPanel(p => p === PANEL.INBOX ? PANEL.NONE : PANEL.INBOX)}
+          aria-label={panel === PANEL.INBOX ? 'Close messages' : 'Open messages'}
+          aria-pressed={panel === PANEL.INBOX}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          {unreadCount > 0 && (
+            <span className="inbox-btn-badge" aria-label={`${unreadCount} unread message${unreadCount === 1 ? '' : 's'}`}>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </button>
+      )}
 
       {showSearch && (
         <PinSearch
