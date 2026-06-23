@@ -37,10 +37,11 @@ async function fetchCountry(lat, lng) {
   } catch { return { code: null, name: null } }
 }
 
-// Called once per session. Creates presence doc on first visit and bumps
-// the global totalUsers counter. On return visits just refreshes lastSeen.
-export async function initPresence(uid, lat, lng) {
-  const presenceRef = doc(db, 'presence', uid)
+// Called once per session. Creates presence doc on first visit (keyed by
+// stable device ID from localStorage) and bumps totalUsers. Return visits
+// just refresh lastSeen — same device, same doc, no double-count.
+export async function initPresence(uid, deviceId, lat, lng) {
+  const presenceRef = doc(db, 'presence', deviceId)
   const [snap, country] = await Promise.all([
     getDoc(presenceRef),
     fetchCountry(lat, lng),
@@ -55,6 +56,7 @@ export async function initPresence(uid, lat, lng) {
     }
     await setDoc(presenceRef, {
       uid,
+      deviceId,
       country:     country.code,
       countryName: country.name,
       joinedAt:    serverTimestamp(),
@@ -63,6 +65,7 @@ export async function initPresence(uid, lat, lng) {
     })
   } else {
     await updateDoc(presenceRef, {
+      uid,
       country:     country.code  ?? snap.data().country,
       countryName: country.name  ?? snap.data().countryName,
       lastSeen:    serverTimestamp(),
@@ -71,15 +74,15 @@ export async function initPresence(uid, lat, lng) {
   }
 }
 
-export function heartbeat(uid) {
-  return updateDoc(doc(db, 'presence', uid), {
+export function heartbeat(deviceId) {
+  return updateDoc(doc(db, 'presence', deviceId), {
     lastSeen: serverTimestamp(),
     active:   true,
   }).catch(() => {})
 }
 
-export function markInactive(uid) {
-  return updateDoc(doc(db, 'presence', uid), { active: false })
+export function markInactive(deviceId) {
+  return updateDoc(doc(db, 'presence', deviceId), { active: false })
     .catch(() => {})
 }
 

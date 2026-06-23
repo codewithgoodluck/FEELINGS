@@ -303,7 +303,7 @@ export default function App() {
 
       {toast && <MessageToast text={toast} onDismiss={() => setToast(null)} />}
 
-      {user && <PresenceTracker user={user} userLocation={userLocation} />}
+      {user && <PresenceTracker user={user} userLocation={userLocation} deviceId={getDeviceId()} />}
       {user && <JoinLeaveDetector onEvent={handleJoinLeaveEvent} />}
 
       <JoinLeaveToast
@@ -592,18 +592,29 @@ function MessageToast({ text, onDismiss }) {
   )
 }
 
+// ── Stable device ID — persists in localStorage across sessions ───────────────
+
+function getDeviceId() {
+  let id = localStorage.getItem('hay_device_id')
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem('hay_device_id', id)
+  }
+  return id
+}
+
 // ── Presence tracker ──────────────────────────────────────────────────────────
 
-function PresenceTracker({ user, userLocation }) {
+function PresenceTracker({ user, userLocation, deviceId }) {
   useEffect(() => {
     if (!user?.uid) return
-    initPresence(user.uid, userLocation?.lat ?? null, userLocation?.lng ?? null)
-    const interval = setInterval(() => heartbeat(user.uid), 30_000)
+    initPresence(user.uid, deviceId, userLocation?.lat ?? null, userLocation?.lng ?? null)
+    const interval = setInterval(() => heartbeat(deviceId), 30_000)
     function onVisibility() {
-      if (document.hidden) markInactive(user.uid)
-      else heartbeat(user.uid)
+      if (document.hidden) markInactive(deviceId)
+      else heartbeat(deviceId)
     }
-    function onUnload() { markInactive(user.uid) }
+    function onUnload() { markInactive(deviceId) }
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('beforeunload', onUnload)
     return () => {
@@ -611,7 +622,7 @@ function PresenceTracker({ user, userLocation }) {
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('beforeunload', onUnload)
     }
-  }, [user?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.uid, deviceId]) // eslint-disable-line react-hooks/exhaustive-deps
   return null
 }
 
