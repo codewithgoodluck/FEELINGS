@@ -14,6 +14,13 @@ function timeAgo(ts) {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
+const MOOD_LABELS = {
+  '😊': 'Good',    '😔': 'Low',       '😤': 'Frustrated', '😴': 'Tired',
+  '🤔': 'Unsure',  '🥳': 'Excited',   '😰': 'Anxious',    '😌': 'Calm',
+  '😢': 'Sad',     '😡': 'Angry',     '🤗': 'Grateful',   '🥺': 'Tender',
+  '😶': 'Numb',    '🤩': 'Amazed',    '🫶': 'Loved',      '🥱': 'Bored',
+}
+
 const CLOSE_MS = 300
 
 export default function PinsPanel({ onClose, onFlyTo, onPinClick }) {
@@ -70,6 +77,10 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick }) {
                   {pin.isFlash   && <span className="pins-panel-badge pins-panel-badge--flash">⚡ flash</span>}
                   {pin.hasStreak && <span className="pins-panel-badge pins-panel-badge--streak">🔥 streak</span>}
                 </div>
+              </div>
+              <div className="pins-panel-mood-name">
+                <span aria-hidden="true">{pin.mood}</span>
+                <span>{MOOD_LABELS[pin.mood] ?? 'Feeling something'}</span>
               </div>
               {pin.message
                 ? <p className="pins-panel-message">{pin.message}</p>

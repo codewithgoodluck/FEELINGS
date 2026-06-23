@@ -3467,6 +3467,15 @@ html[data-theme="light"] .jl-toast {
   gap: 0.3rem;
 }
 
+.pins-panel-mood-name {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
 .pins-panel-message {
   font-size: 0.875rem;
   font-weight: 500;
