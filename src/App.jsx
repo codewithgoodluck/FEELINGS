@@ -176,6 +176,7 @@ export default function App() {
 
   async function handleHoldDrop(lngLat, mood) {
     if (!user) return
+    if (!isFinite(lngLat.lat) || !isFinite(lngLat.lng) || Math.abs(lngLat.lat) > 90 || Math.abs(lngLat.lng) > 180) return
     try {
       const { lat, lng } = fuzzLocation(lngLat.lat, lngLat.lng)
       const country      = await reverseGeocodeCountry(lat, lng)

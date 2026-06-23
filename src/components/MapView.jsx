@@ -615,7 +615,10 @@ export default function MapView({
       holdState.startClientX = e.clientX
       holdState.startClientY = e.clientY
       holdState.downTime     = performance.now()
-      holdState.lngLat       = map.current.unproject([px, py])
+      holdState.lngLat = map.current.unproject([px, py])
+      // Bail out when clicking outside the globe sphere (unproject returns NaN in globe projection)
+      const _ll = holdState.lngLat
+      if (!_ll || !isFinite(_ll.lat) || !isFinite(_ll.lng) || Math.abs(_ll.lat) > 90 || Math.abs(_ll.lng) > 180) return
 
       const chargeEl = document.createElement('div')
       chargeEl.className = 'hay-charge-wrap'
@@ -936,21 +939,19 @@ export default function MapView({
           }
         }
 
-        // Delete button (own pins only)
-        if (isOwn) {
-          const delBtn = document.createElement('button')
-          delBtn.className   = 'hay-pin-delete'
-          delBtn.textContent = '✕'
-          delBtn.setAttribute('aria-label', 'Delete this pin')
-          delBtn.style.display = 'none'
-          delBtn.addEventListener('click', (e) => {
-            e.stopPropagation()
-            if (window.confirm('Delete this pin? This cannot be undone.')) {
-              onDeletePinRef.current(pin.id)
-            }
-          })
-          wrap.appendChild(delBtn)
-        }
+        // Delete button (any pin)
+        const delBtn = document.createElement('button')
+        delBtn.className   = 'hay-pin-delete'
+        delBtn.textContent = '✕'
+        delBtn.setAttribute('aria-label', 'Delete this pin')
+        delBtn.style.display = 'none'
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          if (window.confirm('Delete this pin? This cannot be undone.')) {
+            onDeletePinRef.current(pin.id)
+          }
+        })
+        wrap.appendChild(delBtn)
 
         // Touch stop-propagation (prevents Mapbox intercepting taps on markers)
         wrap.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true })
