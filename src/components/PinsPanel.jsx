@@ -23,7 +23,7 @@ const MOOD_LABELS = {
 
 const CLOSE_MS = 300
 
-export default function PinsPanel({ onClose, onFlyTo, onPinClick, activePinId }) {
+export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId }) {
   const [pins, setPins]       = useState([])
   const [closing, setClosing] = useState(false)
   const timerRef              = useRef(null)
@@ -61,6 +61,15 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, activePinId })
     }
   }
 
+  function handleChatDirect(pin) {
+    onFlyTo(pin.lng, pin.lat)
+    if (window.innerWidth >= 640) {
+      onChatDirect(pin)
+    } else {
+      dismiss(() => onChatDirect(pin))
+    }
+  }
+
   return (
     <>
     <div className={`pins-panel-backdrop${closing ? ' pins-panel-backdrop--out' : ''}`} onClick={() => dismiss()} aria-hidden="true" />
@@ -87,40 +96,48 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, activePinId })
           pins.map(pin => {
             const isActive = activePinId === pin.id
             return (
-              <button
+              <div
                 key={pin.id}
                 ref={el => { itemEls.current[pin.id] = el }}
                 className={`pins-panel-item${isActive ? ' pins-panel-item--active' : ''}`}
-                onClick={() => handleSelect(pin)}
               >
-                <div className="pins-panel-item-top">
-                  <span className="pins-panel-mood-chip">
-                    <span aria-hidden="true">{pin.mood}</span>
-                    {MOOD_LABELS[pin.mood] ?? 'Feeling'}
-                  </span>
-                  <span className="pins-panel-time">
-                    <span className="pins-panel-time-icon" aria-hidden="true">⏱</span>
-                    {timeAgo(pin.createdAt)}
-                  </span>
-                </div>
-                {pin.message
-                  ? <p className="pins-panel-message">{pin.message}</p>
-                  : <p className="pins-panel-no-msg">No message</p>
-                }
-                <div className="pins-panel-item-bottom">
-                  {pin.country
-                    ? <span className="pins-panel-location">
-                        {countryFlag(pin.country)}
-                        <span>{countryName(pin.country) ?? pin.country}</span>
-                      </span>
-                    : <span />
-                  }
-                  <div className="pins-panel-badges">
-                    {pin.isFlash   && <span className="pins-panel-badge pins-panel-badge--flash">⚡ flash</span>}
-                    {pin.hasStreak && <span className="pins-panel-badge pins-panel-badge--streak">🔥 streak</span>}
+                <button className="pins-panel-item-body" onClick={() => handleSelect(pin)}>
+                  <div className="pins-panel-item-top">
+                    <span className="pins-panel-mood-chip">
+                      <span aria-hidden="true">{pin.mood}</span>
+                      {MOOD_LABELS[pin.mood] ?? 'Feeling'}
+                    </span>
+                    <span className="pins-panel-time">
+                      <span className="pins-panel-time-icon" aria-hidden="true">⏱</span>
+                      {timeAgo(pin.createdAt)}
+                    </span>
                   </div>
-                </div>
-              </button>
+                  {pin.message
+                    ? <p className="pins-panel-message">{pin.message}</p>
+                    : <p className="pins-panel-no-msg">No message</p>
+                  }
+                  <div className="pins-panel-item-bottom">
+                    {pin.country
+                      ? <span className="pins-panel-location">
+                          {countryFlag(pin.country)}
+                          <span>{countryName(pin.country) ?? pin.country}</span>
+                        </span>
+                      : <span />
+                    }
+                    <div className="pins-panel-badges">
+                      {pin.isFlash   && <span className="pins-panel-badge pins-panel-badge--flash">⚡ flash</span>}
+                      {pin.hasStreak && <span className="pins-panel-badge pins-panel-badge--streak">🔥 streak</span>}
+                    </div>
+                  </div>
+                </button>
+                <button
+                  className="pins-panel-chat-btn"
+                  onClick={() => handleChatDirect(pin)}
+                  aria-label="Chat about this pin"
+                >
+                  💬 Chat
+                </button>
+              </div>
             )
           })
         )}

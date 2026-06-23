@@ -488,6 +488,7 @@ export default function App() {
           onClose={() => setShowFeedPanel(false)}
           onFlyTo={(lng, lat) => mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })}
           onPinClick={(pin) => { setActivePin(pin); setPanel(PANEL.PEEK) }}
+          onChatDirect={(pin) => { setActivePin(pin); setPanel(PANEL.CHAT) }}
         />
       )}
 

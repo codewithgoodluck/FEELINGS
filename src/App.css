@@ -3602,18 +3602,17 @@ html[data-theme="light"] .jl-toast {
 .pins-panel-item {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.875rem 1rem;
+  gap: 0;
+  padding: 0;
   border-radius: var(--r-lg);
-  cursor: pointer;
   transition: background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
   width: 100%;
-  text-align: left;
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
   color: inherit;
   margin-bottom: 0.5rem;
+  overflow: hidden;
 }
 
 .pins-panel-item:hover {
@@ -3628,6 +3627,39 @@ html[data-theme="light"] .jl-toast {
   transform: translateY(0) scale(0.99);
   box-shadow: none;
 }
+
+.pins-panel-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.875rem 1rem 0.75rem;
+  width: 100%;
+  text-align: left;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.pins-panel-item-body:hover { background: rgba(255,255,255,0.04); }
+
+.pins-panel-chat-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--border);
+  background: rgba(91,138,245,0.07);
+  color: #7ba3f7;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+  letter-spacing: 0.01em;
+}
+
+.pins-panel-chat-btn:hover { background: rgba(91,138,245,0.15); }
 
 @keyframes pinFlyIn {
   0%   { transform: translateX(-60px) scale(0.88); opacity: 0; }
