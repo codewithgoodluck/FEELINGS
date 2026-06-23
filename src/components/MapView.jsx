@@ -607,7 +607,7 @@ export default function MapView({
         setTimeout(() => ring.remove(), 900)
       }
       lastHoldDropAtRef.current = Date.now()
-      onHoldDropRef.current?.({ lat: lngLat.lat, lng: lngLat.lng }, mood)
+      onHoldDropRef.current?.({ lat: lngLat.lat, lng: lngLat.lng }, mood, { x: pt.x, y: pt.y })
     }
 
     function armDrop() {

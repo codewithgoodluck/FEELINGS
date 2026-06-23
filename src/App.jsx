@@ -19,6 +19,7 @@ import ProfilePanel from './components/ProfilePanel'
 import JoinLeaveToast from './components/JoinLeaveToast'
 import PinsPanel from './components/PinsPanel'
 import { subscribeToLivePresence, countryFlag, countryName } from './utils/presence'
+import CountryLockSheet from './components/CountryLockSheet'
 import './App.css'
 
 const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile' }
@@ -56,6 +57,13 @@ export default function App() {
   const showToast = useToast()
   const { theme, toggle: toggleTheme } = useTheme()
   useKeyboardOffset()
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    function check() { setCountryBadgeShow(vv.height > window.innerHeight * 0.75) }
+    vv.addEventListener('resize', check)
+    return () => vv.removeEventListener('resize', check)
+  }, [])
   useEffect(() => { window.__clearAllPins = clearAllPins }, [])
 
   // ── First-run state ────────────────────────────────────────────────────────
@@ -70,8 +78,11 @@ export default function App() {
     () => sessionStorage.getItem('hay_location_asked') === '1'
   )
   const [userLocation, setUserLocation] = useState(null)
-  const [userCountry,  setUserCountry]  = useState(
+  const [userCountry,     setUserCountry]     = useState(
     () => sessionStorage.getItem('hay_user_country') || null
+  )
+  const [userCountryName, setUserCountryName] = useState(
+    () => sessionStorage.getItem('hay_user_country_name') || null
   )
 
   // ── UI state ───────────────────────────────────────────────────────────────
@@ -89,6 +100,13 @@ export default function App() {
   const [neighbourhood, setNeighbourhood]     = useState(null)
   const [celebration, setCelebration]         = useState(false)
   const prevConvsRef = useRef({})
+
+  // ── Country lock overlay state ─────────────────────────────────────────────
+  const [countryLockData,  setCountryLockData]  = useState(null) // { tappedCode, tappedName }
+  const [blockedToastMsg,  setBlockedToastMsg]  = useState(null)
+  const [badRipple,        setBadRipple]        = useState(null) // { x, y }
+  const [blockedGhost,     setBlockedGhost]     = useState(null) // { x, y, mood }
+  const [countryBadgeShow, setCountryBadgeShow] = useState(true)
 
   // ── Join / leave toast queue ──────────────────────────────────────────────
   const [jlQueue, setJlQueue] = useState([])
@@ -164,8 +182,13 @@ export default function App() {
     if (loc) {
       reverseGeocodePlaceName(loc.lat, loc.lng).then(setPlaceName).catch(() => {})
       // Store home country so press-and-hold drops can be restricted to it
-      reverseGeocodeCountry(loc.lat, loc.lng).then((c) => {
-        if (c) { setUserCountry(c); sessionStorage.setItem('hay_user_country', c) }
+      reverseGeocodeCountry(loc.lat, loc.lng).then(({ code, name }) => {
+        if (code) {
+          setUserCountry(code)
+          setUserCountryName(name)
+          sessionStorage.setItem('hay_user_country', code)
+          sessionStorage.setItem('hay_user_country_name', name ?? '')
+        }
       }).catch(() => {})
     }
   }
@@ -183,14 +206,10 @@ export default function App() {
     if (panel !== PANEL.NONE) setPanel(PANEL.NONE)
   }
 
-  async function handleHoldDrop(lngLat, mood) {
+  async function handleHoldDrop(lngLat, mood, screenPt) {
     if (!user) return
     if (!isFinite(lngLat.lat) || !isFinite(lngLat.lng) || Math.abs(lngLat.lat) > 90 || Math.abs(lngLat.lng) > 180) return
 
-    // ── Location guard (sync, no network) ────────────────────────────────────
-    // If we have the user's GPS, the tap point must be within 100 km of it.
-    // Pins outside that radius are deactivated — users must place pins where they
-    // physically are, not fake a remote location on the globe.
     if (userLocation) {
       const dist = haversineKm(lngLat.lat, lngLat.lng, userLocation.lat, userLocation.lng)
       if (dist > 100) {
@@ -201,16 +220,25 @@ export default function App() {
 
     try {
       const { lat, lng } = fuzzLocation(lngLat.lat, lngLat.lng)
-      const country      = await reverseGeocodeCountry(lat, lng)
-      // Block drops outside the user's home country (only enforced when country is known)
-      if (userCountry && country && country !== userCountry) {
-        showToast(`You can only drop pins in ${countryName(userCountry) ?? userCountry}.`, 'error')
+      // Deliberate fallback: if geocode fails (network error / null), allow pin through silently
+      const tapped = await reverseGeocodeCountry(lat, lng)
+      if (userCountry && tapped.code && tapped.code !== userCountry) {
+        // Show red ripple at tap point
+        if (screenPt) setBadRipple(screenPt)
+        // Show deactivated ghost pin
+        if (screenPt) {
+          setBlockedGhost({ x: screenPt.x, y: screenPt.y, mood })
+          setTimeout(() => setBlockedGhost(null), 1800)
+        }
+        setBlockedToastMsg(
+          `🚫 That spot is in ${tapped.name ?? tapped.code} — share how you feel in ${userCountryName ?? userCountry} instead.`
+        )
+        setTimeout(() => setCountryLockData({ tappedCode: tapped.code, tappedName: tapped.name }), 1300)
         return
       }
       const streakCount  = recordCheckIn()
       const hasStreak    = streakCount >= 7
-      await createPin({ uid: user.uid, lat, lng, mood, message: '', verified: userLocation !== null, country, isFlash: false, hasStreak })
-      // Fly to the dropped pin so it's visible even at a zoomed-out starting view
+      await createPin({ uid: user.uid, lat, lng, mood, message: '', verified: userLocation !== null, country: tapped.code, isFlash: false, hasStreak })
       mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })
       setCelebration(true)
       setTimeout(() => setCelebration(false), 2800)
@@ -236,18 +264,41 @@ export default function App() {
       if (dist > 100) throw new Error('Pin deactivated — you can only drop pins near your current location.')
     }
     const { lat, lng } = fuzzLocation(pendingLocation.lat, pendingLocation.lng)
-    const country      = await reverseGeocodeCountry(lat, lng)
+    // Deliberate fallback: if geocode fails (network error / null), allow pin through silently
+    const tapped = await reverseGeocodeCountry(lat, lng)
+    if (tapped.code && userCountry && tapped.code !== userCountry) {
+      setPanel(PANEL.NONE)
+      setBlockedToastMsg(
+        `🚫 That spot is in ${tapped.name ?? tapped.code} — share how you feel in ${userCountryName ?? userCountry} instead.`
+      )
+      setTimeout(() => setCountryLockData({ tappedCode: tapped.code, tappedName: tapped.name }), 1300)
+      return // resolved without throw — CheckInPanel unmounts via setPanel(PANEL.NONE)
+    }
     const streakCount  = recordCheckIn()
     const hasStreak    = streakCount >= 7
-    await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country, isFlash, hasStreak })
+    await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country: tapped.code, isFlash, hasStreak })
     setPanel(PANEL.NONE)
     setPendingLocation(null)
-    // Fly to the pin so it's immediately visible at the right zoom level
     mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })
     setCelebration(true)
     setTimeout(() => setCelebration(false), 2800)
     showToast('Pin dropped! Open the live feed to see it.', 'success')
   }
+
+  function handleShareHere() {
+    setCountryLockData(null)
+    if (userLocation) {
+      setPendingLocation(userLocation)
+      setPanel(PANEL.CHECKIN)
+      reverseGeocodePlaceName(userLocation.lat, userLocation.lng).then(setPlaceName).catch(() => {})
+    }
+  }
+
+  useEffect(() => {
+    if (!blockedToastMsg) return
+    const t = setTimeout(() => setBlockedToastMsg(null), 1500)
+    return () => clearTimeout(t)
+  }, [blockedToastMsg])
 
   function handleFabClick() {
     dismissTipFab()
@@ -302,6 +353,42 @@ export default function App() {
       )}
 
       {toast && <MessageToast text={toast} onDismiss={() => setToast(null)} />}
+
+      {/* Country badge — shows user's locked country below stat bar */}
+      {userCountry && countryBadgeShow && (
+        <div className="country-badge" aria-label={`You're in ${userCountryName ?? userCountry}`}>
+          <span className="country-badge-dot" aria-hidden="true" />
+          <span className="country-badge-label">You're in</span>
+          <strong>{countryFlag(userCountry)} {userCountryName ?? userCountry}</strong>
+        </div>
+      )}
+
+      {/* Blocked toast — slides in below stat bar for 1.5s */}
+      {blockedToastMsg && (
+        <div className="blocked-toast" role="alert" aria-live="assertive">
+          {blockedToastMsg}
+        </div>
+      )}
+
+      {/* Red ripple at blocked tap point */}
+      {badRipple && (
+        <div
+          className="hay-bad-ripple"
+          style={{ left: badRipple.x, top: badRipple.y }}
+          onAnimationEnd={() => setBadRipple(null)}
+        />
+      )}
+
+      {/* Deactivated ghost pin at blocked tap point */}
+      {blockedGhost && (
+        <div
+          className="hay-blocked-ghost"
+          style={{ left: blockedGhost.x, top: blockedGhost.y }}
+          aria-hidden="true"
+        >
+          {blockedGhost.mood}
+        </div>
+      )}
 
       {user && <PresenceTracker user={user} userLocation={userLocation} deviceId={getDeviceId()} />}
       {user && <JoinLeaveDetector onEvent={handleJoinLeaveEvent} />}
@@ -499,6 +586,18 @@ export default function App() {
           user={user}
           onOpenPin={(pin) => { setActivePin(pin); setPanel(PANEL.CHAT) }}
           onClose={() => setPanel(PANEL.NONE)}
+        />
+      )}
+
+      {/* Country lock explanation sheet */}
+      {countryLockData && (
+        <CountryLockSheet
+          tappedCode={countryLockData.tappedCode}
+          tappedName={countryLockData.tappedName}
+          userCountry={userCountry}
+          userCountryName={userCountryName}
+          onDismiss={() => setCountryLockData(null)}
+          onShareHere={handleShareHere}
         />
       )}
     </div>

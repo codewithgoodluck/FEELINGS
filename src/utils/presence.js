@@ -72,6 +72,11 @@ export async function initPresence(uid, deviceId, lat, lng) {
       active:      true,
     })
   }
+
+  // Belt-and-suspenders: write country claim by auth uid so Firestore pin rules can look it up
+  if (country.code) {
+    setDoc(doc(db, 'userCountry', uid), { country: country.code }, { merge: true }).catch(() => {})
+  }
 }
 
 export function heartbeat(deviceId) {

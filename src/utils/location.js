@@ -20,11 +20,15 @@ export function fuzzLocation(lat, lng) {
 export async function reverseGeocodeCountry(lat, lng) {
   try {
     const token = import.meta.env.VITE_MAPBOX_TOKEN
-    const url   = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?types=country&access_token=${token}`
+    const url   = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?types=country&language=en&access_token=${token}`
     const res   = await fetch(url)
     const json  = await res.json()
-    return json.features?.[0]?.properties?.short_code?.toUpperCase() ?? null
-  } catch { return null }
+    const f     = json.features?.[0]
+    return {
+      code: f?.properties?.short_code?.toUpperCase() ?? null,
+      name: f?.place_name ?? null,
+    }
+  } catch { return { code: null, name: null } }
 }
 
 // Returns a human-readable neighbourhood / town / city name for the coordinates

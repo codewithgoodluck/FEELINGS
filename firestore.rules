@@ -3,9 +3,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Pins, conversations, messages, reports — any signed-in user
+    // Pins — belt-and-suspenders country guard on create
     match /pins/{pin} {
-      allow read, write: if request.auth != null;
+      allow read, update, delete: if request.auth != null;
+      allow create: if request.auth != null
+        && (
+          !('country' in request.resource.data)
+          || request.resource.data.country == null
+          || !exists(/databases/$(database)/documents/userCountry/$(request.auth.uid))
+          || request.resource.data.country ==
+             get(/databases/$(database)/documents/userCountry/$(request.auth.uid)).data.country
+        );
+    }
+
+    // Country claims — keyed by auth uid, written by initPresence
+    match /userCountry/{uid} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
     }
     match /conversations/{conv} {
       allow read, write: if request.auth != null;
