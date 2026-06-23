@@ -267,8 +267,13 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
   const [sending, setSending]           = useState(false)
   const [showGifs, setShowGifs]         = useState(false)
   const [pendingGif, setPendingGif]     = useState(null)
-  const bottomRef     = useRef(null)
-  const chatBottomRef = useRef(null)
+  const [newMsgIds, setNewMsgIds]       = useState(() => new Set())
+  const [showScrollBtn, setShowScrollBtn] = useState(false)
+  const bottomRef        = useRef(null)
+  const chatBottomRef    = useRef(null)
+  const msgListRef       = useRef(null)
+  const initialLoadRef   = useRef(false)
+  const knownIdsRef      = useRef(new Set())
   const isOwn         = user.uid === pin.uid
   const myIdentity    = getAnonIdentity(user.uid, pin.country)
   const { registerAccount, loginAccount } = useAuth()
@@ -350,14 +355,55 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
   })
 
   useEffect(() => {
+    initialLoadRef.current = false
+    knownIdsRef.current    = new Set()
     markSeen(conversationId)
-    const unsubMsg  = subscribeToMessages(conversationId, setMessages)
+    const unsubMsg = subscribeToMessages(conversationId, (incoming) => {
+      if (!initialLoadRef.current) {
+        // First snapshot — populate known IDs, no animation
+        initialLoadRef.current = true
+        knownIdsRef.current = new Set(incoming.map((m) => m.id))
+        setMessages(incoming)
+        return
+      }
+      // Subsequent snapshots — detect genuinely new messages
+      const fresh = incoming.filter((m) => !knownIdsRef.current.has(m.id) && m.uid !== user.uid)
+      fresh.forEach((m) => knownIdsRef.current.add(m.id))
+      incoming.forEach((m) => knownIdsRef.current.add(m.id))
+      setMessages(incoming)
+      if (fresh.length === 0) return
+      // Animate new incoming messages
+      setNewMsgIds((prev) => {
+        const next = new Set([...prev, ...fresh.map((m) => m.id)])
+        return next
+      })
+      setTimeout(() => {
+        setNewMsgIds((prev) => {
+          const next = new Set(prev)
+          fresh.forEach((m) => next.delete(m.id))
+          return next
+        })
+      }, 500)
+      // Show scroll button if user is not near the bottom
+      const el = msgListRef.current
+      if (el) {
+        const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+        if (distFromBottom > 80) setShowScrollBtn(true)
+      }
+    })
     const unsubConv = subscribeToConversation(conversationId, setConversation)
     return () => { unsubMsg(); unsubConv() }
-  }, [conversationId])
+  }, [conversationId]) // eslint-disable-line
 
+  // Auto-scroll to bottom only when the user is already near the bottom
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = msgListRef.current
+    if (!el) { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); return }
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (distFromBottom < 80) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      setShowScrollBtn(false)
+    }
   }, [messages])
 
   const bothRevealed  = conversation?.revealedBy?.includes(user.uid) && conversation?.revealedBy?.includes(pin.uid)
@@ -507,7 +553,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
       </div>
 
       {/* Scrollable messages */}
-      <div className="message-list" role="log" aria-live="polite" onClick={(e) => { if (!e.target.closest('.msg-report-pop')) setReportPopMsgId(null) }}>
+      <div ref={msgListRef} className="message-list" role="log" aria-live="polite" onClick={(e) => { if (!e.target.closest('.msg-report-pop')) setReportPopMsgId(null) }}>
         {privacyNote && (
           <div className="chat-privacy-note">
             <span>🔒 Stay anonymous — never share personal details</span>
@@ -554,7 +600,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                     grpMod,
                   ].filter(Boolean).join(' ')
                   return (
-                    <div key={msg.id} className={`message ${isMe ? 'message--mine' : 'message--theirs'}`}>
+                    <div key={msg.id} className={`message ${isMe ? 'message--mine' : 'message--theirs'}${newMsgIds.has(msg.id) ? ' msg-new' : ''}`}>
                       <div
                         className={bubbleClass}
                         onClick={() => {
@@ -699,6 +745,19 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
           </div>
           <p className="reveal-celeb-note">You both revealed 🎉</p>
         </div>
+      )}
+
+      {/* New-message scroll button */}
+      {showScrollBtn && (
+        <button
+          className="chat-scroll-btn"
+          onClick={() => {
+            bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+            setShowScrollBtn(false)
+          }}
+        >
+          ↓ New message
+        </button>
       )}
 
       {/* Sticky bottom */}
