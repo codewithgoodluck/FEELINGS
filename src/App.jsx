@@ -20,6 +20,7 @@ import JoinLeaveToast from './components/JoinLeaveToast'
 import PinsPanel from './components/PinsPanel'
 import { subscribeToLivePresence, countryFlag, countryName } from './utils/presence'
 import CountryLockSheet from './components/CountryLockSheet'
+import BottomNav from './components/BottomNav'
 import './App.css'
 
 const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile' }
@@ -326,6 +327,28 @@ export default function App() {
     setNeighbourhood({ mood, count })
   }
 
+  // ── Bottom nav ────────────────────────────────────────────────────────────
+  const activeBottomTab = panel === PANEL.INBOX   ? 'messages'
+    : panel === PANEL.PROFILE                     ? 'profile'
+    : showFeedPanel                               ? 'feed'
+    : 'map'
+
+  function handleBottomTabChange(tab) {
+    if (tab === 'map') {
+      setShowFeedPanel(false)
+      setPanel(PANEL.NONE)
+    } else if (tab === 'feed') {
+      setPanel(PANEL.NONE)
+      setShowFeedPanel(v => !v)
+    } else if (tab === 'messages') {
+      setShowFeedPanel(false)
+      setPanel(p => p === PANEL.INBOX ? PANEL.NONE : PANEL.INBOX)
+    } else if (tab === 'profile') {
+      setShowFeedPanel(false)
+      setPanel(p => p === PANEL.PROFILE ? PANEL.NONE : PANEL.PROFILE)
+    }
+  }
+
   return (
     <div className={`app${showFeedPanel ? ' feed-panel-open' : ''}`}>
       <MapView
@@ -617,6 +640,15 @@ export default function App() {
           userCountryName={userCountryName}
           onDismiss={() => setCountryLockData(null)}
           onShareHere={handleShareHere}
+        />
+      )}
+
+      {user && (
+        <BottomNav
+          activeTab={activeBottomTab}
+          onTabChange={handleBottomTabChange}
+          unreadCount={unreadCount}
+          avatar={avatar}
         />
       )}
     </div>

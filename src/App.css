@@ -4163,3 +4163,125 @@ html[data-theme="light"] .feed-btn[aria-pressed="true"] {
   border-color: rgba(91,138,245,0.4);
   color: #5b8af5;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BOTTOM NAVIGATION BAR (mobile only — hidden on desktop ≥640px)
+═══════════════════════════════════════════════════════════════════════════ */
+
+.bottom-nav {
+  display: none; /* hidden on desktop */
+}
+
+@media (max-width: 639px) {
+  /* Show the nav bar */
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--sheet-2);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    z-index: 500;
+    align-items: stretch;
+  }
+
+  /* Push map content up so pins/FAB aren't hidden behind nav */
+  .app { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Hide the top-bar buttons that are now in the bottom nav */
+  .profile-btn,
+  .inbox-btn,
+  .feed-btn { display: none !important; }
+
+  /* Adjust PinsPanel so its list scrolls above the nav when opened */
+  .pins-panel-list { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ── Individual tab ── */
+.bnav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-2);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: color 0.15s;
+  padding: 6px 0 2px;
+}
+.bnav-tab--active { color: var(--accent); }
+.bnav-tab:active   { opacity: 0.7; }
+
+/* ── Icon wrapper ── */
+.bnav-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bnav-icon--svg {
+  position: relative;
+  width: 24px;
+  height: 24px;
+}
+.bnav-badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #e84040;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-family: system-ui, sans-serif;
+  pointer-events: none;
+}
+
+/* ── Avatar circle in Profile tab ── */
+.bnav-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+}
+.bnav-tab--active .bnav-avatar {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* ── Tab label ── */
+.bnav-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+/* Light mode overrides */
+html[data-theme="light"] .bottom-nav {
+  background: rgba(240,243,251,0.97);
+  border-top-color: rgba(60,80,180,0.12);
+}
