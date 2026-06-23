@@ -21,6 +21,13 @@ const MOOD_LABELS = {
   '😶': 'Numb',    '🤩': 'Amazed',    '🫶': 'Loved',      '🥱': 'Bored',
 }
 
+const MOOD_COLORS = {
+  '😊': '#e8c468', '😔': '#5b8af5', '😤': '#fb5607', '😴': '#8338ec',
+  '🤔': '#81b29a', '🥳': '#ffb703', '😰': '#e07a5f', '😌': '#06d6a0',
+  '😢': '#5b8af5', '😡': '#e84040', '🤗': '#06d6a0', '🥺': '#e07a5f',
+  '😶': '#888',    '🤩': '#ffb703', '🫶': '#e07a5f', '🥱': '#888',
+}
+
 const CLOSE_MS = 300
 
 export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId, unreadPinIds }) {
@@ -39,7 +46,6 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
   }), [])
   useEffect(() => () => clearTimeout(timerRef.current), [])
 
-  // Scroll active pin into view when it changes (pin clicked on map)
   useEffect(() => {
     if (!activePinId) return
     const el = itemEls.current[activePinId]
@@ -70,80 +76,124 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
     }
   }
 
+  // Mood summary: count per emoji, sorted by count desc
+  const moodCounts = pins.reduce((acc, p) => {
+    if (p.mood) acc[p.mood] = (acc[p.mood] || 0) + 1
+    return acc
+  }, {})
+  const topMoods = Object.entries(moodCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+
   return (
     <>
-    <div className={`pins-panel-backdrop${closing ? ' pins-panel-backdrop--out' : ''}`} onClick={() => dismiss()} aria-hidden="true" />
-    <div className={`pins-panel${closing ? ' pins-panel--closing' : ''}`} role="dialog" aria-label="Live pin feed">
-
-      <div className="pins-panel-header">
-        <div className="pins-panel-header-main">
-          <h2 className="pins-panel-title">
-            <span className="pins-panel-live-dot" aria-hidden="true" />
-            Live Feed
-          </h2>
-          <button className="pins-panel-close" onClick={() => dismiss()} aria-label="Close">✕</button>
+      <div
+        className={`pins-panel-backdrop${closing ? ' pins-panel-backdrop--out' : ''}`}
+        onClick={() => dismiss()}
+        aria-hidden="true"
+      />
+      <div
+        className={`pins-panel${closing ? ' pins-panel--closing' : ''}`}
+        role="dialog"
+        aria-label="Activity feed"
+      >
+        {/* ── Header ── */}
+        <div className="pins-panel-header">
+          <div className="pins-panel-header-main">
+            <h2 className="pins-panel-title">
+              <span className="pins-panel-live-dot" aria-hidden="true" />
+              Activity
+            </h2>
+            <button className="pins-panel-close" onClick={() => dismiss()} aria-label="Close">✕</button>
+          </div>
+          <p className="pins-panel-subtitle">
+            <span className="pins-panel-count-badge">{pins.length}</span>
+            {pins.length === 1 ? 'check-in' : 'check-ins'} live right now
+          </p>
         </div>
-        <p className="pins-panel-subtitle">
-          <span className="pins-panel-count-badge">{pins.length}</span>
-          {pins.length === 1 ? 'pin' : 'pins'} active now
-        </p>
-      </div>
 
-      <div className="pins-panel-list">
-        {pins.length === 0 ? (
-          <div className="empty-state"><p>No active pins right now.</p></div>
-        ) : (
-          pins.map(pin => {
-            const isActive  = activePinId === pin.id
-            const hasUnread = unreadPinIds?.has(pin.id)
-            return (
-              <div
-                key={pin.id}
-                ref={el => { itemEls.current[pin.id] = el }}
-                className={`pins-panel-item${isActive ? ' pins-panel-item--active' : ''}${hasUnread ? ' pins-panel-item--has-unread' : ''}`}
-              >
-                <button className="pins-panel-item-body" onClick={() => handleSelect(pin)}>
-                  <div className="pins-panel-item-top">
-                    <span className="pins-panel-mood-chip">
-                      <span aria-hidden="true">{pin.mood}</span>
-                      {MOOD_LABELS[pin.mood] ?? 'Feeling'}
-                    </span>
-                    <div className="pins-panel-item-top-right">
-                      {hasUnread && <span className="pins-panel-unread-dot" aria-label="Unread message" />}
-                      <span className="pins-panel-time">
-                        <span className="pins-panel-time-icon" aria-hidden="true">⏱</span>
-                        {timeAgo(pin.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                  {pin.message && <p className="pins-panel-message">{pin.message}</p>}
-                  <div className="pins-panel-item-bottom">
-                    {pin.country
-                      ? <span className="pins-panel-location">
-                          {countryFlag(pin.country)}
-                          <span>{countryName(pin.country) ?? pin.country}</span>
-                        </span>
-                      : <span />
-                    }
-                    <div className="pins-panel-badges">
-                      {pin.isFlash   && <span className="pins-panel-badge pins-panel-badge--flash">⚡ flash</span>}
-                      {pin.hasStreak && <span className="pins-panel-badge pins-panel-badge--streak">🔥 streak</span>}
-                    </div>
-                  </div>
-                </button>
-                <button
-                  className={`pins-panel-chat-btn${hasUnread ? ' pins-panel-chat-btn--unread' : ''}`}
-                  onClick={() => handleChatDirect(pin)}
-                  aria-label="Chat about this pin"
-                >
-                  {hasUnread ? '💬 New message' : '💬 Chat'}
-                </button>
+        {/* ── Mood summary strip ── */}
+        {topMoods.length > 0 && (
+          <div className="feed-mood-strip">
+            {topMoods.map(([emoji, count]) => (
+              <div key={emoji} className="feed-mood-pill">
+                <span className="feed-mood-pill-emoji">{emoji}</span>
+                <span className="feed-mood-pill-count">{count}</span>
               </div>
-            )
-          })
+            ))}
+          </div>
         )}
+
+        {/* ── Cards ── */}
+        <div className="pins-panel-list">
+          {pins.length === 0 ? (
+            <div className="feed-empty">
+              <span className="feed-empty-icon">🌍</span>
+              <p className="feed-empty-text">No check-ins yet.</p>
+              <p className="feed-empty-sub">Be the first to share how you feel.</p>
+            </div>
+          ) : (
+            pins.map(pin => {
+              const isActive  = activePinId === pin.id
+              const hasUnread = unreadPinIds?.has(pin.id)
+              const accentColor = MOOD_COLORS[pin.mood] ?? 'var(--accent)'
+
+              return (
+                <article
+                  key={pin.id}
+                  ref={el => { itemEls.current[pin.id] = el }}
+                  className={`feed-card${isActive ? ' feed-card--active' : ''}${hasUnread ? ' feed-card--unread' : ''}`}
+                  style={{ '--mood-color': accentColor }}
+                >
+                  <button className="feed-card-body" onClick={() => handleSelect(pin)}>
+                    {/* Mood emoji */}
+                    <div className="feed-card-emoji-wrap" aria-hidden="true">
+                      <span className="feed-card-emoji">{pin.mood || '💬'}</span>
+                    </div>
+
+                    {/* Content */}
+                    <div className="feed-card-content">
+                      <div className="feed-card-top">
+                        <span className="feed-card-mood-label">
+                          {MOOD_LABELS[pin.mood] ?? 'Feeling something'}
+                        </span>
+                        <span className="feed-card-time">{timeAgo(pin.createdAt)}</span>
+                      </div>
+
+                      {pin.country && (
+                        <div className="feed-card-location">
+                          <span aria-hidden="true">{countryFlag(pin.country)}</span>
+                          <span>{countryName(pin.country) ?? pin.country}</span>
+                        </div>
+                      )}
+
+                      {pin.message && (
+                        <p className="feed-card-message">"{pin.message}"</p>
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Footer: badges + chat */}
+                  <div className="feed-card-footer">
+                    <div className="feed-card-badges">
+                      {pin.isFlash   && <span className="feed-badge feed-badge--flash">⚡ Flash</span>}
+                      {pin.hasStreak && <span className="feed-badge feed-badge--streak">🔥 Streak</span>}
+                      {hasUnread     && <span className="feed-badge feed-badge--new">● New</span>}
+                    </div>
+                    <button
+                      className={`feed-card-chat${hasUnread ? ' feed-card-chat--unread' : ''}`}
+                      onClick={() => handleChatDirect(pin)}
+                      aria-label="Open chat for this pin"
+                    >
+                      💬 {hasUnread ? 'New msg' : 'Chat'}
+                    </button>
+                  </div>
+                </article>
+              )
+            })
+          )}
+        </div>
       </div>
-    </div>
     </>
   )
 }
