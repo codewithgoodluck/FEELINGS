@@ -94,6 +94,17 @@ const PIN_STYLE = `
     50%      { opacity: 0.6; box-shadow: 0 4px 24px rgba(255,200,60,0.7); }
   }
 
+  /* ── Message-carrying pin — slow outer glow ─────── */
+  @media (prefers-reduced-motion: no-preference) {
+    .hay-pin--has-message {
+      animation: msgGlow 2.5s ease-in-out infinite;
+    }
+    @keyframes msgGlow {
+      0%,100% { box-shadow: 0 4px 16px rgba(0,0,0,0.45), 0 0 0 0   rgba(232,196,104,0); }
+      50%     { box-shadow: 0 4px 16px rgba(0,0,0,0.45), 0 0 10px 4px rgba(232,196,104,0.6); }
+    }
+  }
+
   /* ── Flash countdown badge ─────────────────────── */
   .hay-flash-badge {
     position: absolute;
@@ -304,11 +315,13 @@ function buildGeoJSON(pins) {
   }
 }
 
+const PANEL_WIDTH = 480 // must match .pins-panel desktop width in App.css
+
 export default function MapView({
   onPinClick, onMapClick, onDeletePin,
   userLocation, unreadPinIds, activePinId,
   onNeighbourhoodClick, onFirstPins, previewLocation, onHoldDrop,
-  onFlyTo, theme,
+  onFlyTo, theme, panelOpen,
 }) {
   const mapContainer      = useRef(null)
   const map               = useRef(null)
@@ -322,6 +335,8 @@ export default function MapView({
   const seenFirstSnapshot = useRef(false)
   const pulseCanvasRef    = useRef(null)
   const pulsesRef         = useRef([])
+  const panelOpenRef      = useRef(panelOpen)
+  panelOpenRef.current    = panelOpen
   const [mapReady, setMapReady] = useState(false)
   const { user } = useAuth()
   const showToast    = useToast()
@@ -342,6 +357,14 @@ export default function MapView({
   onFirstPinsRef.current          = onFirstPins
   unreadPinIdsRef.current         = unreadPinIds
   showToastRef.current            = showToast
+
+  // ── Adjust map padding when the feed panel opens / closes ────────────────
+
+  useEffect(() => {
+    if (!mapReady || !map.current) return
+    const padding = panelOpen && window.innerWidth >= 640 ? { right: PANEL_WIDTH } : {}
+    map.current.easeTo({ padding, duration: 300 })
+  }, [panelOpen, mapReady])
 
   // ── Sync marker visibility to current zoom level ──────────────────────────
 
@@ -382,8 +405,13 @@ export default function MapView({
       attributionControl: false,
     })
 
-    // Expose flyTo to parent so PinSearch can fly to a result
-    onFlyTo?.((opts) => map.current?.flyTo(opts))
+    // Expose flyTo to parent — include panel padding so Mapbox centres
+    // the destination in the visible area, not behind the feed panel.
+    onFlyTo?.((opts) => {
+      const padding = panelOpenRef.current && window.innerWidth >= 640
+        ? { right: PANEL_WIDTH } : {}
+      map.current?.flyTo({ ...opts, padding })
+    })
 
     map.current.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-left')
     map.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right')
@@ -899,6 +927,13 @@ export default function MapView({
         }
       })
 
+      // Sync has-message class on existing markers (message may change)
+      pins.forEach((pin) => {
+        const entry = markersRef.current[pin.id]
+        if (!entry) return
+        entry.wrap.classList.toggle('hay-pin--has-message', Boolean(pin.message?.trim()))
+      })
+
       // Add new markers
       const zoom = map.current?.getZoom() ?? 10
       pins.forEach((pin) => {
@@ -909,6 +944,7 @@ export default function MapView({
         const wrap = document.createElement('div')
         wrap.className = 'hay-pin-wrap'
         if (pin.hasStreak) wrap.classList.add('hay-pin-wrap--streak')
+        if (pin.message?.trim()) wrap.classList.add('hay-pin--has-message')
         wrap.setAttribute('role', 'button')
         wrap.setAttribute('tabindex', '0')
         wrap.setAttribute('aria-label', `Check-in: ${pin.mood}`)
