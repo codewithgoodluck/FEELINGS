@@ -584,20 +584,74 @@ function PresenceTracker({ user, userLocation }) {
 
 // ── Global messages inbox ─────────────────────────────────────────────────────
 
-function InboxSheet({ conversations, user, onOpenPin, onClose }) {
-  const [loadingId, setLoadingId] = useState(null)
-  const showToast = useToast()
+function inboxTimeAgo(ts) {
+  if (!ts) return ''
+  const ms = ts?.seconds ? ts.seconds * 1000 : ts?.toDate?.()?.getTime?.() ?? 0
+  if (!ms) return ''
+  const secs = Math.floor((Date.now() - ms) / 1000)
+  if (secs < 60)  return 'now'
+  const mins = Math.floor(secs / 60)
+  if (mins < 60)  return `${mins}m`
+  const hrs  = Math.floor(mins / 60)
+  if (hrs  < 24)  return `${hrs}h`
+  return `${Math.floor(hrs / 24)}d`
+}
 
-  const withActivity = conversations.filter((c) => c.lastMessageAt)
-  const unread = withActivity.filter((c) => {
-    if (c.lastMessageUid === user.uid) return false
-    const ts = c.lastMessageAt?.seconds
-      ? c.lastMessageAt.seconds * 1000
-      : c.lastMessageAt?.toDate?.()?.getTime?.() ?? 0
-    return ts > lastSeen(c.id)
+function markConvSeen(convId) {
+  try { localStorage.setItem('hay_seen_' + convId, Date.now()) } catch {}
+}
+
+function InboxSheet({ conversations, user, onOpenPin, onClose }) {
+  const [loadingId,  setLoadingId]  = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  // localRead: convIds marked read this session without a page reload
+  const [localRead,  setLocalRead]  = useState(() => new Set())
+  // hiddenIds: convIds dismissed by the user, persisted in localStorage
+  const [hiddenIds,  setHiddenIds]  = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('hay_hidden_convs') || '[]')) } catch { return new Set() }
   })
-  const responded = withActivity.filter((c) => c.lastMessageUid === user.uid)
-  const other     = withActivity.filter((c) => !unread.includes(c) && !responded.includes(c))
+  const showToast = useToast()
+  const searchRef = useRef(null)
+
+  // Filter: has activity, not hidden, matches search
+  const visible = conversations
+    .filter((c) => c.lastMessageAt && !hiddenIds.has(c.id))
+    .filter((c) => {
+      const q = searchQuery.trim().toLowerCase()
+      if (!q) return true
+      const otherUid = c.participants?.find((p) => p !== user.uid)
+      const name     = otherUid ? getAnonIdentity(otherUid, null).toLowerCase() : ''
+      const preview  = (c.lastMessagePreview || '').toLowerCase()
+      return name.includes(q) || preview.includes(q)
+    })
+
+  function isUnreadConv(conv) {
+    if (localRead.has(conv.id))          return false
+    if (conv.lastMessageUid === user.uid) return false
+    const ts = conv.lastMessageAt?.seconds
+      ? conv.lastMessageAt.seconds * 1000
+      : conv.lastMessageAt?.toDate?.()?.getTime?.() ?? 0
+    return ts > lastSeen(conv.id)
+  }
+
+  const unread    = visible.filter(isUnreadConv)
+  const responded = visible.filter((c) => !isUnreadConv(c) && c.lastMessageUid === user.uid)
+  const other     = visible.filter((c) => !isUnreadConv(c) && c.lastMessageUid !== user.uid)
+
+  function handleMarkAllRead() {
+    unread.forEach((c) => markConvSeen(c.id))
+    setLocalRead((prev) => new Set([...prev, ...unread.map((c) => c.id)]))
+  }
+
+  function handleDismiss(convId, e) {
+    e.stopPropagation()
+    setHiddenIds((prev) => {
+      const next = new Set(prev)
+      next.add(convId)
+      try { localStorage.setItem('hay_hidden_convs', JSON.stringify([...next])) } catch {}
+      return next
+    })
+  }
 
   async function handleTap(conv) {
     setLoadingId(conv.id)
@@ -611,25 +665,37 @@ function InboxSheet({ conversations, user, onOpenPin, onClose }) {
 
   function ConvItem({ conv }) {
     const isLoading = loadingId === conv.id
-    const isUnread  = unread.includes(conv)
+    const isUnread  = isUnreadConv(conv)
     const otherUid  = conv.participants?.find((p) => p !== user.uid)
     const name      = otherUid ? getAnonIdentity(otherUid, null) : 'Someone'
+    // Two-letter initials from the anon name ("Amber Owl" → "AO")
+    const initials  = name.split(' ').map((w) => w[0] ?? '').join('').slice(0, 2).toUpperCase()
     const bg        = otherUid ? getAnonColour(otherUid) : '#444'
+    const rawPreview = conv.lastMessagePreview || ''
+    const preview    = rawPreview.length > 40 ? rawPreview.slice(0, 40) + '…' : (rawPreview || 'No messages yet')
     return (
-      <button
-        className={`inbox-item${isUnread ? ' inbox-item--unread' : ''}`}
-        onClick={() => handleTap(conv)}
-        disabled={isLoading}
-      >
-        <div className="inbox-item-avatar" style={{ background: bg }}>
-          {conv.lastMessagePreview?.slice(0, 1) || '💬'}
-        </div>
-        <div className="inbox-item-body">
-          <p className="inbox-item-name">{name}</p>
-          <p className="inbox-item-preview">{isLoading ? 'Opening…' : (conv.lastMessagePreview || 'No messages yet')}</p>
-        </div>
-        {isUnread && <span className="inbox-unread-dot" aria-label="Unread" />}
-      </button>
+      <div className={`inbox-item${isUnread ? ' inbox-item--unread' : ''}`}>
+        <button
+          className="inbox-item-main"
+          onClick={() => handleTap(conv)}
+          disabled={isLoading}
+        >
+          <div className="inbox-item-avatar" style={{ background: bg }}>{initials}</div>
+          <div className="inbox-item-body">
+            <div className="inbox-item-meta">
+              <p className="inbox-item-name">{name}</p>
+              <span className="inbox-item-time">{inboxTimeAgo(conv.lastMessageAt)}</span>
+            </div>
+            <p className="inbox-item-preview">{isLoading ? 'Opening…' : preview}</p>
+          </div>
+          {isUnread && <span className="inbox-unread-dot" aria-label="Unread" />}
+        </button>
+        <button
+          className="inbox-item-dismiss"
+          onClick={(e) => handleDismiss(conv.id, e)}
+          aria-label="Dismiss conversation"
+        >✕</button>
+      </div>
     )
   }
 
@@ -638,10 +704,30 @@ function InboxSheet({ conversations, user, onOpenPin, onClose }) {
       <div className="panel-handle" />
       <div className="inbox-header">
         <h2 className="inbox-title">Messages</h2>
-        <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+        <div className="inbox-header-actions">
+          {unread.length > 0 && (
+            <button className="inbox-mark-read" onClick={handleMarkAllRead}>Mark all read</button>
+          )}
+          <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+        </div>
       </div>
-      {withActivity.length === 0 ? (
-        <div className="empty-state"><p>No conversations yet.<br />Tap a pin on the map to start one.</p></div>
+
+      <div className="inbox-search-wrap">
+        <input
+          ref={searchRef}
+          className="inbox-search"
+          type="search"
+          placeholder="Search conversations…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Search conversations"
+        />
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="empty-state">
+          <p>{searchQuery.trim() ? 'No conversations match.' : 'No conversations yet.\nTap a pin on the map to start one.'}</p>
+        </div>
       ) : (
         <>
           {unread.length > 0 && (
