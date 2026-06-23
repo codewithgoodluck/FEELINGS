@@ -28,14 +28,17 @@ export default function PinSearch({ onClose, onFlyTo }) {
 
   const results = useMemo(() => {
     if (!allPins || !query.trim()) return []
-    const q = query.trim()
-    const ql = q.toLowerCase()
-    return allPins.filter((pin) =>
-      pin.mood === q ||
-      MOOD_LABELS[pin.mood]?.includes(ql) ||
-      (pin.message && pin.message.toLowerCase().includes(ql)) ||
-      (pin.country && countryName(pin.country)?.toLowerCase().includes(ql))
-    ).slice(0, MAX_RESULTS)
+    const ql = query.trim().toLowerCase()
+    return allPins.filter((pin) => {
+      const haystack = [
+        pin.mood ?? '',
+        MOOD_LABELS[pin.mood] ?? '',
+        pin.message ?? '',
+        pin.country ?? '',
+        countryName(pin.country) ?? '',
+      ].join(' ').toLowerCase()
+      return haystack.includes(ql)
+    }).slice(0, MAX_RESULTS)
   }, [allPins, query])
 
   function handleView(pin) {
@@ -58,7 +61,7 @@ export default function PinSearch({ onClose, onFlyTo }) {
           ref={inputRef}
           className="pin-search-input"
           type="search"
-          placeholder="Search moods or messages…"
+          placeholder="Search by mood, message, or country…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search pins by mood or message"

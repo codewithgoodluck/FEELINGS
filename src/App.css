@@ -3454,16 +3454,17 @@ html[data-theme="light"] .jl-toast {
   transform: translateX(2px) scale(0.985);
 }
 
-.pins-panel-mood-row {
+.pins-panel-item-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
 }
 
-.pins-panel-mood-tag {
-  font-size: 1.25rem;
-  line-height: 1;
+.pins-panel-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .pins-panel-message {
@@ -3483,12 +3484,6 @@ html[data-theme="light"] .jl-toast {
   font-style: italic;
 }
 
-.pins-panel-footer {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
 
 .pins-panel-time {
   display: flex;
