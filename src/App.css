@@ -3431,30 +3431,41 @@ html[data-theme="light"] .jl-toast {
 .pins-panel-item {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 0.7rem 0.875rem;
+  gap: 0.45rem;
+  padding: 0.875rem 1rem;
   border-radius: var(--r-lg);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
   width: 100%;
   text-align: left;
-  background: var(--ink-4);
+  background: rgba(255,255,255,0.05);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   color: inherit;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.5rem;
 }
 
 .pins-panel-item:hover {
-  background: var(--ink-4);
+  background: rgba(255,255,255,0.09);
   border-color: var(--border-h);
-  transform: translateX(3px);
+  border-left-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
 }
 
 .pins-panel-item:active {
-  transform: translateX(2px) scale(0.985);
+  transform: translateY(0) scale(0.99);
+  box-shadow: none;
 }
 
 .pins-panel-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.pins-panel-item-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3467,24 +3478,29 @@ html[data-theme="light"] .jl-toast {
   gap: 0.3rem;
 }
 
-.pins-panel-mood-name {
-  display: flex;
+.pins-panel-mood-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  font-size: 0.8125rem;
+  gap: 0.3rem;
+  background: rgba(91,138,245,0.12);
+  color: #7ba3f7;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--ink-1);
+  padding: 0.25em 0.6em;
+  border-radius: var(--r-pill);
+  border: 1px solid rgba(91,138,245,0.2);
+  letter-spacing: 0.01em;
 }
 
 .pins-panel-message {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--ink-0);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .pins-panel-no-msg {

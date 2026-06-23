@@ -69,29 +69,32 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick }) {
           pins.map(pin => (
             <button key={pin.id} className="pins-panel-item" onClick={() => handleSelect(pin)}>
               <div className="pins-panel-item-top">
+                <span className="pins-panel-mood-chip">
+                  <span aria-hidden="true">{pin.mood}</span>
+                  {MOOD_LABELS[pin.mood] ?? 'Feeling'}
+                </span>
                 <span className="pins-panel-time">
                   <span className="pins-panel-time-icon" aria-hidden="true">⏱</span>
                   {timeAgo(pin.createdAt)}
                 </span>
-                <div className="pins-panel-badges">
-                  {pin.isFlash   && <span className="pins-panel-badge pins-panel-badge--flash">⚡ flash</span>}
-                  {pin.hasStreak && <span className="pins-panel-badge pins-panel-badge--streak">🔥 streak</span>}
-                </div>
-              </div>
-              <div className="pins-panel-mood-name">
-                <span aria-hidden="true">{pin.mood}</span>
-                <span>{MOOD_LABELS[pin.mood] ?? 'Feeling something'}</span>
               </div>
               {pin.message
                 ? <p className="pins-panel-message">{pin.message}</p>
                 : <p className="pins-panel-no-msg">No message</p>
               }
-              {pin.country && (
-                <span className="pins-panel-location">
-                  {countryFlag(pin.country)}
-                  {countryName(pin.country) && <span>{countryName(pin.country)}</span>}
-                </span>
-              )}
+              <div className="pins-panel-item-bottom">
+                {pin.country
+                  ? <span className="pins-panel-location">
+                      {countryFlag(pin.country)}
+                      {countryName(pin.country) && <span>{countryName(pin.country)}</span>}
+                    </span>
+                  : <span />
+                }
+                <div className="pins-panel-badges">
+                  {pin.isFlash   && <span className="pins-panel-badge pins-panel-badge--flash">⚡ flash</span>}
+                  {pin.hasStreak && <span className="pins-panel-badge pins-panel-badge--streak">🔥 streak</span>}
+                </div>
+              </div>
             </button>
           ))
         )}
