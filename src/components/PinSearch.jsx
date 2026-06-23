@@ -99,7 +99,9 @@ export default function PinSearch({ onClose, onFlyTo }) {
                     : <em className="pin-result-empty-msg">No message</em>}
                 </p>
                 <p className="pin-result-meta">
-                  {pin.country ? `${countryFlag(pin.country)} ${pin.country}` : '🌍'}
+                  {pin.country
+                    ? `${countryFlag(pin.country)} ${countryName(pin.country) ?? pin.country}`
+                    : '🌍 Unknown'}
                 </p>
               </div>
               <button
