@@ -21,6 +21,7 @@ import PinsPanel from './components/PinsPanel'
 import { subscribeToLivePresence, countryFlag, countryName } from './utils/presence'
 import CountryLockSheet from './components/CountryLockSheet'
 import BottomNav from './components/BottomNav'
+import LocationGate from './components/LocationGate'
 import './App.css'
 
 const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile' }
@@ -75,6 +76,9 @@ export default function App() {
   const [mirrorMood, setMirrorMood]       = useState(null)
 
   // ── Location — deferred to first FAB tap ───────────────────────────────────
+  const [locationGateDone, setLocationGateDone] = useState(
+    () => localStorage.getItem('hay_location_gate') === '1'
+  )
   const [locationAsked, setLocationAsked] = useState(
     () => sessionStorage.getItem('hay_location_asked') === '1'
   )
@@ -178,6 +182,43 @@ export default function App() {
             setMirrorDone(true)
             setTransitioning(false)
           }, 1400)
+        }}
+      />
+    )
+  }
+
+  // ── Location gate — shown once per device after onboarding ────────────────
+  if (!locationGateDone) {
+    return (
+      <LocationGate
+        onConfirm={async ({ lat, lng, country, countryName: cName, fromGPS }) => {
+          if (fromGPS) {
+            // GPS succeeded — run full location resolution
+            const loc = { lat, lng }
+            setUserLocation(loc)
+            reverseGeocodeCountry(lat, lng).then(({ code, name }) => {
+              if (code) {
+                setUserCountry(code)
+                setUserCountryName(name)
+                sessionStorage.setItem('hay_user_country', code)
+                sessionStorage.setItem('hay_user_country_name', name ?? '')
+              }
+            }).catch(() => {})
+            reverseGeocodePlaceName(lat, lng).then(setPlaceName).catch(() => {})
+          } else {
+            // Country search — use approximate centre
+            setUserLocation({ lat, lng })
+            if (country) {
+              setUserCountry(country)
+              setUserCountryName(cName)
+              sessionStorage.setItem('hay_user_country', country)
+              sessionStorage.setItem('hay_user_country_name', cName ?? '')
+            }
+          }
+          setLocationAsked(true)
+          sessionStorage.setItem('hay_location_asked', '1')
+          localStorage.setItem('hay_location_gate', '1')
+          setLocationGateDone(true)
         }}
       />
     )
@@ -657,6 +698,7 @@ export default function App() {
           pin={activePin}
           mirrorMood={mirrorMood}
           onClose={() => setPanel(PANEL.NONE)}
+          onDelete={async (pinId) => { await handleDeletePin(pinId); setPanel(PANEL.NONE) }}
         />
       )}
 
@@ -689,10 +731,12 @@ export default function App() {
         <PinsPanel
           activePinId={activePin?.id}
           unreadPinIds={unreadPinIds}
+          currentUserId={user?.uid}
           onClose={() => setShowFeedPanel(false)}
           onFlyTo={(lng, lat) => mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })}
           onPinClick={(pin) => { setActivePin(pin); setPanel(PANEL.PEEK) }}
           onChatDirect={(pin) => { setActivePin(pin); setPanel(PANEL.CHAT) }}
+          onDeletePin={handleDeletePin}
         />
       )}
 

@@ -47,6 +47,15 @@ const PIN_STYLE = `
     height: 40px;
   }
 
+  /* ── Own pin: golden border ───────────────────── */
+  .hay-pin-wrap--own .hay-pin {
+    border: 2.5px solid rgba(255, 205, 55, 0.9) !important;
+    box-shadow: 0 0 0 2px rgba(255, 205, 55, 0.22), 0 2px 8px rgba(0,0,0,0.35);
+  }
+  .hay-pin-wrap--own .hay-pin-mood {
+    border-color: rgba(255, 205, 55, 0.6);
+  }
+
   /* ── Streak glow ring ──────────────────────────── */
   .hay-pin-wrap--streak::after {
     content: '';
@@ -989,6 +998,7 @@ export default function MapView({
         wrap.className = 'hay-pin-wrap'
         if (pin.hasStreak)    wrap.classList.add('hay-pin-wrap--streak')
         if (pin.needsSupport) wrap.classList.add('hay-pin-wrap--sos')
+        if (isOwn)            wrap.classList.add('hay-pin-wrap--own')
         if (pin.message?.trim()) wrap.classList.add('hay-pin--has-message')
         wrap.setAttribute('role', 'button')
         wrap.setAttribute('tabindex', '0')

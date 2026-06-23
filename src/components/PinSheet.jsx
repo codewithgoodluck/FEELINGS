@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { getAnonIdentity } from '../utils/identity'
 import { useAuth } from '../contexts/AuthContext'
 import { ChatPanelContent } from './ChatPanel'
+import { deactivatePin } from '../utils/db'
 
 const ICEBREAKERS = {
   '😊': "Hey! Looks like today's treating you well — what's good? 🙂",
@@ -21,11 +22,22 @@ function buildIcebreaker(pinMood, myMood) {
   return ICEBREAKERS[pinMood] || `Hey, saw you're feeling ${pinMood || 'something'} today 🙂`
 }
 
-export default function PinSheet({ pin, mirrorMood, onClose }) {
+export default function PinSheet({ pin, mirrorMood, onClose, onDelete }) {
   const { user } = useAuth()
   const [sheetState, setSheetState] = useState('peek')
-  const [prefill, setPrefill] = useState('')
+  const [prefill, setPrefill]       = useState('')
+  const [deleting, setDeleting]     = useState(false)
   const isOwn = pin.uid === user?.uid
+
+  async function handleDelete() {
+    setDeleting(true)
+    try {
+      await deactivatePin(pin.id)
+      onDelete?.(pin.id)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   // Reset to peek whenever the pin changes
   useEffect(() => {
@@ -58,9 +70,25 @@ export default function PinSheet({ pin, mirrorMood, onClose }) {
           </div>
           <div className="hay-sheet-peek-actions">
             <button className="btn btn--ghost" onClick={onClose} aria-label="Close">✕</button>
-            <button className="btn btn--primary hay-sheet-action-btn" onClick={handleAction}>
-              {isOwn ? '📬 See messages' : '👋 Say hi'}
-            </button>
+            {isOwn ? (
+              <>
+                <button
+                  className="btn btn--ghost pin-delete-btn"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  aria-label="Remove your pin"
+                >
+                  {deleting ? '…' : '🗑'}
+                </button>
+                <button className="btn btn--primary hay-sheet-action-btn" onClick={handleAction}>
+                  📬 See messages
+                </button>
+              </>
+            ) : (
+              <button className="btn btn--primary hay-sheet-action-btn" onClick={handleAction}>
+                👋 Say hi
+              </button>
+            )}
           </div>
         </div>
       ) : (

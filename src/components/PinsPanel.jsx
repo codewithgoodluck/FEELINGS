@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { subscribeToPins } from '../utils/db'
 import { countryFlag, countryName } from '../utils/presence'
 import { useTheme } from '../hooks/useTheme'
+import { deactivatePin } from '../utils/db'
 
 function timeAgo(ts) {
   if (!ts) return ''
@@ -31,7 +32,7 @@ const MOOD_COLORS = {
 
 const CLOSE_MS = 300
 
-export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId, unreadPinIds }) {
+export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId, unreadPinIds, currentUserId, onDeletePin }) {
   const { theme, toggle: toggleTheme } = useTheme()
   const [pins, setPins]       = useState([])
   const [closing, setClosing] = useState(false)
@@ -148,6 +149,7 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
             pins.map(pin => {
               const isActive  = activePinId === pin.id
               const hasUnread = unreadPinIds?.has(pin.id)
+              const isOwn     = currentUserId && pin.uid === currentUserId
               const accentColor = pin.needsSupport ? '#e05050' : (MOOD_COLORS[pin.mood] ?? 'var(--accent)')
 
               return (
@@ -156,9 +158,10 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
                   ref={el => { itemEls.current[pin.id] = el }}
                   className={[
                     'feed-card',
-                    isActive        ? 'feed-card--active'  : '',
-                    hasUnread       ? 'feed-card--unread'  : '',
-                    pin.needsSupport ? 'feed-card--sos'    : '',
+                    isActive         ? 'feed-card--active'  : '',
+                    hasUnread        ? 'feed-card--unread'  : '',
+                    pin.needsSupport ? 'feed-card--sos'     : '',
+                    isOwn            ? 'feed-card--own'     : '',
                   ].filter(Boolean).join(' ')}
                   style={{ '--mood-color': accentColor }}
                 >
@@ -190,21 +193,40 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
                     </div>
                   </button>
 
-                  {/* Footer: badges + chat */}
+                  {/* Footer: badges + actions */}
                   <div className="feed-card-footer">
                     <div className="feed-card-badges">
+                      {isOwn            && <span className="feed-badge feed-badge--own">✦ You</span>}
                       {pin.needsSupport && <span className="feed-badge feed-badge--sos">❤️‍🩹 Needs support</span>}
                       {pin.isFlash      && <span className="feed-badge feed-badge--flash">⚡ Flash</span>}
                       {pin.hasStreak    && <span className="feed-badge feed-badge--streak">🔥 Streak</span>}
                       {hasUnread        && <span className="feed-badge feed-badge--new">● New</span>}
                     </div>
-                    <button
-                      className={`feed-card-chat${hasUnread ? ' feed-card-chat--unread' : ''}`}
-                      onClick={() => handleChatDirect(pin)}
-                      aria-label="Open chat for this pin"
-                    >
-                      💬 {hasUnread ? 'New msg' : 'Chat'}
-                    </button>
+                    <div className="feed-card-actions">
+                      {isOwn && (
+                        <button
+                          className="feed-card-delete"
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            await deactivatePin(pin.id)
+                            onDeletePin?.(pin.id)
+                          }}
+                          aria-label="Remove your pin"
+                          title="Remove my pin"
+                        >
+                          🗑
+                        </button>
+                      )}
+                      {!isOwn && (
+                        <button
+                          className={`feed-card-chat${hasUnread ? ' feed-card-chat--unread' : ''}`}
+                          onClick={() => handleChatDirect(pin)}
+                          aria-label="Open chat for this pin"
+                        >
+                          💬 {hasUnread ? 'New msg' : 'Chat'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </article>
               )
