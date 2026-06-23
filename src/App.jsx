@@ -8,7 +8,7 @@ import MirrorPrompt from './components/MirrorPrompt'
 import HelpPanel from './components/HelpPanel'
 import { createPin, deactivatePin, subscribeToUserConversations, getPin, clearAllPins } from './utils/db'
 import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry, reverseGeocodePlaceName, haversineKm } from './utils/location'
-import { getAnonColour, getAnonIdentity } from './utils/identity'
+import { getAnonColour, getAnonIdentity, getAvatar } from './utils/identity'
 import { recordCheckIn } from './utils/streak'
 import { initPresence, heartbeat, markInactive } from './utils/presence'
 import { useToast } from './contexts/ToastContext'
@@ -100,6 +100,9 @@ export default function App() {
   const [neighbourhood, setNeighbourhood]     = useState(null)
   const [celebration, setCelebration]         = useState(false)
   const prevConvsRef = useRef({})
+
+  // ── Avatar state ──────────────────────────────────────────────────────────
+  const [avatar, setAvatar] = useState(() => getAvatar())
 
   // ── Country lock overlay state ─────────────────────────────────────────────
   const [countryLockData,  setCountryLockData]  = useState(null) // { tappedCode, tappedName }
@@ -403,16 +406,16 @@ export default function App() {
 
       <button
         className="profile-btn"
-        style={{ background: user ? getAnonColour(user.uid) : '#444' }}
+        style={avatar ? {} : { background: user ? getAnonColour(user.uid) : '#444' }}
         onClick={() => setPanel(p => p === PANEL.PROFILE ? PANEL.NONE : PANEL.PROFILE)}
         aria-label="Profile & settings"
         aria-pressed={panel === PANEL.PROFILE}
       >
-        {user
+        {avatar || (user
           ? (user.isAnonymous
               ? getAnonIdentity(user.uid, null).charAt(0).toUpperCase()
               : (user.email?.charAt(0).toUpperCase() || '?'))
-          : '?'}
+          : '?')}
       </button>
 
       <button
@@ -567,7 +570,11 @@ export default function App() {
       )}
 
       {panel === PANEL.PROFILE && (
-        <ProfilePanel onClose={() => setPanel(PANEL.NONE)} />
+        <ProfilePanel
+          onClose={() => setPanel(PANEL.NONE)}
+          avatar={avatar}
+          onAvatarChange={(emoji) => setAvatar(emoji)}
+        />
       )}
 
       {showFeedPanel && (

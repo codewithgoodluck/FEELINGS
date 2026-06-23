@@ -3,7 +3,7 @@ import { signOut, deleteUser } from 'firebase/auth'
 import { auth } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../hooks/useTheme'
-import { getAnonIdentity, getAnonColour } from '../utils/identity'
+import { getAnonIdentity, getAnonColour, AVATAR_OPTIONS, saveAvatar } from '../utils/identity'
 import { getStreakCount } from '../utils/streak'
 
 const AUTH_ERROR_MSGS = {
@@ -17,7 +17,7 @@ const AUTH_ERROR_MSGS = {
   UNKNOWN:             'Something went wrong. Please try again.',
 }
 
-export default function ProfilePanel({ onClose }) {
+export default function ProfilePanel({ onClose, avatar, onAvatarChange }) {
   const { user, isAnonymous, registerAccount, loginAccount } = useAuth()
   const { theme, toggle: toggleTheme } = useTheme()
 
@@ -28,6 +28,15 @@ export default function ProfilePanel({ onClose }) {
     ? anonName
     : (user?.displayName || user?.email?.split('@')[0] || 'You')
   const initial = displayName.charAt(0).toUpperCase()
+
+  // Avatar picker
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false)
+
+  function handlePickAvatar(emoji) {
+    saveAvatar(emoji)
+    onAvatarChange?.(emoji)
+    setShowAvatarPicker(false)
+  }
 
   // Account creation / login form
   const [showForm,     setShowForm]     = useState(false)
@@ -82,9 +91,15 @@ export default function ProfilePanel({ onClose }) {
 
       {/* ── Avatar header ────────────────────────────────────────────────── */}
       <div className="profile-header">
-        <div className="profile-avatar" style={{ background: avatarColor }} aria-hidden="true">
-          {initial}
-        </div>
+        <button
+          className="profile-avatar profile-avatar--btn"
+          style={avatar ? { background: 'transparent', fontSize: '1.6rem' } : { background: avatarColor }}
+          onClick={() => setShowAvatarPicker(v => !v)}
+          aria-label="Change avatar"
+          title="Change avatar"
+        >
+          {avatar || initial}
+        </button>
         <div className="profile-identity">
           <p className="profile-display-name">{displayName}</p>
           <p className="profile-account-type">
@@ -93,6 +108,24 @@ export default function ProfilePanel({ onClose }) {
         </div>
         <button className="icon-btn profile-close-btn" onClick={onClose} aria-label="Close">✕</button>
       </div>
+
+      {showAvatarPicker && (
+        <div className="avatar-picker">
+          <p className="avatar-picker-label">Choose your avatar</p>
+          <div className="avatar-picker-grid">
+            {AVATAR_OPTIONS.map(emoji => (
+              <button
+                key={emoji}
+                className={`avatar-pick-btn${avatar === emoji ? ' avatar-pick-btn--active' : ''}`}
+                onClick={() => handlePickAvatar(emoji)}
+                aria-label={emoji}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Activity ─────────────────────────────────────────────────────── */}
       <div className="profile-section">

@@ -49,6 +49,21 @@ export function getAnonColour(uid) {
   return PALETTE[hash % PALETTE.length]
 }
 
+// ── Emoji avatars ─────────────────────────────────────────────────────────────
+
+export const AVATAR_OPTIONS = [
+  '🦊','🐺','🦁','🐯','🐻','🦝','🦔','🐧','🦉','🦅',
+  '🐬','🦋','🌟','🌙','⚡','🌊','🔮','🌺','🍀','🎭',
+]
+
+export function getAvatar() {
+  try { return localStorage.getItem('hay_avatar') || null } catch { return null }
+}
+
+export function saveAvatar(emoji) {
+  try { localStorage.setItem('hay_avatar', emoji) } catch {}
+}
+
 // Assigns a distinct HSL colour to each country code (e.g. "NG", "GB").
 // Golden-angle step (137.508°) gives maximum hue separation across the spectrum.
 export function getCountryColour(country) {

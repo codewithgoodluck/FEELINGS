@@ -3430,6 +3430,49 @@ html[data-theme="light"] {
   flex-shrink: 0;
   text-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
+.profile-avatar--btn {
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.profile-avatar--btn:hover { border-color: var(--accent); transform: scale(1.08); }
+
+/* Avatar picker */
+.avatar-picker {
+  margin: 0.25rem 1rem 0.75rem;
+  background: var(--ink-1);
+  border-radius: 14px;
+  padding: 0.75rem;
+}
+.avatar-picker-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-0);
+  opacity: 0.55;
+  margin: 0 0 0.5rem;
+}
+.avatar-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.35rem;
+}
+.avatar-pick-btn {
+  aspect-ratio: 1;
+  font-size: 1.5rem;
+  border-radius: 10px;
+  background: var(--ink-2);
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+  line-height: 1;
+}
+.avatar-pick-btn:hover { background: var(--ink-3); transform: scale(1.1); }
+.avatar-pick-btn--active { border-color: var(--accent); background: var(--ink-3); }
 
 .profile-identity {
   flex: 1;
