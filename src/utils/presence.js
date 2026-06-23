@@ -15,6 +15,12 @@ export function countryFlag(code) {
   )
 }
 
+const _regionNames = new Intl.DisplayNames(['en'], { type: 'region' })
+export function countryName(code) {
+  if (!code || code.length !== 2) return null
+  try { return _regionNames.of(code.toUpperCase()) } catch { return null }
+}
+
 async function fetchCountry(lat, lng) {
   if (lat == null || lng == null) return { code: null, name: null }
   try {

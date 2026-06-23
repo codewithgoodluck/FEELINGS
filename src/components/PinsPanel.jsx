@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { subscribeToPins } from '../utils/db'
-import { countryFlag } from '../utils/presence'
+import { countryFlag, countryName } from '../utils/presence'
 
 function timeAgo(ts) {
   if (!ts) return ''
@@ -77,7 +77,12 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, closeSignal = 
                 : <p className="pins-panel-no-msg">No message</p>
               }
               <div className="pins-panel-footer">
-                {pin.country && <span className="pins-panel-time">{countryFlag(pin.country)}</span>}
+                {pin.country && (
+                  <span className="pins-panel-location">
+                    {countryFlag(pin.country)}
+                    {countryName(pin.country) && <span>{countryName(pin.country)}</span>}
+                  </span>
+                )}
                 {pin.isFlash  && <span className="pins-panel-badge pins-panel-badge--flash">⚡ flash</span>}
                 {pin.hasStreak && <span className="pins-panel-badge pins-panel-badge--streak">🔥 streak</span>}
               </div>

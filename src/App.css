@@ -3474,6 +3474,14 @@ html[data-theme="light"] .jl-toast {
   color: var(--ink-2);
 }
 
+.pins-panel-location {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
 .pins-panel-dot {
   font-size: 0.625rem;
   color: var(--ink-3);
