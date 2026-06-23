@@ -3680,6 +3680,33 @@ html[data-theme="light"] .jl-toast {
 
 .pins-panel-item-body:hover { background: rgba(255,255,255,0.04); }
 
+/* Top-right cluster: unread dot + time */
+.pins-panel-item-top-right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Pulsing red dot for unread messages */
+.pins-panel-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex-shrink: 0;
+  animation: unreadPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes unreadPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224,91,91,0.55); }
+  50%       { box-shadow: 0 0 0 4px rgba(224,91,91,0); }
+}
+
+/* Card border tint when there are unread messages */
+.pins-panel-item--has-unread {
+  border-left-color: var(--danger) !important;
+}
+
 .pins-panel-chat-btn {
   display: flex;
   align-items: center;
@@ -3693,11 +3720,19 @@ html[data-theme="light"] .jl-toast {
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.12s, color 0.12s;
   letter-spacing: 0.01em;
 }
 
 .pins-panel-chat-btn:hover { background: rgba(91,138,245,0.15); }
+
+/* Highlighted chat button when there are unread messages */
+.pins-panel-chat-btn--unread {
+  background: rgba(224,91,91,0.12);
+  color: var(--danger);
+  border-top-color: rgba(224,91,91,0.2);
+}
+.pins-panel-chat-btn--unread:hover { background: rgba(224,91,91,0.2); }
 
 @keyframes pinFlyIn {
   0%   { transform: translateX(-60px) scale(0.88); opacity: 0; }

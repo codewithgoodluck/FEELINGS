@@ -23,7 +23,7 @@ const MOOD_LABELS = {
 
 const CLOSE_MS = 300
 
-export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId }) {
+export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId, unreadPinIds }) {
   const [pins, setPins]       = useState([])
   const [closing, setClosing] = useState(false)
   const timerRef              = useRef(null)
@@ -94,12 +94,13 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
           <div className="empty-state"><p>No active pins right now.</p></div>
         ) : (
           pins.map(pin => {
-            const isActive = activePinId === pin.id
+            const isActive  = activePinId === pin.id
+            const hasUnread = unreadPinIds?.has(pin.id)
             return (
               <div
                 key={pin.id}
                 ref={el => { itemEls.current[pin.id] = el }}
-                className={`pins-panel-item${isActive ? ' pins-panel-item--active' : ''}`}
+                className={`pins-panel-item${isActive ? ' pins-panel-item--active' : ''}${hasUnread ? ' pins-panel-item--has-unread' : ''}`}
               >
                 <button className="pins-panel-item-body" onClick={() => handleSelect(pin)}>
                   <div className="pins-panel-item-top">
@@ -107,15 +108,15 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
                       <span aria-hidden="true">{pin.mood}</span>
                       {MOOD_LABELS[pin.mood] ?? 'Feeling'}
                     </span>
-                    <span className="pins-panel-time">
-                      <span className="pins-panel-time-icon" aria-hidden="true">⏱</span>
-                      {timeAgo(pin.createdAt)}
-                    </span>
+                    <div className="pins-panel-item-top-right">
+                      {hasUnread && <span className="pins-panel-unread-dot" aria-label="Unread message" />}
+                      <span className="pins-panel-time">
+                        <span className="pins-panel-time-icon" aria-hidden="true">⏱</span>
+                        {timeAgo(pin.createdAt)}
+                      </span>
+                    </div>
                   </div>
-                  {pin.message
-                    ? <p className="pins-panel-message">{pin.message}</p>
-                    : <p className="pins-panel-no-msg">No message</p>
-                  }
+                  {pin.message && <p className="pins-panel-message">{pin.message}</p>}
                   <div className="pins-panel-item-bottom">
                     {pin.country
                       ? <span className="pins-panel-location">
@@ -131,11 +132,11 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
                   </div>
                 </button>
                 <button
-                  className="pins-panel-chat-btn"
+                  className={`pins-panel-chat-btn${hasUnread ? ' pins-panel-chat-btn--unread' : ''}`}
                   onClick={() => handleChatDirect(pin)}
                   aria-label="Chat about this pin"
                 >
-                  💬 Chat
+                  {hasUnread ? '💬 New message' : '💬 Chat'}
                 </button>
               </div>
             )
