@@ -289,6 +289,14 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
                           🗑
                         </button>
                       )}
+                      <button
+                        className="feed-card-locate"
+                        onClick={e => { e.stopPropagation(); onFlyTo(pin.lng, pin.lat) }}
+                        aria-label="Go to pin location on map"
+                        title="Show on map"
+                      >
+                        📍
+                      </button>
                       {!isOwn && (
                         <>
                           <button

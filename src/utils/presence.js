@@ -109,6 +109,24 @@ export function subscribeToLivePresence(callback) {
   }, err => console.error('subscribeToLivePresence:', err))
 }
 
+// Fires real join/leave events using Firestore docChanges — no client-side diffing.
+// 'added' = new active presence doc (user opened app); 'removed' = active→false or doc deleted.
+export function subscribeToPresenceEvents(onJoin, onLeave) {
+  const q = query(collection(db, 'presence'), where('active', '==', true))
+  let initialized = false
+  return onSnapshot(q, (snap) => {
+    if (!initialized) { initialized = true; return }
+    snap.docChanges().forEach(change => {
+      const data = change.doc.data()
+      if (change.type === 'added') {
+        onJoin({ countryName: data.countryName || null, country: data.country || null })
+      } else if (change.type === 'removed') {
+        onLeave({ countryName: data.countryName || null })
+      }
+    })
+  }, err => console.error('subscribeToPresenceEvents:', err))
+}
+
 export function subscribeToTotalUsers(callback) {
   return onSnapshot(
     doc(db, 'stats', 'global'),

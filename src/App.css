@@ -4188,6 +4188,26 @@ html[data-theme="light"] .jl-toast {
   touch-action: manipulation;
 }
 
+.feed-btn-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #e84040;
+  border: 2px solid var(--bg);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  letter-spacing: -0.02em;
+}
+
 .feed-btn:hover,
 .feed-btn[aria-pressed="true"] {
   background: rgba(91,138,245,0.2);
@@ -4569,6 +4589,26 @@ html[data-theme="light"] .jl-toast {
   box-shadow: 0 0 0 3px rgba(220,80,80,0.18), 0 4px 16px rgba(220,80,80,0.25);
 }
 
+.feed-card-locate {
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--r-md);
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-width: 36px;
+  min-height: 34px;
+  flex-shrink: 0;
+}
+.feed-card-locate:hover {
+  background: rgba(232,196,104,0.12);
+  border-color: rgba(232,196,104,0.45);
+}
+
 .feed-card-chat {
   font-size: 0.78rem;
   font-weight: 600;
@@ -4666,6 +4706,22 @@ html[data-theme="light"] .feed-btn[aria-pressed="true"] {
   /* ── FAB tooltip: lift above nav + FAB ── */
   .map-tooltip--fab {
     bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 5.25rem);
+  }
+
+  /* ── Mapbox controls: lift above bottom nav ── */
+  .mapboxgl-ctrl-bottom-right {
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* ── TrendingWidget: move below stats bar on mobile ── */
+  .trending-widget {
+    top: max(3.25rem, calc(env(safe-area-inset-top, 0px) + 3.25rem));
+    font-size: 0.72rem;
+  }
+
+  /* ── "Tap any pin" tooltip: clear of stats bar ── */
+  .map-tooltip--top {
+    top: max(5.5rem, calc(env(safe-area-inset-top, 0px) + 5.5rem));
   }
 
   /* ── Tap-hint pill: lift above nav ── */
@@ -5649,7 +5705,7 @@ html[data-theme="light"] .profile-journal-btn { background: rgba(255,255,255,0.6
 
 .trending-widget {
   position: absolute;
-  top: max(1rem, env(safe-area-inset-top, 1rem));
+  top: max(3.5rem, calc(env(safe-area-inset-top, 0px) + 3.5rem));
   left: 50%;
   transform: translateX(-50%);
   display: flex;

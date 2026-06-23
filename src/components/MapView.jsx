@@ -457,7 +457,12 @@ export default function MapView({
 
     map.current.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-left')
     map.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right')
-    map.current.addControl(new mapboxgl.GeolocateControl({ trackUserLocation: false, showUserLocation: false }), 'bottom-right')
+    map.current.addControl(new mapboxgl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: false },
+      trackUserLocation: false,
+      showUserLocation: true,
+      showAccuracyCircle: false,
+    }), 'bottom-right')
 
     map.current.on('load', () => {
       // ── Globe atmosphere (skip for satellite — it has its own) ──────────
@@ -1157,7 +1162,7 @@ export default function MapView({
           lastHoldDropAtRef.current = 0
         }
 
-        markersRef.current[pin.id] = { marker, wrap }
+        markersRef.current[pin.id] = { marker, wrap, uid: pin.uid }
       })
 
     })
@@ -1168,12 +1173,13 @@ export default function MapView({
   // ── Show/hide delete button for active pin ────────────────────────────────
 
   useEffect(() => {
-    Object.entries(markersRef.current).forEach(([pinId, { wrap }]) => {
+    Object.entries(markersRef.current).forEach(([pinId, { wrap, uid }]) => {
       const delBtn = wrap.querySelector('.hay-pin-delete')
       if (!delBtn) return
-      delBtn.style.display = pinId === activePinId ? 'flex' : 'none'
+      const isOwn = uid === user?.uid
+      delBtn.style.display = (pinId === activePinId && isOwn) ? 'flex' : 'none'
     })
-  }, [activePinId])
+  }, [activePinId, user?.uid])
 
   // ── Message badge updates ─────────────────────────────────────────────────
 

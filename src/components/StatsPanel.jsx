@@ -24,7 +24,7 @@ function AnimatedNum({ value }) {
 }
 
 export default function StatsPanel() {
-  const [expanded,   setExpanded]   = useState(() => window.innerWidth >= 768)
+  const [expanded,   setExpanded]   = useState(false)
   const [liveUsers,  setLiveUsers]  = useState(null) // null = loading
   const [totalUsers, setTotalUsers] = useState(0)
   const prevCounts = useRef({})

@@ -20,7 +20,7 @@ import { useTheme } from './hooks/useTheme'
 import ProfilePanel from './components/ProfilePanel'
 import JoinLeaveToast from './components/JoinLeaveToast'
 import PinsPanel from './components/PinsPanel'
-import { subscribeToLivePresence, countryFlag, countryName } from './utils/presence'
+import { subscribeToLivePresence, subscribeToPresenceEvents, countryFlag, countryName } from './utils/presence'
 import CountryLockSheet from './components/CountryLockSheet'
 import BottomNav from './components/BottomNav'
 import LocationGate from './components/LocationGate'
@@ -88,7 +88,7 @@ export default function App() {
     () => localStorage.getItem('hay_location_gate') === '1'
   )
   const [locationAsked, setLocationAsked] = useState(
-    () => sessionStorage.getItem('hay_location_asked') === '1'
+    () => sessionStorage.getItem('hay_location_asked') === '1' || localStorage.getItem('hay_location_gate') === '1'
   )
   const [userLocation, setUserLocation] = useState(null)
   const [userCountry,     setUserCountry]     = useState(
@@ -304,7 +304,7 @@ export default function App() {
     if (!user) return
     if (!isFinite(lngLat.lat) || !isFinite(lngLat.lng) || Math.abs(lngLat.lat) > 90 || Math.abs(lngLat.lng) > 180) return
 
-    if (userLocation) {
+    if (!travelMode && userLocation) {
       const dist = haversineKm(lngLat.lat, lngLat.lng, userLocation.lat, userLocation.lng)
       if (dist > 100) {
         showToast('Pin deactivated — you can only drop pins near your current location.', 'error')
@@ -361,7 +361,7 @@ export default function App() {
 
   async function handleCheckInSubmit({ mood, message, isFlash, voiceUrl, tag }) {
     if (!pendingLocation || !user) throw new Error('Not ready — please wait a moment and try again')
-    if (userLocation) {
+    if (!travelMode && userLocation) {
       const dist = haversineKm(pendingLocation.lat, pendingLocation.lng, userLocation.lat, userLocation.lng)
       if (dist > 100) throw new Error('Pin deactivated — you can only drop pins near your current location.')
     }
@@ -685,6 +685,11 @@ export default function App() {
         aria-pressed={showFeedPanel}
       >
         ☰
+        {!showFeedPanel && unreadPinIds.size > 0 && (
+          <span className="feed-btn-badge" aria-label={`${unreadPinIds.size} pin${unreadPinIds.size === 1 ? '' : 's'} with new messages`}>
+            {unreadPinIds.size > 9 ? '9+' : unreadPinIds.size}
+          </span>
+        )}
       </button>
 
       {/* Persistent messages inbox button — bottom-left, always visible when signed in.
@@ -952,43 +957,21 @@ export default function App() {
   )
 }
 
-// ── Join / leave detector — diffs presence snapshots, fires events ────────────
+// ── Join / leave detector — uses Firestore docChanges for real events ────────
 
 function JoinLeaveDetector({ onEvent }) {
   const onEventRef  = useRef(onEvent)
   onEventRef.current = onEvent
-  const prevMapRef  = useRef(null) // null = first snapshot, skip diff
 
   useEffect(() => {
-    return subscribeToLivePresence((users) => {
-      const next = new Map(users.map(u => [u.uid, u]))
-
-      if (prevMapRef.current === null) {
-        prevMapRef.current = next
-        return // skip diff on initial snapshot
+    return subscribeToPresenceEvents(
+      ({ countryName, country }) => {
+        onEventRef.current({ type: 'join', countryName, flag: country ? countryFlag(country) : null })
+      },
+      ({ countryName }) => {
+        onEventRef.current({ type: 'leave', countryName })
       }
-
-      const prev = prevMapRef.current
-      const events = []
-
-      for (const [uid, u] of next) {
-        if (!prev.has(uid)) {
-          events.push({
-            type:        'join',
-            countryName: u.countryName || null,
-            flag:        u.country ? countryFlag(u.country) : null,
-          })
-        }
-      }
-      for (const [uid, u] of prev) {
-        if (!next.has(uid)) {
-          events.push({ type: 'leave', countryName: u.countryName || null })
-        }
-      }
-
-      prevMapRef.current = next
-      events.forEach(e => onEventRef.current(e))
-    })
+    )
   }, [])
 
   return null

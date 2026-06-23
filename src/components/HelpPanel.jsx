@@ -101,17 +101,26 @@ export default function HelpPanel({ onClose, userCountry }) {
           <p className="help-section-label">📱 On mobile</p>
           <ul className="help-steps">
             <li><span>🤔</span>Tell us how you're feeling on the opening screen</li>
-            <li><span>📍</span>Tap the map or hit + to drop an anonymous mood pin</li>
+            <li><span>📍</span>Tap + to drop an anonymous mood pin at your location</li>
             <li><span>💬</span>Tap any pin to read it and start an anonymous chat</li>
             <li><span>⚡</span>Use flash mode for a 60-second ephemeral feeling</li>
             <li><span>🔥</span>Check in daily to build a streak — pins get a glow ring</li>
           </ul>
           <p className="help-section-label">🖥 On desktop</p>
           <ul className="help-steps">
-            <li><span>🖱</span>Click anywhere on the map to drop a pin</li>
+            <li><span>🖱</span>Press and hold anywhere on the map to drop a pin</li>
             <li><span>🔍</span>Scroll to zoom in and explore mood clusters</li>
             <li><span>💬</span>Click any pin to open the chat sidebar</li>
             <li><span>🎙</span>Voice notes and GIFs work on desktop too</li>
+          </ul>
+          <p className="help-section-label">🗺 Pin types explained</p>
+          <ul className="help-steps">
+            <li><span>📍</span><b>Regular pin</b> — stays for 24 hours, visible to everyone nearby</li>
+            <li><span>⚡</span><b>Flash pin (dashed border, glowing)</b> — vanishes in 60 seconds. Perfect for fleeting feelings you want to say but not keep.</li>
+            <li><span>🔥</span><b>Streak glow</b> — the green glow ring means this person has checked in for 7+ days in a row</li>
+            <li><span>✓</span><b>Verified badge</b> — pin was dropped at the person's GPS-confirmed location</li>
+            <li><span>💬</span><b>Message glow</b> — a subtle golden pulse means the pin has a message attached</li>
+            <li><span>❤️‍🩹</span><b>SOS rings</b> — red pulsing rings mean the person asked for support. Tap to send them a kind message.</li>
           </ul>
         </div>
       ) : tab === 'faq' ? (
