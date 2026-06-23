@@ -322,6 +322,7 @@ export default function MapView({
   userLocation, unreadPinIds, activePinId,
   onNeighbourhoodClick, onFirstPins, previewLocation, onHoldDrop,
   onFlyTo, theme, panelOpen,
+  rotateGlobe = true, clusterPins = true,
 }) {
   const mapContainer      = useRef(null)
   const map               = useRef(null)
@@ -337,6 +338,8 @@ export default function MapView({
   const pulsesRef         = useRef([])
   const panelOpenRef      = useRef(panelOpen)
   panelOpenRef.current    = panelOpen
+  const rotateGlobeRef = useRef(rotateGlobe)
+  const clusterPinsRef = useRef(clusterPins)
   const [mapReady, setMapReady] = useState(false)
   const { user } = useAuth()
   const showToast    = useToast()
@@ -370,7 +373,7 @@ export default function MapView({
 
   function syncMarkerVisibility() {
     if (!map.current) return
-    const show = map.current.getZoom() > CLUSTER_ZOOM
+    const show = !clusterPinsRef.current || map.current.getZoom() > CLUSTER_ZOOM
     Object.values(markersRef.current).forEach(({ wrap }) => {
       wrap.style.opacity       = show ? '1' : '0'
       wrap.style.pointerEvents = show ? 'auto' : 'none'
@@ -780,7 +783,7 @@ export default function MapView({
 
     function rotateTick() {
       rotateRafId = requestAnimationFrame(rotateTick)
-      if (reducedMotion || !map.current) return
+      if (reducedMotion || !map.current || !rotateGlobeRef.current) return
       if (map.current.getZoom() > CLUSTER_ZOOM) return
       if (Date.now() - lastInteractionAt < 1500) return
       const c = map.current.getCenter()
@@ -873,6 +876,20 @@ export default function MapView({
       if (map.current) map.current.remove()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sync rotation setting ────────────────────────────────────────────────
+  useEffect(() => { rotateGlobeRef.current = rotateGlobe }, [rotateGlobe])
+
+  // ── Sync cluster setting ──────────────────────────────────────────────────
+  useEffect(() => {
+    clusterPinsRef.current = clusterPins
+    if (!mapReady || !map.current) return
+    const vis = clusterPins ? 'visible' : 'none'
+    try { map.current.setLayoutProperty('nh-clusters',       'visibility', vis) } catch {}
+    try { map.current.setLayoutProperty('nh-cluster-count',  'visibility', vis) } catch {}
+    try { map.current.setLayoutProperty('nh-unclustered',    'visibility', vis) } catch {}
+    syncMarkerVisibility()
+  }, [clusterPins, mapReady]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Subscribe to pins ─────────────────────────────────────────────────────
 

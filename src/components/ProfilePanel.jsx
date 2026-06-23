@@ -17,7 +17,12 @@ const AUTH_ERROR_MSGS = {
   UNKNOWN:             'Something went wrong. Please try again.',
 }
 
-export default function ProfilePanel({ onClose, avatar, onAvatarChange }) {
+export default function ProfilePanel({
+  onClose, avatar, onAvatarChange,
+  rotateGlobe, onRotateGlobeChange,
+  clusterPins, onClusterPinsChange,
+  hideCountryBadge, onHideCountryBadgeChange,
+}) {
   const { user, isAnonymous, registerAccount, loginAccount } = useAuth()
   const { theme, toggle: toggleTheme } = useTheme()
 
@@ -28,6 +33,29 @@ export default function ProfilePanel({ onClose, avatar, onAvatarChange }) {
     ? anonName
     : (user?.displayName || user?.email?.split('@')[0] || 'You')
   const initial = displayName.charAt(0).toUpperCase()
+
+  // Notifications
+  const [notifsEnabled, setNotifsEnabled] = useState(() => {
+    try { return localStorage.getItem('hay_notifs') === '1' } catch { return false }
+  })
+  const [notifsDenied, setNotifsDenied] = useState(false)
+
+  async function handleNotifsToggle() {
+    if (notifsEnabled) {
+      try { localStorage.setItem('hay_notifs', '0') } catch {}
+      setNotifsEnabled(false)
+      return
+    }
+    if (!('Notification' in window)) { setNotifsDenied(true); return }
+    const perm = await Notification.requestPermission()
+    if (perm === 'granted') {
+      try { localStorage.setItem('hay_notifs', '1') } catch {}
+      setNotifsEnabled(true)
+      setNotifsDenied(false)
+    } else {
+      setNotifsDenied(true)
+    }
+  }
 
   // Avatar picker
   const [showAvatarPicker, setShowAvatarPicker] = useState(false)
@@ -146,6 +174,100 @@ export default function ProfilePanel({ onClose, avatar, onAvatarChange }) {
           <button className="profile-theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
             {theme === 'dark' ? '☀ Light' : '🌙 Dark'}
           </button>
+        </div>
+      </div>
+
+      {/* ── Notifications ────────────────────────────────────────────────── */}
+      <div className="profile-section">
+        <p className="profile-section-label">Notifications</p>
+        <div className="profile-row">
+          <span className="profile-row-key">New messages</span>
+          <button
+            className={`settings-toggle${notifsEnabled ? ' settings-toggle--on' : ''}`}
+            onClick={handleNotifsToggle}
+            aria-pressed={notifsEnabled}
+          >
+            {notifsEnabled ? 'On' : 'Off'}
+          </button>
+        </div>
+        {notifsDenied && (
+          <p className="profile-row-hint">Notifications blocked — allow them in your browser settings.</p>
+        )}
+        {!('Notification' in window) && !notifsDenied && (
+          <p className="profile-row-hint">Your browser doesn't support notifications.</p>
+        )}
+      </div>
+
+      {/* ── Privacy ──────────────────────────────────────────────────────── */}
+      <div className="profile-section">
+        <p className="profile-section-label">Privacy</p>
+        <div className="profile-row">
+          <div>
+            <span className="profile-row-key">Location fuzzing</span>
+            <p className="profile-row-hint">Pins are offset by up to 1 km — your exact location is never shared.</p>
+          </div>
+          <span className="settings-badge">Always on</span>
+        </div>
+        <div className="profile-row">
+          <span className="profile-row-key">Country badge</span>
+          <button
+            className={`settings-toggle${!hideCountryBadge ? ' settings-toggle--on' : ''}`}
+            onClick={() => onHideCountryBadgeChange?.(!hideCountryBadge)}
+            aria-pressed={!hideCountryBadge}
+          >
+            {hideCountryBadge ? 'Hidden' : 'Visible'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Map ──────────────────────────────────────────────────────────── */}
+      <div className="profile-section">
+        <p className="profile-section-label">Map</p>
+        <div className="profile-row">
+          <span className="profile-row-key">Globe auto-rotation</span>
+          <button
+            className={`settings-toggle${rotateGlobe ? ' settings-toggle--on' : ''}`}
+            onClick={() => onRotateGlobeChange?.(!rotateGlobe)}
+            aria-pressed={rotateGlobe}
+          >
+            {rotateGlobe ? 'On' : 'Off'}
+          </button>
+        </div>
+        <div className="profile-row">
+          <span className="profile-row-key">Pin clustering</span>
+          <button
+            className={`settings-toggle${clusterPins ? ' settings-toggle--on' : ''}`}
+            onClick={() => onClusterPinsChange?.(!clusterPins)}
+            aria-pressed={clusterPins}
+          >
+            {clusterPins ? 'On' : 'Off'}
+          </button>
+        </div>
+      </div>
+
+      {/* ── About ────────────────────────────────────────────────────────── */}
+      <div className="profile-section">
+        <p className="profile-section-label">About</p>
+        <div className="profile-row">
+          <span className="profile-row-key">App</span>
+          <span className="profile-row-val">HowAreYou — Preview</span>
+        </div>
+        <div className="profile-row">
+          <span className="profile-row-key">Source</span>
+          <a
+            className="profile-row-link"
+            href="https://github.com/codewithgoodluck/FEELINGS"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub ↗
+          </a>
+        </div>
+        <div className="profile-row">
+          <span className="profile-row-key">Feedback</span>
+          <a className="profile-row-link" href="mailto:goodluckmordi44@gmail.com">
+            Send feedback ↗
+          </a>
         </div>
       </div>
 

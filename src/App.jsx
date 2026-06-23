@@ -101,8 +101,11 @@ export default function App() {
   const [celebration, setCelebration]         = useState(false)
   const prevConvsRef = useRef({})
 
-  // ── Avatar state ──────────────────────────────────────────────────────────
-  const [avatar, setAvatar] = useState(() => getAvatar())
+  // ── Avatar + settings state ───────────────────────────────────────────────
+  const [avatar,             setAvatar]             = useState(() => getAvatar())
+  const [rotateGlobe,        setRotateGlobe]        = useState(() => localStorage.getItem('hay_globe_rotate') !== '0')
+  const [clusterPins,        setClusterPins]        = useState(() => localStorage.getItem('hay_pin_cluster')  !== '0')
+  const [hideCountryBadge,   setHideCountryBadge]   = useState(() => localStorage.getItem('hay_hide_country') === '1')
 
   // ── Country lock overlay state ─────────────────────────────────────────────
   const [countryLockData,  setCountryLockData]  = useState(null) // { tappedCode, tappedName }
@@ -340,6 +343,8 @@ export default function App() {
         previewLocation={panel === PANEL.CHECKIN ? pendingLocation : null}
         onFlyTo={(fn) => { mapFlyTo.current = fn }}
         panelOpen={showFeedPanel}
+        rotateGlobe={rotateGlobe}
+        clusterPins={clusterPins}
       />
 
       {/* Transition overlay — fades out while map initialises behind it */}
@@ -359,7 +364,7 @@ export default function App() {
       {toast && <MessageToast text={toast} onDismiss={() => setToast(null)} />}
 
       {/* Country badge — shows user's locked country below stat bar */}
-      {userCountry && countryBadgeShow && (
+      {userCountry && countryBadgeShow && !hideCountryBadge && (
         <div className="country-badge" aria-label={`You're in ${userCountryName ?? userCountry}`}>
           <span className="country-badge-dot" aria-hidden="true" />
           <span className="country-badge-label">You're in</span>
@@ -574,6 +579,12 @@ export default function App() {
           onClose={() => setPanel(PANEL.NONE)}
           avatar={avatar}
           onAvatarChange={(emoji) => setAvatar(emoji)}
+          rotateGlobe={rotateGlobe}
+          onRotateGlobeChange={(v) => { setRotateGlobe(v); localStorage.setItem('hay_globe_rotate', v ? '1' : '0') }}
+          clusterPins={clusterPins}
+          onClusterPinsChange={(v) => { setClusterPins(v); localStorage.setItem('hay_pin_cluster', v ? '1' : '0') }}
+          hideCountryBadge={hideCountryBadge}
+          onHideCountryBadgeChange={(v) => { setHideCountryBadge(v); localStorage.setItem('hay_hide_country', v ? '1' : '0') }}
         />
       )}
 

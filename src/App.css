@@ -3535,6 +3535,48 @@ html[data-theme="light"] {
   color: var(--ink-0);
 }
 
+/* ── Settings toggle pill ── */
+
+.settings-toggle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: var(--ink-5);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.settings-toggle--on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.settings-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(91,138,245,0.12);
+  border-radius: var(--r-pill);
+  padding: 0.25rem 0.6rem;
+  white-space: nowrap;
+}
+.profile-row-hint {
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  margin: 0.15rem 0 0;
+  line-height: 1.4;
+}
+.profile-row-link {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+}
+.profile-row-link:hover { text-decoration: underline; }
+
 /* ── Theme toggle pill ── */
 
 .profile-theme-toggle {
