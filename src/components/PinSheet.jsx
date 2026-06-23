@@ -68,6 +68,11 @@ export default function PinSheet({ pin, mirrorMood, onClose, onDelete, onBlock }
               <p className="hay-sheet-peek-msg">{pin.message || 'No message — just a feeling.'}</p>
             </div>
           </div>
+          {pin.voiceUrl && (
+            <div className="pin-voice-wrap">
+              <audio controls src={pin.voiceUrl} className="pin-voice-player" preload="none" />
+            </div>
+          )}
           <div className="hay-sheet-peek-actions">
             <button className="btn btn--ghost" onClick={onClose} aria-label="Close">✕</button>
             {isOwn ? (

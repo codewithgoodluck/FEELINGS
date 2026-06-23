@@ -21,15 +21,15 @@ import { db } from '../firebase'
 // ─── PINS ────────────────────────────────────────────────────────────────────
 
 // Create a new check-in pin
-export async function createPin({ uid, lat, lng, mood, message, verified, country, isFlash, hasStreak, needsSupport }) {
+export async function createPin({ uid, lat, lng, mood, message, verified, country, isFlash, hasStreak, needsSupport, voiceUrl }) {
   const ttl       = isFlash ? 60_000 : 24 * 60 * 60 * 1000
   const expiresAt = new Date(Date.now() + ttl)
-  const ref = await addDoc(collection(db, 'pins'), {
+  const payload = {
     uid,
     lat,
     lng,
     mood,
-    message,
+    message:      message      ?? '',
     verified:     verified     === true,
     country:      country      ?? null,
     isFlash:      isFlash      === true,
@@ -38,7 +38,9 @@ export async function createPin({ uid, lat, lng, mood, message, verified, countr
     createdAt: serverTimestamp(),
     expiresAt,
     active: true,
-  })
+  }
+  if (voiceUrl) payload.voiceUrl = voiceUrl
+  const ref = await addDoc(collection(db, 'pins'), payload)
   return ref.id
 }
 

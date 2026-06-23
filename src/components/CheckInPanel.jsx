@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { uploadVoice, getSupportedMimeType } from '../utils/voiceStorage'
 
 const PROMPTS = [
   "What's one thing on your mind right now?",
@@ -60,18 +61,50 @@ export default function CheckInPanel({ location, onSubmit, onClose, initialMood,
   const [isFlash, setIsFlash]       = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState('')
+  const [voiceBlob, setVoiceBlob]   = useState(null)
+  const [recording, setRecording]   = useState(false)
+  const recorderRef = useRef(null)
+  const chunksRef   = useRef([])
+
+  useEffect(() => () => { recorderRef.current?.stop(); recorderRef.current = null }, [])
 
   const todayPrompt = useMemo(() => {
     const dayIndex = Math.floor(Date.now() / 86400000) % PROMPTS.length
     return PROMPTS[dayIndex]
   }, [])
 
+  async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia) return
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mime   = getSupportedMimeType()
+      const rec    = new MediaRecorder(stream, mime ? { mimeType: mime } : {})
+      chunksRef.current = []
+      rec.ondataavailable = e => { if (e.data?.size > 0) chunksRef.current.push(e.data) }
+      rec.onstop = () => {
+        setVoiceBlob(new Blob(chunksRef.current, { type: mime || 'audio/webm' }))
+        stream.getTracks().forEach(t => t.stop())
+      }
+      rec.start()
+      recorderRef.current = rec
+      setRecording(true)
+    } catch {}
+  }
+
+  function stopRecording() {
+    recorderRef.current?.stop()
+    recorderRef.current = null
+    setRecording(false)
+  }
+
   async function handleSubmit() {
     if (!selectedMood) return
     setSubmitting(true)
     setError('')
     try {
-      await onSubmit({ mood: selectedMood.emoji, message: message.trim(), isFlash })
+      let voiceUrl = null
+      if (voiceBlob) voiceUrl = await uploadVoice(voiceBlob)
+      await onSubmit({ mood: selectedMood.emoji, message: message.trim(), isFlash, voiceUrl })
     } catch (err) {
       setError(err?.message || 'Failed to post. Check your connection.')
       setSubmitting(false)
@@ -137,6 +170,26 @@ export default function CheckInPanel({ location, onSubmit, onClose, initialMood,
             <span className="checkin-prompt-cta">Tap to use →</span>
           </button>
         )}
+
+        {/* Voice check-in */}
+        <div className="checkin-voice">
+          {!voiceBlob ? (
+            <button
+              type="button"
+              className={`checkin-voice-btn${recording ? ' checkin-voice-btn--rec' : ''}`}
+              onClick={recording ? stopRecording : startRecording}
+              aria-label={recording ? 'Stop recording' : 'Add a voice note'}
+            >
+              <span className="checkin-voice-icon">{recording ? '⏹' : '🎙'}</span>
+              {recording ? 'Tap to stop' : 'Voice note'}
+            </button>
+          ) : (
+            <div className="checkin-voice-preview">
+              <audio src={URL.createObjectURL(voiceBlob)} controls className="checkin-voice-audio" />
+              <button type="button" className="checkin-voice-clear" onClick={() => setVoiceBlob(null)} aria-label="Remove recording">✕</button>
+            </div>
+          )}
+        </div>
 
         <textarea
           className="check-in-text"

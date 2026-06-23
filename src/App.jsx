@@ -25,6 +25,7 @@ import CountryLockSheet from './components/CountryLockSheet'
 import BottomNav from './components/BottomNav'
 import LocationGate from './components/LocationGate'
 import MoodJournal from './components/MoodJournal'
+import TrendingWidget from './components/TrendingWidget'
 import './App.css'
 
 const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile', JOURNAL: 'journal' }
@@ -132,6 +133,7 @@ export default function App() {
   const [hideCountryBadge,   setHideCountryBadge]   = useState(() => localStorage.getItem('hay_hide_country') === '1')
   const [travelMode,         setTravelMode]         = useState(() => localStorage.getItem('hay_travel_mode') === '1')
   const [blockedUids,        setBlockedUids]        = useState(() => getBlockedUids())
+  const [showHeatmap,        setShowHeatmap]        = useState(false)
 
   // ── Country lock overlay state ─────────────────────────────────────────────
   const [countryLockData,  setCountryLockData]  = useState(null) // { tappedCode, tappedName }
@@ -339,7 +341,7 @@ export default function App() {
     showToast('User blocked — their pins will no longer appear in your feed.', 'info')
   }
 
-  async function handleCheckInSubmit({ mood, message, isFlash }) {
+  async function handleCheckInSubmit({ mood, message, isFlash, voiceUrl }) {
     if (!pendingLocation || !user) throw new Error('Not ready — please wait a moment and try again')
     if (userLocation) {
       const dist = haversineKm(pendingLocation.lat, pendingLocation.lng, userLocation.lat, userLocation.lng)
@@ -358,7 +360,7 @@ export default function App() {
     }
     const streakCount  = recordCheckIn()
     const hasStreak    = streakCount >= 7
-    await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country: tapped.code, isFlash, hasStreak })
+    await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country: tapped.code, isFlash, hasStreak, voiceUrl })
     localStorage.setItem('hay_last_checkin_date', getTodayKey())
     setShowDailyNudge(false)
     // Achievement checks
@@ -479,6 +481,7 @@ export default function App() {
         panelOpen={showFeedPanel}
         rotateGlobe={rotateGlobe}
         clusterPins={clusterPins}
+        showHeatmap={showHeatmap}
       />
 
       {/* Transition overlay — fades out while map initialises behind it */}
@@ -588,6 +591,18 @@ export default function App() {
       >
         ?
       </button>
+
+      <button
+        className={`heatmap-btn${showHeatmap ? ' heatmap-btn--on' : ''}`}
+        onClick={() => setShowHeatmap(v => !v)}
+        aria-label={showHeatmap ? 'Hide mood heatmap' : 'Show mood heatmap'}
+        aria-pressed={showHeatmap}
+        title="Mood heatmap"
+      >
+        🌡
+      </button>
+
+      <TrendingWidget />
 
       <button
         className="feed-btn"
@@ -989,16 +1004,28 @@ function markConvSeen(convId) {
 }
 
 function InboxSheet({ conversations, user, onOpenPin, onClose }) {
-  const [loadingId,  setLoadingId]  = useState(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  // localRead: convIds marked read this session without a page reload
-  const [localRead,  setLocalRead]  = useState(() => new Set())
-  // hiddenIds: convIds dismissed by the user, persisted in localStorage
-  const [hiddenIds,  setHiddenIds]  = useState(() => {
+  const [loadingId,    setLoadingId]    = useState(null)
+  const [searchQuery,  setSearchQuery]  = useState('')
+  const [localRead,    setLocalRead]    = useState(() => new Set())
+  const [hiddenIds,    setHiddenIds]    = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('hay_hidden_convs') || '[]')) } catch { return new Set() }
+  })
+  const [bookmarkedIds, setBookmarkedIds] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('hay_bookmarked_convs') || '[]')) } catch { return new Set() }
   })
   const showToast = useToast()
   const searchRef = useRef(null)
+
+  function handleBookmark(convId, e) {
+    e.stopPropagation()
+    setBookmarkedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(convId)) next.delete(convId)
+      else next.add(convId)
+      try { localStorage.setItem('hay_bookmarked_convs', JSON.stringify([...next])) } catch {}
+      return next
+    })
+  }
 
   // Filter: has activity, not hidden, matches search
   const visible = conversations
@@ -1051,17 +1078,17 @@ function InboxSheet({ conversations, user, onOpenPin, onClose }) {
   }
 
   function ConvItem({ conv }) {
-    const isLoading = loadingId === conv.id
-    const isUnread  = isUnreadConv(conv)
-    const otherUid  = conv.participants?.find((p) => p !== user.uid)
-    const name      = otherUid ? getAnonIdentity(otherUid, null) : 'Someone'
-    // Two-letter initials from the anon name ("Amber Owl" → "AO")
-    const initials  = name.split(' ').map((w) => w[0] ?? '').join('').slice(0, 2).toUpperCase()
-    const bg        = otherUid ? getAnonColour(otherUid) : '#444'
-    const rawPreview = conv.lastMessagePreview || ''
-    const preview    = rawPreview.length > 40 ? rawPreview.slice(0, 40) + '…' : (rawPreview || 'No messages yet')
+    const isLoading    = loadingId === conv.id
+    const isUnread     = isUnreadConv(conv)
+    const isBookmarked = bookmarkedIds.has(conv.id)
+    const otherUid     = conv.participants?.find((p) => p !== user.uid)
+    const name         = otherUid ? getAnonIdentity(otherUid, null) : 'Someone'
+    const initials     = name.split(' ').map((w) => w[0] ?? '').join('').slice(0, 2).toUpperCase()
+    const bg           = otherUid ? getAnonColour(otherUid) : '#444'
+    const rawPreview   = conv.lastMessagePreview || ''
+    const preview      = rawPreview.length > 40 ? rawPreview.slice(0, 40) + '…' : (rawPreview || 'No messages yet')
     return (
-      <div className={`inbox-item${isUnread ? ' inbox-item--unread' : ''}`}>
+      <div className={`inbox-item${isUnread ? ' inbox-item--unread' : ''}${isBookmarked ? ' inbox-item--bookmarked' : ''}`}>
         <button
           className="inbox-item-main"
           onClick={() => handleTap(conv)}
@@ -1077,6 +1104,12 @@ function InboxSheet({ conversations, user, onOpenPin, onClose }) {
           </div>
           {isUnread && <span className="inbox-unread-dot" aria-label="Unread" />}
         </button>
+        <button
+          className={`inbox-item-bookmark${isBookmarked ? ' inbox-item-bookmark--on' : ''}`}
+          onClick={(e) => handleBookmark(conv.id, e)}
+          aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark conversation'}
+          aria-pressed={isBookmarked}
+        >{isBookmarked ? '★' : '☆'}</button>
         <button
           className="inbox-item-dismiss"
           onClick={(e) => handleDismiss(conv.id, e)}
@@ -1117,6 +1150,12 @@ function InboxSheet({ conversations, user, onOpenPin, onClose }) {
         </div>
       ) : (
         <>
+          {(() => {
+            const bookmarked = visible.filter(c => bookmarkedIds.has(c.id))
+            return bookmarked.length > 0 ? (
+              <><p className="inbox-section-label">★ Bookmarked</p>{bookmarked.map((c) => <ConvItem key={c.id} conv={c} />)}</>
+            ) : null
+          })()}
           {unread.length > 0 && (
             <><p className="inbox-section-label">Unread</p>{unread.map((c) => <ConvItem key={c.id} conv={c} />)}</>
           )}

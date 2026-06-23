@@ -100,6 +100,25 @@ export default function MoodJournal({ onClose }) {
         </div>
       )}
 
+      {/* Mood breakdown chart */}
+      {pins && pins.length > 0 && Object.keys(moodCounts).length > 0 && (
+        <div className="journal-breakdown">
+          <p className="journal-breakdown-title">Mood breakdown</p>
+          {Object.entries(moodCounts).sort((a, b) => b[1] - a[1]).map(([emoji, count]) => {
+            const pct = Math.round((count / pins.length) * 100)
+            return (
+              <div key={emoji} className="journal-breakdown-row">
+                <span className="journal-breakdown-emoji">{emoji}</span>
+                <div className="journal-breakdown-bar-wrap">
+                  <div className="journal-breakdown-bar" style={{ width: pct + '%' }} />
+                </div>
+                <span className="journal-breakdown-pct">{pct}%</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* Entries */}
       <div className="journal-list">
         {pins === null ? (

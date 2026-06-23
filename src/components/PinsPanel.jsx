@@ -222,6 +222,7 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
                       {pin.needsSupport && <span className="feed-badge feed-badge--sos">❤️‍🩹 Needs support</span>}
                       {pin.isFlash      && <span className="feed-badge feed-badge--flash">⚡ Flash</span>}
                       {pin.hasStreak    && <span className="feed-badge feed-badge--streak">🔥 Streak</span>}
+                      {pin.voiceUrl     && <span className="feed-badge feed-badge--voice">🎙 Voice</span>}
                       {hasUnread        && <span className="feed-badge feed-badge--new">● New</span>}
                     </div>
                     <div className="feed-card-actions">

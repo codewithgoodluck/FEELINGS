@@ -352,7 +352,7 @@ export default function MapView({
   userLocation, unreadPinIds, activePinId,
   onNeighbourhoodClick, onFirstPins, previewLocation, onHoldDrop,
   onFlyTo, theme, panelOpen,
-  rotateGlobe = true, clusterPins = true,
+  rotateGlobe = true, clusterPins = true, showHeatmap = false,
 }) {
   const mapContainer      = useRef(null)
   const map               = useRef(null)
@@ -399,6 +399,13 @@ export default function MapView({
     map.current.easeTo({ padding, duration: 300 })
   }, [panelOpen, mapReady])
 
+  // ── Toggle heatmap visibility ─────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!mapReady || !map.current) return
+    try { map.current.setLayoutProperty('mood-heatmap', 'visibility', showHeatmap ? 'visible' : 'none') } catch {}
+  }, [showHeatmap, mapReady])
+
   // ── Sync marker visibility to current zoom level ──────────────────────────
 
   function syncMarkerVisibility() {
@@ -415,6 +422,8 @@ export default function MapView({
   function updateNeighbourhoods(pins) {
     const src = map.current?.getSource?.('neighbourhoods')
     if (src) src.setData(buildGeoJSON(pins))
+    const hsrc = map.current?.getSource?.('heatmap-src')
+    if (hsrc) hsrc.setData(buildGeoJSON(pins))
   }
 
   // ── Map initialisation — runs once ───────────────────────────────────────
@@ -522,6 +531,32 @@ export default function MapView({
         paint: {
           'fill-color':   'rgba(10,12,20,0.38)',
           'fill-opacity': 1,
+        },
+      })
+
+      // ── Mood heatmap (non-clustered; toggled via showHeatmap prop) ────────
+      map.current.addSource('heatmap-src', {
+        type: 'geojson',
+        data: buildGeoJSON([]),
+      })
+      map.current.addLayer({
+        id:     'mood-heatmap',
+        type:   'heatmap',
+        source: 'heatmap-src',
+        layout: { visibility: 'none' },
+        paint: {
+          'heatmap-weight':    1,
+          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 0.5, 12, 2],
+          'heatmap-radius':    ['interpolate', ['linear'], ['zoom'], 0, 20, 12, 60],
+          'heatmap-opacity':   0.75,
+          'heatmap-color': [
+            'interpolate', ['linear'], ['heatmap-density'],
+            0,   'rgba(91,138,245,0)',
+            0.2, 'rgba(91,138,245,0.5)',
+            0.5, 'rgba(232,196,104,0.8)',
+            0.8, 'rgba(251,86,7,0.9)',
+            1.0, 'rgba(232,64,64,1)',
+          ],
         },
       })
 
