@@ -2391,8 +2391,7 @@
 .stats-panel {
   position: fixed;
   top: max(0.75rem, env(safe-area-inset-top, 0.75rem));
-  /* default: shifted right to sit beside the ☰ toggle button */
-  left: calc(max(0.75rem, env(safe-area-inset-left, 0.75rem)) + 36px + 0.5rem);
+  left: max(0.75rem, env(safe-area-inset-left, 0.75rem));
   z-index: 200;
   background: rgba(18, 18, 24, 0.88);
   backdrop-filter: blur(14px);
@@ -2407,10 +2406,6 @@
   border-color: var(--border-h);
 }
 
-/* Feed panel open → toggle button is hidden, stats moves back to left edge */
-.feed-panel-open .stats-panel {
-  left: max(0.75rem, env(safe-area-inset-left, 0.75rem));
-}
 
 .stats-toggle {
   display: flex;
@@ -3272,7 +3267,7 @@ html[data-theme="light"] .jl-toast {
 .feed-btn {
   position: absolute;
   top: max(0.75rem, env(safe-area-inset-top, 0.75rem));
-  left: max(0.75rem, env(safe-area-inset-left, 0.75rem));
+  right: calc(1rem + 4 * (36px + 0.5rem));
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -3311,31 +3306,31 @@ html[data-theme="light"] .jl-toast {
 
 .pins-panel {
   position: fixed;
-  left: 0;
+  right: 0;
   top: 0;
   height: 100%;
   width: min(420px, 100vw);
   background: var(--sheet-2);
-  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   z-index: 400;
-  animation: slideInLeft 0.35s var(--ease-out) both;
+  animation: slideInRight 0.35s var(--ease-out) both;
 }
 
-@keyframes slideInLeft {
-  from { transform: translateX(-100%); opacity: 0; }
-  to   { transform: translateX(0);     opacity: 1; }
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
 }
 
 .pins-panel--closing {
-  animation: slideOutLeft 0.3s var(--ease-out) both;
+  animation: slideOutRight 0.3s var(--ease-out) both;
   pointer-events: none;
 }
 
-@keyframes slideOutLeft {
-  from { transform: translateX(0);     opacity: 1; }
-  to   { transform: translateX(-100%); opacity: 0; }
+@keyframes slideOutRight {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(100%); opacity: 0; }
 }
 
 .pins-panel-backdrop--out {
@@ -3478,10 +3473,10 @@ html[data-theme="light"] .jl-toast {
 }
 
 @keyframes pinFlyIn {
-  0%   { transform: translateX(60px) scale(0.88); opacity: 0; }
-  60%  { transform: translateX(-6px) scale(1.02); opacity: 1; }
-  80%  { transform: translateX(3px)  scale(0.99); }
-  100% { transform: translateX(0)    scale(1); }
+  0%   { transform: translateX(-60px) scale(0.88); opacity: 0; }
+  60%  { transform: translateX(6px)   scale(1.02); opacity: 1; }
+  80%  { transform: translateX(-3px)  scale(0.99); }
+  100% { transform: translateX(0)     scale(1); }
 }
 
 .pins-panel-item--active {

@@ -140,6 +140,28 @@ const PIN_STYLE = `
   .hay-pin-delete:hover  { background: #c0392b; transform: scale(1.2); }
   .hay-pin-delete:active { transform: scale(0.95); }
 
+  /* ── Inline delete confirm ─────────────────────────────── */
+  .hay-pin-confirm {
+    position: absolute; bottom: calc(100% + 6px); left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15,17,23,0.96); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 6px 8px; display: flex; align-items: center;
+    gap: 6px; white-space: nowrap; z-index: 10;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    animation: confirmPop 0.18s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes confirmPop { from { opacity:0; transform: translateX(-50%) scale(0.85); } to { opacity:1; transform: translateX(-50%) scale(1); } }
+  .hay-pin-confirm-text { font-size: 11px; color: rgba(255,255,255,0.7); font-family: system-ui,sans-serif; }
+  .hay-pin-confirm-yes, .hay-pin-confirm-no {
+    border: none; border-radius: 6px; cursor: pointer;
+    font-size: 11px; font-weight: 600; padding: 3px 8px; line-height: 1.4;
+    font-family: system-ui,sans-serif;
+  }
+  .hay-pin-confirm-yes { background: #e84040; color: #fff; }
+  .hay-pin-confirm-yes:hover { background: #c0392b; }
+  .hay-pin-confirm-no  { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); }
+  .hay-pin-confirm-no:hover  { background: rgba(255,255,255,0.2); }
+
   /* ── Message badge ─────────────────────────────── */
   .hay-msg-badge {
     position: absolute; bottom: -6px; left: -6px;
@@ -947,9 +969,20 @@ export default function MapView({
         delBtn.style.display = 'none'
         delBtn.addEventListener('click', (e) => {
           e.stopPropagation()
-          if (window.confirm('Delete this pin? This cannot be undone.')) {
+          wrap.querySelector('.hay-pin-confirm')?.remove()
+          const popup = document.createElement('div')
+          popup.className = 'hay-pin-confirm'
+          popup.innerHTML = '<span class="hay-pin-confirm-text">Delete?</span><button class="hay-pin-confirm-yes">Yes</button><button class="hay-pin-confirm-no">Cancel</button>'
+          popup.querySelector('.hay-pin-confirm-yes').addEventListener('click', (ev) => {
+            ev.stopPropagation()
             onDeletePinRef.current(pin.id)
-          }
+            popup.remove()
+          })
+          popup.querySelector('.hay-pin-confirm-no').addEventListener('click', (ev) => {
+            ev.stopPropagation()
+            popup.remove()
+          })
+          wrap.appendChild(popup)
         })
         wrap.appendChild(delBtn)
 

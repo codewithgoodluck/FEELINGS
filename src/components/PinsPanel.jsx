@@ -29,7 +29,14 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, activePinId })
   const timerRef              = useRef(null)
   const itemEls               = useRef({})
 
-  useEffect(() => subscribeToPins(setPins), [])
+  useEffect(() => subscribeToPins((raw) => {
+    const sorted = [...raw].sort((a, b) => {
+      const ta = a.createdAt?.seconds ?? Infinity
+      const tb = b.createdAt?.seconds ?? Infinity
+      return tb - ta
+    })
+    setPins(sorted)
+  }), [])
   useEffect(() => () => clearTimeout(timerRef.current), [])
 
   // Scroll active pin into view when it changes (pin clicked on map)

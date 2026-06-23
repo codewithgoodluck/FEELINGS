@@ -187,6 +187,7 @@ export default function App() {
       mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })
       setCelebration(true)
       setTimeout(() => setCelebration(false), 2800)
+      showToast('Pin dropped! Open the live feed to see it.', 'success')
     } catch (err) {
       showToast(err?.message || 'Failed to drop pin — check your connection.', 'error')
     }
@@ -214,6 +215,7 @@ export default function App() {
     mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })
     setCelebration(true)
     setTimeout(() => setCelebration(false), 2800)
+    showToast('Pin dropped! Open the live feed to see it.', 'success')
   }
 
   function handleFabClick() {
