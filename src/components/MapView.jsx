@@ -7,6 +7,7 @@ import { countryFlag } from '../utils/presence'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { getSubsolarPoint, getTerminatorGeoJSON, isPinInNight } from '../utils/solarPosition'
+import { FOG_PRESETS } from '../utils/globeStyles'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
@@ -351,7 +352,7 @@ export default function MapView({
   onPinClick, onMapClick, onDeletePin,
   userLocation, unreadPinIds, activePinId,
   onNeighbourhoodClick, onFirstPins, previewLocation, onHoldDrop,
-  onFlyTo, theme, mapStyleUrl, panelOpen,
+  onFlyTo, theme, mapStyleUrl, fogPreset, panelOpen,
   rotateGlobe = true, clusterPins = true, showHeatmap = false,
 }) {
   const mapContainer      = useRef(null)
@@ -465,25 +466,9 @@ export default function MapView({
     }), 'bottom-right')
 
     map.current.on('load', () => {
-      // ── Globe atmosphere (skip for satellite — it has its own) ──────────
-      if (mapStyleUrl) { /* satellite handles its own fog */ }
-      else if (theme === 'light') {
-        map.current.setFog({
-          color:            'rgb(200, 220, 240)',
-          'high-color':     'rgb(80, 130, 210)',
-          'horizon-blend':  0.07,
-          'space-color':    'rgb(4, 6, 18)',
-          'star-intensity': 0.45,
-        })
-      } else {
-        map.current.setFog({
-          color:            'rgb(8, 10, 22)',
-          'high-color':     'rgb(28, 55, 125)',
-          'horizon-blend':  0.07,
-          'space-color':    'rgb(2, 3, 10)',
-          'star-intensity': 0.62,
-        })
-      }
+      // ── Globe atmosphere — driven by fogPreset prop ──────────────────────
+      const fog = fogPreset ? (FOG_PRESETS[fogPreset] ?? null) : null
+      if (fog) map.current.setFog(fog)
 
       // ── Brighten map label text ──────────────────────────────────────────
       if (theme !== 'light') {

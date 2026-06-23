@@ -5671,10 +5671,10 @@ html[data-theme="light"] .profile-journal-btn { background: rgba(255,255,255,0.6
 .crisis-footer-link:hover { text-decoration: underline; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   HEATMAP TOGGLE BUTTON
+   GLOBE STYLE BUTTON + CUSTOMIZER
 ═══════════════════════════════════════════════════════════════════════════ */
 
-.heatmap-btn {
+.globe-btn {
   position: absolute;
   top: max(4.5rem, calc(4.5rem + env(safe-area-inset-top)));
   right: max(1rem, env(safe-area-inset-right, 1rem));
@@ -5686,18 +5686,228 @@ html[data-theme="light"] .profile-journal-btn { background: rgba(255,255,255,0.6
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border);
   color: var(--ink-1);
-  font-size: 1rem;
+  font-size: 1.05rem;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 420;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-.heatmap-btn:hover { background: rgba(232,196,104,0.18); border-color: rgba(232,196,104,0.4); }
-.heatmap-btn--on   { background: rgba(232,196,104,0.22); border-color: rgba(232,196,104,0.6); }
+.globe-btn:hover { background: rgba(91,138,245,0.15); border-color: rgba(91,138,245,0.4); }
+.globe-btn--on   { background: rgba(91,138,245,0.22); border-color: rgba(91,138,245,0.55); transform: scale(1.08); }
+
+/* ── Globe customizer panel ─────────────────────────────────────────────── */
+
+.globe-customizer {
+  position: absolute;
+  top: max(4.5rem, calc(4.5rem + env(safe-area-inset-top)));
+  right: calc(max(1rem, env(safe-area-inset-right, 1rem)) + 44px);
+  width: 280px;
+  background: var(--sheet-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  z-index: 500;
+  overflow: hidden;
+  animation: fadeUp 0.2s var(--ease-out) both;
+}
+
+.globe-customizer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem 0.5rem;
+}
+
+.globe-customizer-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-1);
+  letter-spacing: 0.01em;
+}
+
+.globe-customizer-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.globe-style-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: 1.5px solid transparent;
+  border-radius: var(--r-md);
+  padding: 0.4rem 0.25rem;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.globe-style-card:hover { background: var(--ink-5); }
+
+.globe-style-card--active {
+  background: rgba(91,138,245,0.1);
+  border-color: rgba(91,138,245,0.5);
+}
+
+.globe-style-preview {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 0 3px 12px rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: box-shadow 0.14s;
+}
+
+.globe-style-card--active .globe-style-preview {
+  box-shadow: inset 0 0 0 2px rgba(91,138,245,0.7), 0 3px 16px rgba(91,138,245,0.3);
+}
+
+.globe-style-globe {
+  font-size: 1.75rem;
+  line-height: 1;
+  filter: brightness(0) invert(1) opacity(0.18);
+  user-select: none;
+}
+
+.globe-style-check {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(91,138,245,0.35);
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.globe-style-emoji {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.globe-style-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  line-height: 1;
+}
+
+.globe-style-card--active .globe-style-label { color: #5b8af5; }
+
+/* ── Separator + heatmap toggle ─────────────────────────────────────────── */
+
+.globe-customizer-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 0 0.75rem;
+}
+
+.globe-option-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.globe-option-row:hover { background: var(--ink-5); }
+.globe-option-row--on { background: rgba(232,196,104,0.08); }
+
+.globe-option-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+.globe-option-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.globe-option-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-1);
+}
+
+.globe-option-sub {
+  font-size: 0.68rem;
+  color: var(--ink-3);
+}
+
+.globe-option-toggle {
+  flex-shrink: 0;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--ink-4);
+  border: 1.5px solid var(--border);
+  position: relative;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.globe-option-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink-2);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.globe-option-toggle--on {
+  background: rgba(232,196,104,0.35);
+  border-color: rgba(232,196,104,0.6);
+}
+
+.globe-option-toggle--on::after {
+  transform: translateX(14px);
+  background: #e8c468;
+}
+
+/* ── Mobile: slide up from bottom instead ───────────────────────────────── */
+
+@media (max-width: 639px) {
+  .globe-customizer {
+    position: fixed;
+    top: auto;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    right: 0;
+    width: auto;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    animation: slideUp 0.25s var(--ease-out) both;
+  }
+  .globe-btn {
+    top: auto;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 5rem);
+    right: max(1rem, env(safe-area-inset-right, 1rem));
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TRENDING WIDGET
@@ -5933,34 +6143,7 @@ html[data-theme="light"] .profile-journal-btn { background: rgba(255,255,255,0.6
 .inbox-item-bookmark:hover       { background: rgba(232,196,104,0.1); color: rgba(232,196,104,0.7); }
 .inbox-item-bookmark--on         { color: rgba(232,196,104,0.9); }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   SATELLITE TOGGLE BUTTON
-═══════════════════════════════════════════════════════════════════════════ */
-
-.satellite-btn {
-  position: absolute;
-  top: max(7.5rem, calc(7.5rem + env(safe-area-inset-top)));
-  right: max(1rem, env(safe-area-inset-right, 1rem));
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-pill);
-  background: rgba(15,17,23,0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
-  color: var(--ink-1);
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 420;
-  transition: background 0.15s, border-color 0.15s;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-.satellite-btn:hover { background: rgba(91,138,245,0.18); border-color: rgba(91,138,245,0.4); }
-.satellite-btn--on   { background: rgba(91,138,245,0.22); border-color: rgba(91,138,245,0.6); }
+/* .satellite-btn removed — now consolidated into GlobeCustomizer */
 
 /* ═══════════════════════════════════════════════════════════════════════════
    PIN REACTIONS (PinSheet)

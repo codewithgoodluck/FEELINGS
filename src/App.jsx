@@ -26,6 +26,8 @@ import BottomNav from './components/BottomNav'
 import LocationGate from './components/LocationGate'
 import MoodJournal from './components/MoodJournal'
 import TrendingWidget from './components/TrendingWidget'
+import GlobeCustomizer from './components/GlobeCustomizer'
+import { GLOBE_STYLES, getGlobeStyle } from './utils/globeStyles'
 import './App.css'
 
 const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile', JOURNAL: 'journal' }
@@ -65,7 +67,7 @@ function lastSeen(convId) {
 export default function App() {
   const { user, loading } = useAuth()
   const showToast = useToast()
-  const { theme, toggle: toggleTheme } = useTheme()
+  const { theme, toggle: toggleTheme, setTheme } = useTheme()
   useKeyboardOffset()
   useEffect(() => {
     const vv = window.visualViewport
@@ -134,7 +136,8 @@ export default function App() {
   const [travelMode,         setTravelMode]         = useState(() => localStorage.getItem('hay_travel_mode') === '1')
   const [blockedUids,        setBlockedUids]        = useState(() => getBlockedUids())
   const [showHeatmap,        setShowHeatmap]        = useState(false)
-  const [satellite,          setSatellite]          = useState(false)
+  const [globeStyleId,       setGlobeStyleId]       = useState(() => localStorage.getItem('hay_globe_style') || 'cosmos')
+  const [showGlobeCustomizer, setShowGlobeCustomizer] = useState(false)
   const [statusMsg,          setStatusMsg]          = useState(() => localStorage.getItem('hay_status_msg') || '')
   const [showLowMoodNudge,   setShowLowMoodNudge]   = useState(false)
   const [lastLowMood,        setLastLowMood]        = useState(null)
@@ -499,12 +502,14 @@ export default function App() {
     }
   }
 
-  const mapStyleUrl = satellite ? 'mapbox://styles/mapbox/satellite-streets-v12' : null
+  const activeGlobeStyle = getGlobeStyle(globeStyleId)
+  const mapStyleUrl      = activeGlobeStyle.mapStyle ?? (theme === 'light' ? 'mapbox://styles/mapbox/light-v11' : 'mapbox://styles/mapbox/dark-v11')
+  const fogPreset        = activeGlobeStyle.fogPreset
 
   return (
     <div className={`app${showFeedPanel ? ' feed-panel-open' : ''}`}>
       <MapView
-        key={satellite ? 'satellite' : theme}
+        key={globeStyleId}
         theme={theme}
         userLocation={userLocation}
         onMapClick={handleMapClick}
@@ -522,6 +527,7 @@ export default function App() {
         clusterPins={clusterPins}
         showHeatmap={showHeatmap}
         mapStyleUrl={mapStyleUrl}
+        fogPreset={fogPreset}
       />
 
       {/* Transition overlay — fades out while map initialises behind it */}
@@ -633,24 +639,29 @@ export default function App() {
       </button>
 
       <button
-        className={`heatmap-btn${showHeatmap ? ' heatmap-btn--on' : ''}`}
-        onClick={() => setShowHeatmap(v => !v)}
-        aria-label={showHeatmap ? 'Hide mood heatmap' : 'Show mood heatmap'}
-        aria-pressed={showHeatmap}
-        title="Mood heatmap"
+        className={`globe-btn${showGlobeCustomizer ? ' globe-btn--on' : ''}`}
+        onClick={() => setShowGlobeCustomizer(v => !v)}
+        aria-label="Customize globe style"
+        aria-pressed={showGlobeCustomizer}
+        title="Globe style"
       >
-        🌡
+        🌍
       </button>
 
-      <button
-        className={`satellite-btn${satellite ? ' satellite-btn--on' : ''}`}
-        onClick={() => setSatellite(v => !v)}
-        aria-label={satellite ? 'Switch to standard map' : 'Switch to satellite view'}
-        aria-pressed={satellite}
-        title="Satellite view"
-      >
-        🛰
-      </button>
+      {showGlobeCustomizer && (
+        <GlobeCustomizer
+          currentStyleId={globeStyleId}
+          onStyleChange={(style) => {
+            setGlobeStyleId(style.id)
+            localStorage.setItem('hay_globe_style', style.id)
+            if (style.appTheme !== theme) setTheme(style.appTheme)
+            setShowGlobeCustomizer(false)
+          }}
+          showHeatmap={showHeatmap}
+          onHeatmapToggle={() => setShowHeatmap(v => !v)}
+          onClose={() => setShowGlobeCustomizer(false)}
+        />
+      )}
 
       <TrendingWidget />
 
