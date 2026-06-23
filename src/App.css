@@ -3409,9 +3409,9 @@ html[data-theme="light"] .jl-toast {
 
 .pins-panel-item {
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.75rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.7rem 0.875rem;
   border-radius: var(--r-lg);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, transform 0.12s;
@@ -3433,25 +3433,16 @@ html[data-theme="light"] .jl-toast {
   transform: translateX(2px) scale(0.985);
 }
 
-.pins-panel-emoji-bubble {
-  width: 54px;
-  height: 54px;
-  border-radius: var(--r-md);
-  background: rgba(255,255,255,0.14);
+.pins-panel-mood-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 1.875rem;
-  line-height: 1;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
-.pins-panel-meta {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+.pins-panel-mood-tag {
+  font-size: 1.25rem;
+  line-height: 1;
 }
 
 .pins-panel-message {

@@ -16,10 +16,11 @@ function timeAgo(ts) {
 
 const CLOSE_MS = 300
 
-export default function PinsPanel({ onClose, onFlyTo, onPinClick }) {
+export default function PinsPanel({ onClose, onFlyTo, onPinClick, closeSignal = 0 }) {
   const [pins, setPins]       = useState([])
   const [closing, setClosing] = useState(false)
   const timerRef              = useRef(null)
+  const dismissRef            = useRef(null)
 
   useEffect(() => subscribeToPins(setPins), [])
   useEffect(() => () => clearTimeout(timerRef.current), [])
@@ -29,6 +30,12 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick }) {
     setClosing(true)
     timerRef.current = setTimeout(afterClose ?? onClose, CLOSE_MS)
   }
+
+  dismissRef.current = dismiss
+
+  useEffect(() => {
+    if (closeSignal > 0) dismissRef.current()
+  }, [closeSignal])
 
   function handleSelect(pin) {
     onFlyTo(pin.lng, pin.lat)
@@ -61,18 +68,18 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick }) {
         ) : (
           pins.map(pin => (
             <button key={pin.id} className="pins-panel-item" onClick={() => handleSelect(pin)}>
-              <div className="pins-panel-emoji-bubble">{pin.mood}</div>
-              <div className="pins-panel-meta">
-                {pin.message
-                  ? <p className="pins-panel-message">{pin.message}</p>
-                  : <p className="pins-panel-no-msg">No message</p>
-                }
-                <div className="pins-panel-footer">
-                  {pin.country && <span className="pins-panel-time">{countryFlag(pin.country)}</span>}
-                  <span className="pins-panel-time">{timeAgo(pin.createdAt)}</span>
-                  {pin.isFlash  && <span className="pins-panel-badge pins-panel-badge--flash">⚡ flash</span>}
-                  {pin.hasStreak && <span className="pins-panel-badge pins-panel-badge--streak">🔥 streak</span>}
-                </div>
+              <div className="pins-panel-mood-row">
+                <span className="pins-panel-mood-tag">{pin.mood}</span>
+                <span className="pins-panel-time">{timeAgo(pin.createdAt)}</span>
+              </div>
+              {pin.message
+                ? <p className="pins-panel-message">{pin.message}</p>
+                : <p className="pins-panel-no-msg">No message</p>
+              }
+              <div className="pins-panel-footer">
+                {pin.country && <span className="pins-panel-time">{countryFlag(pin.country)}</span>}
+                {pin.isFlash  && <span className="pins-panel-badge pins-panel-badge--flash">⚡ flash</span>}
+                {pin.hasStreak && <span className="pins-panel-badge pins-panel-badge--streak">🔥 streak</span>}
               </div>
             </button>
           ))

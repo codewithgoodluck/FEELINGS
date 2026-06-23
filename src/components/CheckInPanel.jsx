@@ -9,6 +9,14 @@ const MOODS = [
   { emoji: '🥳', label: 'Excited' },
   { emoji: '😰', label: 'Anxious' },
   { emoji: '😌', label: 'Calm' },
+  { emoji: '😢', label: 'Sad' },
+  { emoji: '😡', label: 'Angry' },
+  { emoji: '🤗', label: 'Grateful' },
+  { emoji: '🥺', label: 'Tender' },
+  { emoji: '😶', label: 'Numb' },
+  { emoji: '🤩', label: 'Amazed' },
+  { emoji: '🫶', label: 'Loved' },
+  { emoji: '🥱', label: 'Bored' },
 ]
 
 export default function CheckInPanel({ location, onSubmit, onClose, initialMood, placeName }) {
