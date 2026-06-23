@@ -140,27 +140,27 @@ const PIN_STYLE = `
   .hay-pin-delete:hover  { background: #c0392b; transform: scale(1.2); }
   .hay-pin-delete:active { transform: scale(0.95); }
 
-  /* ── Inline delete confirm ─────────────────────────────── */
-  .hay-pin-confirm {
-    position: absolute; bottom: calc(100% + 6px); left: 50%;
-    transform: translateX(-50%);
-    background: rgba(15,17,23,0.96); border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 10px; padding: 6px 8px; display: flex; align-items: center;
-    gap: 6px; white-space: nowrap; z-index: 10;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-    animation: confirmPop 0.18s cubic-bezier(0.22,1,0.36,1) both;
+  /* ── Top-of-page delete banner ────────────────────────── */
+  .hay-delete-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    background: linear-gradient(135deg, #c0392b, #e84040);
+    color: #fff; display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; padding: 0.9rem 1.25rem;
+    box-shadow: 0 4px 24px rgba(232,64,64,0.45);
+    font-family: system-ui, sans-serif;
+    animation: bannerSlideDown 0.28s cubic-bezier(0.22,1,0.36,1) both;
   }
-  @keyframes confirmPop { from { opacity:0; transform: translateX(-50%) scale(0.85); } to { opacity:1; transform: translateX(-50%) scale(1); } }
-  .hay-pin-confirm-text { font-size: 11px; color: rgba(255,255,255,0.7); font-family: system-ui,sans-serif; }
-  .hay-pin-confirm-yes, .hay-pin-confirm-no {
-    border: none; border-radius: 6px; cursor: pointer;
-    font-size: 11px; font-weight: 600; padding: 3px 8px; line-height: 1.4;
-    font-family: system-ui,sans-serif;
+  @keyframes bannerSlideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .hay-delete-banner-msg { font-size: 14px; font-weight: 600; flex: 1; }
+  .hay-delete-banner-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+  .hay-delete-banner-yes, .hay-delete-banner-no {
+    border: none; border-radius: 8px; cursor: pointer;
+    font-size: 13px; font-weight: 700; padding: 6px 16px; line-height: 1.4;
+    font-family: system-ui, sans-serif; transition: opacity 0.15s, transform 0.12s;
   }
-  .hay-pin-confirm-yes { background: #e84040; color: #fff; }
-  .hay-pin-confirm-yes:hover { background: #c0392b; }
-  .hay-pin-confirm-no  { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); }
-  .hay-pin-confirm-no:hover  { background: rgba(255,255,255,0.2); }
+  .hay-delete-banner-yes:hover, .hay-delete-banner-no:hover { opacity: 0.85; transform: scale(1.04); }
+  .hay-delete-banner-yes { background: #fff; color: #c0392b; }
+  .hay-delete-banner-no  { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.4); }
 
   /* ── Message badge ─────────────────────────────── */
   .hay-msg-badge {
@@ -406,6 +406,17 @@ export default function MapView({
           'horizon-blend':  0.04,
           'space-color':    'rgb(5, 8, 18)',
           'star-intensity': 0.18,
+        })
+      }
+
+      // ── Brighten map label text ──────────────────────────────────────────
+      if (theme !== 'light') {
+        map.current.getStyle().layers.forEach(layer => {
+          if (layer.type === 'symbol') {
+            try { map.current.setPaintProperty(layer.id, 'text-color', '#ffffff') } catch {}
+            try { map.current.setPaintProperty(layer.id, 'text-halo-color', 'rgba(0,0,10,0.55)') } catch {}
+            try { map.current.setPaintProperty(layer.id, 'text-halo-width', 1) } catch {}
+          }
         })
       }
 
@@ -969,20 +980,19 @@ export default function MapView({
         delBtn.style.display = 'none'
         delBtn.addEventListener('click', (e) => {
           e.stopPropagation()
-          wrap.querySelector('.hay-pin-confirm')?.remove()
-          const popup = document.createElement('div')
-          popup.className = 'hay-pin-confirm'
-          popup.innerHTML = '<span class="hay-pin-confirm-text">Delete?</span><button class="hay-pin-confirm-yes">Yes</button><button class="hay-pin-confirm-no">Cancel</button>'
-          popup.querySelector('.hay-pin-confirm-yes').addEventListener('click', (ev) => {
-            ev.stopPropagation()
-            onDeletePinRef.current(pin.id)
-            popup.remove()
+          document.querySelector('.hay-delete-banner')?.remove()
+          const banner = document.createElement('div')
+          banner.className = 'hay-delete-banner'
+          banner.innerHTML = '<span class="hay-delete-banner-msg">Delete this pin? This cannot be undone.</span><div class="hay-delete-banner-actions"><button class="hay-delete-banner-yes">Delete</button><button class="hay-delete-banner-no">Cancel</button></div>'
+          const dismiss = () => banner.remove()
+          banner.querySelector('.hay-delete-banner-yes').addEventListener('click', (ev) => {
+            ev.stopPropagation(); onDeletePinRef.current(pin.id); dismiss()
           })
-          popup.querySelector('.hay-pin-confirm-no').addEventListener('click', (ev) => {
-            ev.stopPropagation()
-            popup.remove()
+          banner.querySelector('.hay-delete-banner-no').addEventListener('click', (ev) => {
+            ev.stopPropagation(); dismiss()
           })
-          wrap.appendChild(popup)
+          document.body.appendChild(banner)
+          setTimeout(dismiss, 8000)
         })
         wrap.appendChild(delBtn)
 

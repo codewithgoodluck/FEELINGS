@@ -320,15 +320,14 @@ export default function App() {
         ?
       </button>
 
-      {!showFeedPanel && (
-        <button
-          className="feed-btn"
-          onClick={() => setShowFeedPanel(true)}
-          aria-label="Open live pin feed"
-        >
-          ☰
-        </button>
-      )}
+      <button
+        className="feed-btn"
+        onClick={() => setShowFeedPanel(v => !v)}
+        aria-label={showFeedPanel ? 'Close live feed' : 'Open live feed'}
+        aria-pressed={showFeedPanel}
+      >
+        ☰
+      </button>
 
       {showSearch && (
         <PinSearch
