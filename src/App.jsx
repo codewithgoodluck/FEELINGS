@@ -184,11 +184,8 @@ export default function App() {
       await createPin({ uid: user.uid, lat, lng, mood, message: '', verified: userLocation !== null, country, isFlash: false, hasStreak })
       // Fly to the dropped pin so it's visible even at a zoomed-out starting view
       mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })
-      if (localStorage.getItem('feelin_tip_celebration') !== '1') {
-        localStorage.setItem('feelin_tip_celebration', '1')
-        setCelebration(true)
-        setTimeout(() => setCelebration(false), 2800)
-      }
+      setCelebration(true)
+      setTimeout(() => setCelebration(false), 2800)
     } catch (err) {
       showToast(err?.message || 'Failed to drop pin — check your connection.', 'error')
     }
@@ -214,11 +211,8 @@ export default function App() {
     setPendingLocation(null)
     // Fly to the pin so it's immediately visible at the right zoom level
     mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })
-    if (localStorage.getItem('feelin_tip_celebration') !== '1') {
-      localStorage.setItem('feelin_tip_celebration', '1')
-      setCelebration(true)
-      setTimeout(() => setCelebration(false), 2800)
-    }
+    setCelebration(true)
+    setTimeout(() => setCelebration(false), 2800)
   }
 
   function handleFabClick() {
