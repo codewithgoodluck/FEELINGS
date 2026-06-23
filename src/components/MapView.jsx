@@ -422,10 +422,10 @@ export default function MapView({
       if (theme === 'light') {
         map.current.setFog({
           color:            'rgb(186, 210, 235)',
-          'high-color':     'rgb(120, 170, 220)',
-          'horizon-blend':  0.04,
-          'space-color':    'rgb(135, 186, 224)',
-          'star-intensity': 0,
+          'high-color':     'rgb(100, 150, 215)',
+          'horizon-blend':  0.05,
+          'space-color':    'rgb(8, 12, 30)',
+          'star-intensity': 0.14,
         })
       } else {
         map.current.setFog({

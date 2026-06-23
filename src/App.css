@@ -148,7 +148,7 @@
 
 .btn--primary {
   background: var(--ink-0);
-  color: #0f1117;
+  color: var(--on-ink);
 }
 
 .btn--primary:not(:disabled):hover {
@@ -198,7 +198,7 @@
   padding: 0;
   border-radius: 50%;
   background: var(--ink-0);
-  color: #0f1117;
+  color: var(--on-ink);
   font-size: 1.1rem;
   flex-shrink: 0;
   font-weight: 500;
@@ -722,7 +722,7 @@
 
 .message--mine .message-bubble {
   background: var(--ink-0);
-  color: #0f1117;
+  color: var(--on-ink);
   border-bottom-right-radius: 4px;
 }
 
@@ -1775,7 +1775,7 @@
 
 .voice-bubble--mine .voice-play-btn {
   background: rgba(0,0,0,0.18);
-  color: #0f1117;
+  color: var(--on-ink);
 }
 
 .voice-bubble--mine .voice-play-btn:hover {
@@ -1910,7 +1910,7 @@
   height: 56px;
   border-radius: 50%;
   background: var(--ink-0);
-  color: #0f1117;
+  color: var(--on-ink);
   font-size: 1.875rem;
   font-weight: 300;
   line-height: 1;

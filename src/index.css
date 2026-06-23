@@ -38,6 +38,8 @@
   --r-pill: 100px;
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* text color used when ink-0 IS the background (inverts per theme) */
+  --on-ink: #0f1117;
   font-size: 16px;
 }
 
@@ -57,6 +59,8 @@ html[data-theme="light"] {
   --pin-popup-border:     rgba(60,80,180,0.16);
   --pin-popup-btn:        rgba(60,80,180,0.07);
   --pin-popup-btn-border: rgba(60,80,180,0.14);
+  /* ink-0 is dark in light mode so text on top of it must be light */
+  --on-ink: #ffffff;
   color-scheme: light;
 }
 
@@ -85,4 +89,6 @@ textarea { resize: none; }
 .mapboxgl-ctrl-group button { background: transparent !important; }
 .mapboxgl-ctrl-group button .mapboxgl-ctrl-icon { filter: invert(1) opacity(0.45); }
 .mapboxgl-ctrl-group button:hover .mapboxgl-ctrl-icon { filter: invert(1) opacity(0.85); }
+html[data-theme="light"] .mapboxgl-ctrl-group button .mapboxgl-ctrl-icon { filter: invert(0) opacity(0.55); }
+html[data-theme="light"] .mapboxgl-ctrl-group button:hover .mapboxgl-ctrl-icon { filter: invert(0) opacity(0.9); }
 .mapboxgl-ctrl-group + .mapboxgl-ctrl-group { margin-top: 6px !important; }
