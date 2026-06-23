@@ -1832,6 +1832,18 @@
   letter-spacing: 0.04em;
 }
 
+@media (max-width: 639px) {
+  /* Allow scroll if 4×4 grid overflows very short screens */
+  .mirror-screen { overflow-y: auto; align-items: flex-start; padding-top: 1.5rem; }
+  .mirror-card   { margin: auto 0; padding-bottom: 1rem; }
+
+  .mirror-wordmark { margin-bottom: 1.5rem; }
+  .mirror-sub      { margin-bottom: 1.5rem; }
+  .mirror-mood-grid { gap: 0.5rem; margin-bottom: 1rem; }
+  .mirror-mood-btn  { font-size: 1.5rem; border-radius: 14px; }
+  .mirror-heading   { font-size: clamp(1.65rem, 6vw, 2.2rem); }
+}
+
 /* ── Joining transition ─────────────────────────────────────────────── */
 .mirror-joining {
   position: relative;
@@ -2314,16 +2326,7 @@
 .sos-confirm-send:active { transform: scale(0.97); }
 .sos-confirm-send:disabled { opacity: 0.6; cursor: not-allowed; }
 
-@media (max-width: 639px) {
-  .sos-fab {
-    bottom: calc(max(1.5rem, env(safe-area-inset-bottom)) + 64px + 0.5rem);
-    left: 50%;
-    transform: translateX(calc(-50% + 38px));
-  }
-  .sos-fab:hover  { transform: translateX(calc(-50% + 38px)) scale(1.08); }
-  .sos-fab:active { transform: translateX(calc(-50% + 38px)) scale(0.93); }
-  .sos-confirm { border-radius: var(--r-lg) var(--r-lg) 0 0; }
-}
+/* SOS fab + confirm mobile overrides merged into main mobile block below */
 
 .fab-badge {
   position: absolute;
@@ -4559,7 +4562,7 @@ html[data-theme="light"] .feed-btn[aria-pressed="true"] {
 }
 
 @media (max-width: 639px) {
-  /* Show the nav bar */
+  /* ── Show the bottom nav ── */
   .bottom-nav {
     display: flex;
     position: fixed;
@@ -4576,15 +4579,49 @@ html[data-theme="light"] .feed-btn[aria-pressed="true"] {
     align-items: stretch;
   }
 
-  /* Push map content up so pins/FAB aren't hidden behind nav */
+  /* ── Push app content above nav ── */
   .app { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
 
-  /* Hide the top-bar buttons that are now in the bottom nav */
+  /* ── Hide top-bar buttons replaced by bottom nav ── */
   .profile-btn,
   .inbox-btn,
-  .feed-btn { display: none !important; }
+  .feed-btn,
+  .theme-btn,
+  .help-btn { display: none !important; }
 
-  /* Adjust PinsPanel so its list scrolls above the nav when opened */
+  /* ── Reposition search button (only top-right button left on mobile) ── */
+  .search-btn { right: 1rem; }
+
+  /* ── FAB: lift above bottom nav ── */
+  .fab {
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 0.875rem);
+  }
+  .fab:hover  { transform: translateX(-50%) scale(1.08); }
+  .fab:active { transform: translateX(-50%) scale(0.94); }
+
+  /* ── SOS FAB: same height as FAB, just to its right ── */
+  .sos-fab {
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 0.875rem);
+    left: 50%;
+    transform: translateX(36px);
+  }
+  .sos-fab:hover  { transform: translateX(36px) scale(1.08); }
+  .sos-fab:active { transform: translateX(36px) scale(0.93); }
+
+  /* ── SOS confirm sheet ── */
+  .sos-confirm { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+
+  /* ── FAB tooltip: lift above nav + FAB ── */
+  .map-tooltip--fab {
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 5.25rem);
+  }
+
+  /* ── Tap-hint pill: lift above nav ── */
+  .tap-hint {
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 1rem);
+  }
+
+  /* ── Activity feed list scrolls above nav ── */
   .pins-panel-list { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
 }
 

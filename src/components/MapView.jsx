@@ -253,7 +253,8 @@ const PIN_STYLE = `
     background: var(--pin-popup-bg, rgba(20,22,30,0.97));
     border: 1px solid var(--pin-popup-border, rgba(255,255,255,0.12));
     border-radius: 16px; padding: 8px;
-    display: flex; gap: 6px; flex-wrap: wrap; max-width: 224px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;
+    width: 196px;
     opacity: 0; pointer-events: none;
     transition: opacity 0.18s ease, transform 0.18s ease;
     z-index: 30;
@@ -263,7 +264,7 @@ const PIN_STYLE = `
     transform: translate(-50%, calc(-100% - 10px));
   }
   .hay-mood-pop button {
-    font-size: 20px; width: 36px; height: 36px;
+    font-size: 18px; width: 40px; height: 40px;
     border-radius: 10px;
     background: var(--pin-popup-btn, rgba(255,255,255,0.05));
     border: 1px solid var(--pin-popup-btn-border, rgba(255,255,255,0.08));
@@ -600,7 +601,12 @@ export default function MapView({
     // ── Press-and-hold pin drop ──────────────────────────────────────────────
     const container = mapContainer.current
     const HOLD_MS   = 550
-    const MOODS_POP = ['😊', '😔', '😤', '😴', '🤔', '🥳', '😰', '😌']
+    const MOODS_POP = [
+      '😊', '😔', '😤', '😴',
+      '🤔', '🥳', '😰', '😌',
+      '😢', '😡', '🤗', '🥺',
+      '😶', '🤩', '🫶', '🥱',
+    ]
     const holdState = {
       rafId: null, timerId: null, chargeEl: null,
       startPt: null, lngLat: null,

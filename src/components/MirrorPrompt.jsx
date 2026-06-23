@@ -1,6 +1,11 @@
 import { useState } from 'react'
 
-const MOODS = ['😊', '😔', '😤', '😴', '🤔', '🥳', '😰', '😌']
+const MOODS = [
+  '😊', '😔', '😤', '😴',
+  '🤔', '🥳', '😰', '😌',
+  '😢', '😡', '🤗', '🥺',
+  '😶', '🤩', '🫶', '🥱',
+]
 
 export default function MirrorPrompt({ onAnswer }) {
   const [selected, setSelected] = useState(null)
