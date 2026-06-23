@@ -12,6 +12,7 @@ import {
   reportPin,
   reportMessage,
   setTyping,
+  markConversationSeen,
 } from '../utils/db'
 import { getAnonIdentity, getAnonColour } from '../utils/identity'
 import { uploadVoice, getSupportedMimeType } from '../utils/voiceStorage'
@@ -358,6 +359,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
     initialLoadRef.current = false
     knownIdsRef.current    = new Set()
     markSeen(conversationId)
+    markConversationSeen(conversationId, user.uid)
     const unsubMsg = subscribeToMessages(conversationId, (incoming) => {
       if (!initialLoadRef.current) {
         // First snapshot — populate known IDs, no animation
@@ -371,6 +373,8 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
       fresh.forEach((m) => knownIdsRef.current.add(m.id))
       incoming.forEach((m) => knownIdsRef.current.add(m.id))
       setMessages(incoming)
+      // Update seenBy whenever new messages arrive while chat is open
+      if (fresh.length > 0) markConversationSeen(conversationId, user.uid)
       if (fresh.length === 0) return
       // Animate new incoming messages
       setNewMsgIds((prev) => {
@@ -573,7 +577,16 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
             if (last && last[0].uid === msg.uid) last.push(msg)
             else groups.push([msg])
           })
-          return groups.map((group) => {
+          // Index of the last group sent by the current user (for seen indicator)
+          const lastMyGroupIdx = groups.reduce((acc, g, i) =>
+            g[0].uid === user.uid ? i : acc, -1)
+          // Timestamp when the other participant last opened the conversation
+          const otherSeenAtMs = (() => {
+            const ts = conversation?.seenBy?.[otherUid]
+            if (!ts) return 0
+            return ts.seconds ? ts.seconds * 1000 : ts?.toDate?.()?.getTime?.() ?? 0
+          })()
+          return groups.map((group, idx) => {
             if (group[0].uid === '_system') {
               return (
                 <p key={group[0].id + '-g'} className="system-msg-row">{group[0].text}</p>
@@ -581,6 +594,14 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
             }
             const isMe  = group[0].uid === user.uid
             const multi = group.length > 1
+            const isLastMyGroup = isMe && idx === lastMyGroupIdx
+            // "Seen" = other person's seenBy timestamp is >= the last msg in group
+            const lastMsgMs = (() => {
+              const ts = group[group.length - 1].createdAt
+              if (!ts) return 0
+              return ts.seconds ? ts.seconds * 1000 : ts?.toDate?.()?.getTime?.() ?? 0
+            })()
+            const isSeen = otherSeenAtMs > 0 && lastMsgMs > 0 && otherSeenAtMs >= lastMsgMs
             return (
               <div
                 key={group[0].id + '-g'}
@@ -641,6 +662,11 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                     </div>
                   )
                 })}
+                {isLastMyGroup && (
+                  <p className={`msg-status${isSeen ? ' msg-status--seen' : ''}`}>
+                    {isSeen ? '✓✓ Seen' : '✓ Sent'}
+                  </p>
+                )}
               </div>
             )
           })

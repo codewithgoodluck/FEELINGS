@@ -624,6 +624,17 @@
   animation: msgPopIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Seen / delivered status under last sent message */
+.msg-status {
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+  text-align: right;
+  margin-top: 0.15rem;
+  padding-right: 0.125rem;
+  letter-spacing: 0.01em;
+}
+.msg-status--seen { color: var(--accent); }
+
 /* Scroll-to-bottom button */
 .chat-scroll-btn {
   position: sticky;

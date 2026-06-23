@@ -134,6 +134,15 @@ export async function setTyping(conversationId, uid, isTyping) {
   })
 }
 
+// Mark a conversation as seen by uid (writes a server timestamp)
+export async function markConversationSeen(conversationId, uid) {
+  try {
+    await updateDoc(doc(db, 'conversations', conversationId), {
+      [`seenBy.${uid}`]: serverTimestamp(),
+    })
+  } catch {}
+}
+
 // Request identity reveal
 export async function requestReveal(conversationId, uid, displayName) {
   const ref = doc(db, 'conversations', conversationId)
