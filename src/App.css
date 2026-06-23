@@ -4804,65 +4804,51 @@ html[data-theme="light"] .bottom-nav {
    LOCATION GATE — full-screen location onboarding
 ═══════════════════════════════════════════════════════════════════════════ */
 
+/* Outer shell: fills the screen, background gradient */
 .loc-gate {
   position: fixed;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
   z-index: 1000;
+  background: radial-gradient(ellipse at 50% 15%, rgba(28,45,110,0.6) 0%, #07080e 70%);
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.loc-gate-bg {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 50% 20%, rgba(30,50,120,0.55) 0%, #06070d 65%);
-  z-index: 0;
-}
+.loc-gate-bg { display: none; }
 
-.loc-gate-card {
-  position: relative;
-  z-index: 1;
+/* Scrollable content column — centres on desktop, fills on mobile */
+.loc-gate-page {
+  min-height: 100%;
   width: 100%;
-  max-width: 400px;
-  background: var(--sheet-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  padding: 2rem 1.75rem 1.75rem;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem max(2rem, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  text-align: center;
-  animation: slideUp 0.38s var(--ease-out) both;
 }
 
-.loc-gate-card--search {
-  text-align: left;
-  max-height: calc(100dvh - 3rem);
-  display: flex;
-  flex-direction: column;
+/* Header block */
+.loc-gate-header {
+  text-align: center;
+  padding-bottom: 0.25rem;
 }
 
 .loc-gate-icon {
-  font-size: 3rem;
+  font-size: 2.75rem;
   line-height: 1;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.75rem;
+  display: block;
 }
 
 .loc-gate-title {
   font-family: var(--font-display);
-  font-size: 1.75rem;
+  font-size: clamp(1.5rem, 6vw, 2rem);
   font-weight: 400;
   letter-spacing: -0.02em;
   color: var(--ink-0);
-  margin: 0;
+  margin: 0 0 0.5rem;
   line-height: 1.15;
-}
-
-.loc-gate-title--sm {
-  font-size: 1.375rem;
 }
 
 .loc-gate-body {
@@ -4872,104 +4858,113 @@ html[data-theme="light"] .bottom-nav {
   margin: 0;
 }
 
-.loc-gate-reasons {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  text-align: left;
-  background: var(--ink-5);
-  border-radius: var(--r-md);
-  padding: 1rem;
+/* GPS button */
+.loc-gate-gps-btn { width: 100%; }
+
+/* Error message after GPS denial */
+.loc-gate-error {
+  font-size: 0.8125rem;
+  color: #e07060;
+  text-align: center;
+  margin: -0.25rem 0 0;
 }
 
-.loc-gate-reason {
+/* Divider */
+.loc-gate-divider {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 0.8125rem;
-  color: var(--ink-1);
-  line-height: 1.4;
-}
-
-.loc-gate-gps-btn {
-  margin-top: 0.25rem;
-}
-
-.loc-gate-back {
-  background: none;
-  border: none;
   color: var(--ink-3);
-  font-size: 0.875rem;
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-  margin-bottom: -0.25rem;
+  font-size: 0.8125rem;
 }
-.loc-gate-back:hover { color: var(--ink-1); }
+.loc-gate-divider::before,
+.loc-gate-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Search input wrapper */
+.loc-gate-search-wrap {
+  position: relative;
+}
 
 .loc-gate-search {
   width: 100%;
-  background: var(--ink-5);
+  background: rgba(255,255,255,0.07);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 2.5rem 0.875rem 1rem;
   color: var(--ink-0);
-  font-size: 1rem;
+  font-size: 1rem;        /* 16px — prevents iOS auto-zoom */
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
 }
-.loc-gate-search:focus { border-color: var(--border-h); }
+.loc-gate-search:focus {
+  border-color: var(--border-h);
+  background: rgba(255,255,255,0.10);
+}
 .loc-gate-search::placeholder { color: var(--ink-3); }
 
+.loc-gate-clear {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+/* Country list — no fixed height, grows naturally, page scrolls */
 .loc-gate-list {
-  flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  max-height: 240px;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  background: var(--ink-5);
+  overflow: hidden;
+  background: rgba(255,255,255,0.04);
 }
-.loc-gate-list::-webkit-scrollbar { display: none; }
 
 .loc-gate-empty {
-  padding: 1rem;
-  font-size: 0.8125rem;
+  padding: 1.25rem;
+  font-size: 0.875rem;
   color: var(--ink-3);
   text-align: center;
 }
 
+/* Each country row — tap to instantly confirm */
 .loc-gate-country {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.625rem 1rem;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
   background: none;
   border: none;
   border-bottom: 1px solid var(--border);
   color: var(--ink-1);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   text-align: left;
   cursor: pointer;
   transition: background 0.1s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 52px;
 }
 .loc-gate-country:last-child { border-bottom: none; }
-.loc-gate-country:hover { background: var(--ink-4); }
+.loc-gate-country:hover,
+.loc-gate-country:active { background: rgba(255,255,255,0.07); color: var(--ink-0); }
 
-.loc-gate-country--active {
-  background: rgba(255,255,255,0.07);
-  color: var(--ink-0);
-  font-weight: 500;
-}
-
-.loc-gate-country-flag { font-size: 1.25rem; }
-
-.loc-gate-country-check {
-  margin-left: auto;
-  color: var(--accent);
-  font-weight: 700;
-}
+.loc-gate-country-flag { font-size: 1.375rem; flex-shrink: 0; }
+.loc-gate-country-name { flex: 1; }
+.loc-gate-country-arrow { color: var(--ink-4); font-size: 0.875rem; flex-shrink: 0; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    OWN PIN — feed card + delete button

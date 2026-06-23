@@ -174,165 +174,123 @@ const COUNTRIES = [
   { code: 'ZW', name: 'Zimbabwe',               lat: -19.02, lng:  29.15 },
 ]
 
+function flag(code) {
+  if (!code || code.length !== 2) return '🌐'
+  return String.fromCodePoint(
+    ...code.toUpperCase().split('').map(c => 0x1F1E6 + c.charCodeAt(0) - 65)
+  )
+}
+
 export default function LocationGate({ onConfirm }) {
-  const [query, setQuery]     = useState('')
-  const [selected, setSelected] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [mode, setMode]       = useState('choice') // 'choice' | 'search'
-  const inputRef              = useRef(null)
+  const [query, setQuery]   = useState('')
+  const [gpsLoading, setGpsLoading] = useState(false)
+  const [gpsError, setGpsError]     = useState('')
+  const [searching, setSearching]   = useState(false)
+  const inputRef = useRef(null)
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return COUNTRIES
-    const q = query.toLowerCase()
+    const q = query.trim().toLowerCase()
+    if (!q) return COUNTRIES
     return COUNTRIES.filter(c =>
-      c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
+      c.name.toLowerCase().includes(q) || c.code.toLowerCase() === q
     )
   }, [query])
 
   async function handleGPS() {
-    setLoading(true)
+    setGpsError('')
+    setGpsLoading(true)
     try {
       const pos = await new Promise((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 })
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 12000 })
       )
-      onConfirm({
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        country: null,
-        countryName: null,
-        fromGPS: true,
-      })
+      onConfirm({ lat: pos.coords.latitude, lng: pos.coords.longitude, fromGPS: true })
     } catch {
-      // GPS denied or failed — fall through to country search
-      setMode('search')
-      setTimeout(() => inputRef.current?.focus(), 100)
+      setGpsError('Location access denied. Search your country below.')
+      setSearching(true)
+      setTimeout(() => inputRef.current?.focus(), 80)
     } finally {
-      setLoading(false)
+      setGpsLoading(false)
     }
   }
 
-  function handleCountrySelect(country) {
-    setSelected(country)
-  }
-
-  function handleConfirmCountry() {
-    if (!selected) return
-    onConfirm({
-      lat: selected.lat,
-      lng: selected.lng,
-      country: selected.code,
-      countryName: selected.name,
-      fromGPS: false,
-    })
+  function pick(country) {
+    onConfirm({ lat: country.lat, lng: country.lng, country: country.code, countryName: country.name, fromGPS: false })
   }
 
   return (
-    <div className="loc-gate" aria-label="Location setup">
+    <div className="loc-gate">
       <div className="loc-gate-bg" aria-hidden="true" />
 
-      {mode === 'choice' ? (
-        <div className="loc-gate-card">
-          <div className="loc-gate-icon" aria-hidden="true">🌍</div>
+      <div className="loc-gate-page">
+        {/* ── Header ── */}
+        <div className="loc-gate-header">
+          <div className="loc-gate-icon">🌍</div>
           <h1 className="loc-gate-title">Where are you right now?</h1>
           <p className="loc-gate-body">
-            HowAreYou connects you with real people feeling things nearby. Your
-            location is&nbsp;<strong>never stored exactly</strong> — it's blurred
-            by a few kilometres so you stay anonymous.
+            HowAreYou connects you with people feeling things nearby.
+            Your location is <strong>never stored exactly</strong> — blurred by a few km for privacy.
           </p>
-
-          <div className="loc-gate-reasons">
-            <div className="loc-gate-reason">
-              <span aria-hidden="true">📍</span>
-              <span>Drop pins near you to connect locally</span>
-            </div>
-            <div className="loc-gate-reason">
-              <span aria-hidden="true">🔒</span>
-              <span>Coordinates are fuzzed — never exact</span>
-            </div>
-            <div className="loc-gate-reason">
-              <span aria-hidden="true">👥</span>
-              <span>See who's feeling things in your area</span>
-            </div>
-          </div>
-
-          <button
-            className="btn btn--primary btn--full loc-gate-gps-btn"
-            onClick={handleGPS}
-            disabled={loading}
-          >
-            {loading ? 'Getting location…' : '📡 Share my location'}
-          </button>
-
-          <button
-            className="btn btn--ghost btn--full"
-            onClick={() => { setMode('search'); setTimeout(() => inputRef.current?.focus(), 100) }}
-          >
-            🔍 Search my country instead
-          </button>
         </div>
-      ) : (
-        <div className="loc-gate-card loc-gate-card--search">
-          <button
-            className="loc-gate-back"
-            onClick={() => { setMode('choice'); setQuery(''); setSelected(null) }}
-            aria-label="Back"
-          >
-            ← Back
-          </button>
 
-          <h2 className="loc-gate-title loc-gate-title--sm">Which country are you in?</h2>
-          <p className="loc-gate-body">
-            We'll place your pins at the approximate centre of your country.
-          </p>
+        {/* ── GPS button ── */}
+        <button
+          className="btn btn--primary btn--full loc-gate-gps-btn"
+          onClick={handleGPS}
+          disabled={gpsLoading}
+        >
+          {gpsLoading ? '📡 Getting location…' : '📡 Use my current location'}
+        </button>
 
+        {gpsError && <p className="loc-gate-error">{gpsError}</p>}
+
+        {/* ── Divider ── */}
+        <div className="loc-gate-divider">
+          <span>or search your country</span>
+        </div>
+
+        {/* ── Search ── */}
+        <div className="loc-gate-search-wrap">
           <input
             ref={inputRef}
             className="loc-gate-search"
-            type="search"
-            placeholder="Type your country…"
+            type="text"
+            inputMode="search"
+            placeholder="Type a country name…"
             value={query}
-            onChange={e => { setQuery(e.target.value); setSelected(null) }}
+            onChange={e => { setQuery(e.target.value); setSearching(true) }}
+            onFocus={() => setSearching(true)}
             autoComplete="off"
             spellCheck={false}
             aria-label="Search country"
           />
-
-          <div className="loc-gate-list" role="listbox" aria-label="Country results">
-            {filtered.length === 0 ? (
-              <p className="loc-gate-empty">No country found — try another spelling.</p>
-            ) : (
-              filtered.slice(0, 60).map(c => (
-                <button
-                  key={c.code}
-                  role="option"
-                  aria-selected={selected?.code === c.code}
-                  className={`loc-gate-country${selected?.code === c.code ? ' loc-gate-country--active' : ''}`}
-                  onClick={() => handleCountrySelect(c)}
-                >
-                  <span className="loc-gate-country-flag">{countryCodeToFlag(c.code)}</span>
-                  <span>{c.name}</span>
-                  {selected?.code === c.code && <span className="loc-gate-country-check" aria-hidden="true">✓</span>}
-                </button>
-              ))
-            )}
-          </div>
-
-          <button
-            className="btn btn--primary btn--full"
-            onClick={handleConfirmCountry}
-            disabled={!selected}
-          >
-            {selected ? `Continue as ${selected.name}` : 'Select a country above'}
-          </button>
+          {query && (
+            <button
+              className="loc-gate-clear"
+              onClick={() => { setQuery(''); inputRef.current?.focus() }}
+              aria-label="Clear search"
+            >✕</button>
+          )}
         </div>
-      )}
-    </div>
-  )
-}
 
-function countryCodeToFlag(code) {
-  if (!code || code.length !== 2) return '🌐'
-  return String.fromCodePoint(
-    ...code.toUpperCase().split('').map(c => 0x1F1E6 + c.charCodeAt(0) - 65)
+        {/* ── Country list — always visible, tap = done ── */}
+        <div className="loc-gate-list">
+          {filtered.length === 0 ? (
+            <p className="loc-gate-empty">No country found — try a different spelling.</p>
+          ) : (
+            filtered.map(c => (
+              <button
+                key={c.code}
+                className="loc-gate-country"
+                onClick={() => pick(c)}
+              >
+                <span className="loc-gate-country-flag">{flag(c.code)}</span>
+                <span className="loc-gate-country-name">{c.name}</span>
+                <span className="loc-gate-country-arrow">→</span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
