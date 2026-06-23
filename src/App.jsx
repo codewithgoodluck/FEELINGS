@@ -145,6 +145,13 @@ export default function App() {
     return () => clearTimeout(t)
   }, [mirrorDone]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-clear blocked toast after 1.5 s (must be before any early returns)
+  useEffect(() => {
+    if (!blockedToastMsg) return
+    const t = setTimeout(() => setBlockedToastMsg(null), 1500)
+    return () => clearTimeout(t)
+  }, [blockedToastMsg])
+
   // ── Auth loading splash ────────────────────────────────────────────────────
   if (loading) {
     return <div className="splash"><p className="splash-text">HowAreYou</p></div>
@@ -293,12 +300,6 @@ export default function App() {
       reverseGeocodePlaceName(userLocation.lat, userLocation.lng).then(setPlaceName).catch(() => {})
     }
   }
-
-  useEffect(() => {
-    if (!blockedToastMsg) return
-    const t = setTimeout(() => setBlockedToastMsg(null), 1500)
-    return () => clearTimeout(t)
-  }, [blockedToastMsg])
 
   function handleFabClick() {
     dismissTipFab()
