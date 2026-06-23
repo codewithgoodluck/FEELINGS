@@ -70,7 +70,10 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, closeSignal = 
             <button key={pin.id} className="pins-panel-item" onClick={() => handleSelect(pin)}>
               <div className="pins-panel-mood-row">
                 <span className="pins-panel-mood-tag">{pin.mood}</span>
-                <span className="pins-panel-time">{timeAgo(pin.createdAt)}</span>
+                <span className="pins-panel-time">
+                  <span className="pins-panel-time-icon" aria-hidden="true">⏱</span>
+                  {timeAgo(pin.createdAt)}
+                </span>
               </div>
               {pin.message
                 ? <p className="pins-panel-message">{pin.message}</p>

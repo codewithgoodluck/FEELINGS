@@ -1960,7 +1960,7 @@
   left: 50%;
   transform: translateX(-50%);
   width: min(calc(100% - 1.5rem), 480px);
-  z-index: 210;
+  z-index: 500;
   background: rgba(12,14,20,0.97);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -3470,9 +3470,17 @@ html[data-theme="light"] .jl-toast {
 }
 
 .pins-panel-time {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--ink-1);
+}
+
+.pins-panel-time-icon {
+  font-size: 0.875rem;
+  line-height: 1;
 }
 
 .pins-panel-location {

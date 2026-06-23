@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { subscribeToPins } from '../utils/db'
-import { countryFlag } from '../utils/presence'
+import { countryFlag, countryName } from '../utils/presence'
 
 const MAX_RESULTS = 40
+
+const MOOD_LABELS = {
+  '😊': 'good',       '😔': 'low',        '😤': 'frustrated', '😴': 'tired',
+  '🤔': 'unsure',     '🥳': 'excited',    '😰': 'anxious',    '😌': 'calm',
+  '😢': 'sad',        '😡': 'angry',      '🤗': 'grateful',   '🥺': 'tender',
+  '😶': 'numb',       '🤩': 'amazed',     '🫶': 'loved',      '🥱': 'bored',
+}
 
 function truncate(str, max) {
   if (!str) return ''
@@ -25,7 +32,9 @@ export default function PinSearch({ onClose, onFlyTo }) {
     const ql = q.toLowerCase()
     return allPins.filter((pin) =>
       pin.mood === q ||
-      (pin.message && pin.message.toLowerCase().includes(ql))
+      MOOD_LABELS[pin.mood]?.includes(ql) ||
+      (pin.message && pin.message.toLowerCase().includes(ql)) ||
+      (pin.country && countryName(pin.country)?.toLowerCase().includes(ql))
     ).slice(0, MAX_RESULTS)
   }, [allPins, query])
 
