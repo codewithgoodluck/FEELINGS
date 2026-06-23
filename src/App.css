@@ -1857,7 +1857,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 100;
+  z-index: 450;
   transition: background 0.15s, color 0.15s;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -1885,7 +1885,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 100;
+  z-index: 450;
   transition: background 0.15s, color 0.15s;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -1910,7 +1910,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 100;
+  z-index: 450;
   transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -1940,7 +1940,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 100;
+  z-index: 450;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
@@ -3265,7 +3265,7 @@ html[data-theme="light"] .jl-toast {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 100;
+  z-index: 450;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
