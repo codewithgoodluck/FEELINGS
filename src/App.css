@@ -4623,6 +4623,25 @@ html[data-theme="light"] .feed-btn[aria-pressed="true"] {
 
   /* ── Activity feed list scrolls above nav ── */
   .pins-panel-list { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+
+  /* ── Panels: lift above the bottom nav bar ──
+     --vv-bottom is the keyboard offset (0 when keyboard closed).
+     Adding 60px + safe-area ensures the panel clears the nav bar at all times,
+     and also stays above the keyboard + nav when the keyboard is open.        */
+  .panel {
+    bottom: calc(var(--vv-bottom, 0px) + 60px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(min(88dvh, 88vh) - 60px - env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ── Chat panel: use visual viewport height so it shrinks with the keyboard ── */
+  .chat-panel {
+    max-height: calc(var(--vv-height, 88dvh) - 60px - env(safe-area-inset-bottom, 0px) - 0.5rem);
+  }
+
+  /* ── Chat bottom: panel already clears nav + safe area, no extra padding needed ── */
+  .chat-bottom {
+    padding-bottom: 0.75rem;
+  }
 }
 
 /* ── Individual tab ── */
