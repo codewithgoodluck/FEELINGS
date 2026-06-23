@@ -320,6 +320,15 @@ export default function App() {
         ?
       </button>
 
+      <button
+        className="feed-btn"
+        onClick={() => setShowFeedPanel(v => !v)}
+        aria-label={showFeedPanel ? 'Close live feed' : 'Open live feed'}
+        aria-pressed={showFeedPanel}
+      >
+        ☰
+      </button>
+
       {showSearch && (
         <PinSearch
           onClose={() => setShowSearch(false)}
@@ -417,6 +426,15 @@ export default function App() {
 
       {panel === PANEL.PROFILE && (
         <ProfilePanel onClose={() => setPanel(PANEL.NONE)} />
+      )}
+
+      {showFeedPanel && (
+        <PinsPanel
+          activePinId={activePin?.id}
+          onClose={() => setShowFeedPanel(false)}
+          onFlyTo={(lng, lat) => mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })}
+          onPinClick={(pin) => { setActivePin(pin); setPanel(PANEL.PEEK) }}
+        />
       )}
 
       {panel === PANEL.INBOX && (
