@@ -170,30 +170,12 @@ export default function App() {
     return <div className="splash"><p className="splash-text">HowAreYou</p></div>
   }
 
-  // ── Mirror gate — only first-run screen ───────────────────────────────────
-  if (!mirrorDone && !transitioning) {
-    return (
-      <MirrorPrompt
-        onAnswer={(mood) => {
-          setMirrorMood(mood)
-          setTransitioning(true)
-          setTimeout(() => {
-            sessionStorage.setItem('hay_mirror_done', '1')
-            setMirrorDone(true)
-            setTransitioning(false)
-          }, 1400)
-        }}
-      />
-    )
-  }
-
-  // ── Location gate — shown once per device after onboarding ────────────────
+  // ── Location gate — FIRST: must share location before anything else ─────────
   if (!locationGateDone) {
     return (
       <LocationGate
         onConfirm={async ({ lat, lng, country, countryName: cName, fromGPS }) => {
           if (fromGPS) {
-            // GPS succeeded — run full location resolution
             const loc = { lat, lng }
             setUserLocation(loc)
             reverseGeocodeCountry(lat, lng).then(({ code, name }) => {
@@ -206,7 +188,6 @@ export default function App() {
             }).catch(() => {})
             reverseGeocodePlaceName(lat, lng).then(setPlaceName).catch(() => {})
           } else {
-            // Country search — use approximate centre
             setUserLocation({ lat, lng })
             if (country) {
               setUserCountry(country)
@@ -219,6 +200,23 @@ export default function App() {
           sessionStorage.setItem('hay_location_asked', '1')
           localStorage.setItem('hay_location_gate', '1')
           setLocationGateDone(true)
+        }}
+      />
+    )
+  }
+
+  // ── Mirror gate — mood picker, shown after location is confirmed ──────────
+  if (!mirrorDone && !transitioning) {
+    return (
+      <MirrorPrompt
+        onAnswer={(mood) => {
+          setMirrorMood(mood)
+          setTransitioning(true)
+          setTimeout(() => {
+            sessionStorage.setItem('hay_mirror_done', '1')
+            setMirrorDone(true)
+            setTransitioning(false)
+          }, 1400)
         }}
       />
     )
