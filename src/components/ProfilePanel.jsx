@@ -287,42 +287,85 @@ export default function ProfilePanel({
 
         {isAnonymous ? (
           <>
-            <p className="profile-anon-note">
-              You're anonymous. Create an account to preserve your conversations and streak across devices.
-            </p>
             {!showForm ? (
-              <button className="btn btn--primary btn--full" onClick={() => setShowForm(true)}>
-                Save my data — create account
-              </button>
+              <div className="auth-cta">
+                <div className="auth-cta-icon" aria-hidden="true">🔐</div>
+                <p className="auth-cta-title">Keep your data</p>
+                <p className="auth-cta-body">
+                  Your streak and conversations live only on this device right now. Create a free account to back them up and access them anywhere.
+                </p>
+                <button className="auth-cta-btn" onClick={() => setShowForm(true)}>
+                  Create account
+                </button>
+                <button className="auth-cta-login" onClick={() => { setShowForm(true); setTab('login') }}>
+                  Already have an account? Log in
+                </button>
+              </div>
             ) : (
               <form className="profile-auth-form" onSubmit={handleFormSubmit}>
-                <div className="profile-auth-tabs">
-                  <button type="button" className={`profile-auth-tab${tab === 'signup' ? ' active' : ''}`} onClick={() => switchTab('signup')}>Sign up</button>
-                  <button type="button" className={`profile-auth-tab${tab === 'login'  ? ' active' : ''}`} onClick={() => switchTab('login')}>Log in</button>
+                {/* Tab switcher */}
+                <div className="auth-tab-row">
+                  <button
+                    type="button"
+                    className={`auth-tab${tab === 'signup' ? ' auth-tab--active' : ''}`}
+                    onClick={() => switchTab('signup')}
+                  >
+                    Sign up
+                  </button>
+                  <button
+                    type="button"
+                    className={`auth-tab${tab === 'login' ? ' auth-tab--active' : ''}`}
+                    onClick={() => switchTab('login')}
+                  >
+                    Log in
+                  </button>
                 </div>
-                <input
-                  className="profile-auth-input"
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
-                <input
-                  className="profile-auth-input"
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
-                />
-                {formError && <p className="profile-auth-error">{formError}</p>}
-                <button className="btn btn--primary btn--full" type="submit" disabled={formLoading}>
-                  {formLoading ? '…' : tab === 'signup' ? 'Create account' : 'Log in'}
+
+                {/* Email field */}
+                <div className="auth-field">
+                  <span className="auth-field-icon" aria-hidden="true">✉</span>
+                  <input
+                    className="auth-input"
+                    type="email"
+                    placeholder="Email address"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                </div>
+
+                {/* Password field */}
+                <div className="auth-field">
+                  <span className="auth-field-icon" aria-hidden="true">🔒</span>
+                  <input
+                    className="auth-input"
+                    type="password"
+                    placeholder={tab === 'signup' ? 'Create password (6+ chars)' : 'Password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                    autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
+                  />
+                </div>
+
+                {formError && (
+                  <div className="auth-error">
+                    <span aria-hidden="true">⚠</span> {formError}
+                  </div>
+                )}
+
+                <button className="auth-submit" type="submit" disabled={formLoading}>
+                  {formLoading
+                    ? <span className="auth-submit-spinner" aria-label="Loading" />
+                    : tab === 'signup' ? 'Create account' : 'Log in'}
                 </button>
-                <button type="button" className="profile-form-cancel" onClick={() => { setShowForm(false); setFormError('') }}>
+
+                <button
+                  type="button"
+                  className="profile-form-cancel"
+                  onClick={() => { setShowForm(false); setFormError('') }}
+                >
                   Cancel
                 </button>
               </form>
