@@ -2200,6 +2200,131 @@
 .fab:hover  { transform: translateX(-50%) scale(1.08); box-shadow: 0 6px 32px rgba(0,0,0,0.65); }
 .fab:active { transform: translateX(-50%) scale(0.94); }
 
+/* ── Cry for Help FAB ─────────────────────────────────────────────────── */
+.sos-fab {
+  position: absolute;
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  left: calc(50% + 40px);
+  transform: translateX(calc(-50% + 44px));
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(220, 70, 70, 0.14);
+  border: 1.5px solid rgba(220, 70, 70, 0.42);
+  font-size: 1.25rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 16px rgba(220,70,70,0.2);
+  z-index: 100;
+  cursor: pointer;
+  transition: transform 0.15s var(--ease-out), box-shadow 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.sos-fab:hover  { background: rgba(220,70,70,0.22); box-shadow: 0 4px 24px rgba(220,70,70,0.35); transform: translateX(calc(-50% + 44px)) scale(1.08); }
+.sos-fab:active { transform: translateX(calc(-50% + 44px)) scale(0.93); }
+
+/* ── Cry for Help confirmation modal ─────────────────────────────────── */
+.sos-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.sos-confirm {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  padding: 2rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.sos-confirm-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 12px rgba(220,80,80,0.35));
+}
+
+.sos-confirm-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink-0);
+  margin: 0;
+}
+
+.sos-confirm-body {
+  font-size: 0.875rem;
+  color: var(--ink-2);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 320px;
+}
+
+.sos-confirm-actions {
+  display: flex;
+  gap: 0.625rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.sos-confirm-cancel {
+  flex: 1;
+  padding: 0.7rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.sos-confirm-cancel:hover { background: var(--ink-5); }
+
+.sos-confirm-send {
+  flex: 2;
+  padding: 0.7rem 1.25rem;
+  border-radius: var(--r-pill);
+  border: none;
+  background: rgba(220, 70, 70, 0.85);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  transition: background 0.12s, transform 0.12s;
+}
+.sos-confirm-send:hover  { background: rgba(200, 50, 50, 0.92); }
+.sos-confirm-send:active { transform: scale(0.97); }
+.sos-confirm-send:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@media (max-width: 639px) {
+  .sos-fab {
+    bottom: calc(max(1.5rem, env(safe-area-inset-bottom)) + 64px + 0.5rem);
+    left: 50%;
+    transform: translateX(calc(-50% + 38px));
+  }
+  .sos-fab:hover  { transform: translateX(calc(-50% + 38px)) scale(1.08); }
+  .sos-fab:active { transform: translateX(calc(-50% + 38px)) scale(0.93); }
+  .sos-confirm { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+}
+
 .fab-badge {
   position: absolute;
   top: -3px;
@@ -4379,6 +4504,15 @@ html[data-theme="light"] .jl-toast {
 .feed-badge--flash  { background: rgba(255,200,50,0.14);  color: #e6b000; }
 .feed-badge--streak { background: rgba(255,110,30,0.14);  color: #ff7a38; }
 .feed-badge--new    { background: rgba(224,91,91,0.14);   color: var(--danger); }
+.feed-badge--sos    { background: rgba(220,70,70,0.15);   color: #e06060; font-weight: 600; }
+
+/* SOS / Cry for Help card */
+.feed-card--sos {
+  border-left: 3px solid rgba(220, 80, 80, 0.6);
+}
+.feed-card--sos .feed-card-emoji-wrap {
+  box-shadow: 0 0 0 3px rgba(220,80,80,0.18), 0 4px 16px rgba(220,80,80,0.25);
+}
 
 .feed-card-chat {
   font-size: 0.78rem;

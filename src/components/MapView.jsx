@@ -195,6 +195,26 @@ const PIN_STYLE = `
     font-size: 9px; pointer-events: none; z-index: 4;
   }
 
+  /* ── Cry for Help / SOS pin ─────────────────────── */
+  .hay-pin-wrap--sos::before,
+  .hay-pin-wrap--sos::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    background: none !important;
+    border: 2px solid rgba(240, 80, 80, 0.55);
+    animation: sosRing 1.4s ease-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hay-pin-wrap--sos::before { inset: -9px; }
+  .hay-pin-wrap--sos::after  { inset: -18px; animation-delay: 0.38s; }
+  @keyframes sosRing {
+    0%   { opacity: 0.85; transform: scale(0.9); }
+    100% { opacity: 0;    transform: scale(1.5); }
+  }
+  .hay-pin-wrap--sos .hay-pin { border-color: rgba(240, 90, 90, 0.92) !important; }
+
   /* ── Location preview pulse ─────────────────────── */
   .hay-preview-pin {
     width: 16px; height: 16px; border-radius: 50%;
@@ -424,19 +444,19 @@ export default function MapView({
       // ── Globe atmosphere ─────────────────────────────────────────────────
       if (theme === 'light') {
         map.current.setFog({
-          color:            'rgb(186, 210, 235)',
-          'high-color':     'rgb(100, 150, 215)',
-          'horizon-blend':  0.05,
-          'space-color':    'rgb(8, 12, 30)',
-          'star-intensity': 0.14,
+          color:            'rgb(200, 220, 240)',
+          'high-color':     'rgb(80, 130, 210)',
+          'horizon-blend':  0.07,
+          'space-color':    'rgb(4, 6, 18)',
+          'star-intensity': 0.45,
         })
       } else {
         map.current.setFog({
-          color:            'rgb(10, 14, 26)',
-          'high-color':     'rgb(20, 40, 80)',
-          'horizon-blend':  0.04,
-          'space-color':    'rgb(5, 8, 18)',
-          'star-intensity': 0.18,
+          color:            'rgb(8, 10, 22)',
+          'high-color':     'rgb(28, 55, 125)',
+          'horizon-blend':  0.07,
+          'space-color':    'rgb(2, 3, 10)',
+          'star-intensity': 0.62,
         })
       }
 
@@ -513,10 +533,11 @@ export default function MapView({
         filter: ['has', 'point_count'],
         paint: {
           'circle-color':        CLUSTER_MOOD_COLOR,
-          'circle-radius':       ['step', ['get', 'point_count'], 22, 5, 30, 20, 40],
+          'circle-radius':       ['step', ['get', 'point_count'], 24, 5, 33, 20, 44],
           'circle-stroke-width': 2.5,
-          'circle-stroke-color': 'rgba(255,255,255,0.22)',
-          'circle-blur':         0.12,
+          'circle-stroke-color': 'rgba(255,255,255,0.28)',
+          'circle-blur':         0.25,
+          'circle-opacity':      0.92,
         },
       })
 
@@ -787,7 +808,7 @@ export default function MapView({
       if (map.current.getZoom() > CLUSTER_ZOOM) return
       if (Date.now() - lastInteractionAt < 1500) return
       const c = map.current.getCenter()
-      map.current.easeTo({ center: [c.lng + 0.015, c.lat], duration: 0 })
+      map.current.easeTo({ center: [c.lng + 0.02, c.lat], duration: 0 })
     }
     rotateRafId = requestAnimationFrame(rotateTick)
 
@@ -960,7 +981,8 @@ export default function MapView({
 
         const wrap = document.createElement('div')
         wrap.className = 'hay-pin-wrap'
-        if (pin.hasStreak) wrap.classList.add('hay-pin-wrap--streak')
+        if (pin.hasStreak)    wrap.classList.add('hay-pin-wrap--streak')
+        if (pin.needsSupport) wrap.classList.add('hay-pin-wrap--sos')
         if (pin.message?.trim()) wrap.classList.add('hay-pin--has-message')
         wrap.setAttribute('role', 'button')
         wrap.setAttribute('tabindex', '0')

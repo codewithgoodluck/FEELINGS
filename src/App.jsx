@@ -100,6 +100,8 @@ export default function App() {
   const [toast, setToast]                     = useState(null)
   const [neighbourhood, setNeighbourhood]     = useState(null)
   const [celebration, setCelebration]         = useState(false)
+  const [showSosConfirm, setShowSosConfirm]   = useState(false)
+  const [sosLoading,     setSosLoading]       = useState(false)
   const prevConvsRef = useRef({})
 
   // ── Avatar + settings state ───────────────────────────────────────────────
@@ -321,6 +323,35 @@ export default function App() {
     setPlaceName(null)
     setPanel(PANEL.CHECKIN)
     if (userLocation) reverseGeocodePlaceName(loc.lat, loc.lng).then(setPlaceName).catch(() => {})
+  }
+
+  async function handleCryForHelp() {
+    if (!user) return
+    setSosLoading(true)
+    try {
+      const loc = userLocation || { lat: 0, lng: 0 }
+      const { lat, lng } = fuzzLocation(loc.lat, loc.lng)
+      const tapped = await reverseGeocodeCountry(lat, lng)
+      if (userCountry && tapped.code && tapped.code !== userCountry) {
+        showToast(`Support signal blocked — you can only share from ${userCountryName ?? userCountry}.`, 'error')
+        setShowSosConfirm(false)
+        return
+      }
+      await createPin({
+        uid: user.uid, lat, lng,
+        mood: '😰', message: '',
+        verified: userLocation !== null,
+        country: tapped.code,
+        isFlash: false, hasStreak: false, needsSupport: true,
+      })
+      setShowSosConfirm(false)
+      showToast('Support signal sent 💙 Someone may reach out soon.', 'success')
+      if (userLocation) mapFlyTo.current?.({ center: [lng, lat], zoom: 12 })
+    } catch (err) {
+      showToast(err?.message || 'Failed to send signal — check your connection.', 'error')
+    } finally {
+      setSosLoading(false)
+    }
   }
 
   function handleNeighbourhoodClick({ mood, count }) {
@@ -549,6 +580,49 @@ export default function App() {
           <div className="celebration-ring" />
           <div className="celebration-ring" />
           <p className="celebration-text">✨ Pin dropped!</p>
+        </div>
+      )}
+
+      {/* Cry for Help FAB */}
+      {user && panel === PANEL.NONE && !showSosConfirm && (
+        <button
+          className="sos-fab"
+          onClick={() => setShowSosConfirm(true)}
+          aria-label="Cry for help — send a support signal"
+          title="I need support right now"
+        >
+          ❤️‍🩹
+        </button>
+      )}
+
+      {/* Cry for Help confirmation modal */}
+      {showSosConfirm && (
+        <div className="sos-overlay" onClick={() => !sosLoading && setShowSosConfirm(false)} aria-modal="true" role="dialog">
+          <div className="sos-confirm slide-up" onClick={e => e.stopPropagation()}>
+            <div className="sos-confirm-icon" aria-hidden="true">❤️‍🩹</div>
+            <h2 className="sos-confirm-title">I need support right now</h2>
+            <p className="sos-confirm-body">
+              Sending a support signal drops a pin at your location so others nearby can reach out with a message of care. Your identity stays anonymous.
+            </p>
+            <div className="sos-confirm-actions">
+              <button
+                className="sos-confirm-cancel"
+                onClick={() => setShowSosConfirm(false)}
+                disabled={sosLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="sos-confirm-send"
+                onClick={handleCryForHelp}
+                disabled={sosLoading}
+              >
+                {sosLoading
+                  ? <span className="auth-submit-spinner" aria-label="Sending…" />
+                  : 'Send signal'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

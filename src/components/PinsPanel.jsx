@@ -148,13 +148,18 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
             pins.map(pin => {
               const isActive  = activePinId === pin.id
               const hasUnread = unreadPinIds?.has(pin.id)
-              const accentColor = MOOD_COLORS[pin.mood] ?? 'var(--accent)'
+              const accentColor = pin.needsSupport ? '#e05050' : (MOOD_COLORS[pin.mood] ?? 'var(--accent)')
 
               return (
                 <article
                   key={pin.id}
                   ref={el => { itemEls.current[pin.id] = el }}
-                  className={`feed-card${isActive ? ' feed-card--active' : ''}${hasUnread ? ' feed-card--unread' : ''}`}
+                  className={[
+                    'feed-card',
+                    isActive        ? 'feed-card--active'  : '',
+                    hasUnread       ? 'feed-card--unread'  : '',
+                    pin.needsSupport ? 'feed-card--sos'    : '',
+                  ].filter(Boolean).join(' ')}
                   style={{ '--mood-color': accentColor }}
                 >
                   <button className="feed-card-body" onClick={() => handleSelect(pin)}>
@@ -188,9 +193,10 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
                   {/* Footer: badges + chat */}
                   <div className="feed-card-footer">
                     <div className="feed-card-badges">
-                      {pin.isFlash   && <span className="feed-badge feed-badge--flash">⚡ Flash</span>}
-                      {pin.hasStreak && <span className="feed-badge feed-badge--streak">🔥 Streak</span>}
-                      {hasUnread     && <span className="feed-badge feed-badge--new">● New</span>}
+                      {pin.needsSupport && <span className="feed-badge feed-badge--sos">❤️‍🩹 Needs support</span>}
+                      {pin.isFlash      && <span className="feed-badge feed-badge--flash">⚡ Flash</span>}
+                      {pin.hasStreak    && <span className="feed-badge feed-badge--streak">🔥 Streak</span>}
+                      {hasUnread        && <span className="feed-badge feed-badge--new">● New</span>}
                     </div>
                     <button
                       className={`feed-card-chat${hasUnread ? ' feed-card-chat--unread' : ''}`}
