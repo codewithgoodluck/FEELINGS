@@ -2300,8 +2300,8 @@
 .sos-confirm {
   width: 100%;
   max-width: 420px;
-  background: var(--sheet-bg);
-  border: 1px solid var(--border);
+  background-color: #1c1c26;
+  border: 1px solid rgba(255,255,255,0.10);
   border-radius: var(--r-lg) var(--r-lg) 0 0;
   padding: 2rem 1.5rem 1.5rem;
   display: flex;
@@ -2309,6 +2309,11 @@
   align-items: center;
   gap: 0.75rem;
   text-align: center;
+}
+
+html[data-theme="light"] .sos-confirm {
+  background-color: #f4f5fa;
+  border-color: rgba(0,0,0,0.10);
 }
 
 .sos-confirm-icon {
