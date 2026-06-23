@@ -134,7 +134,17 @@ export default function ProfilePanel({
             {isAnonymous ? 'Anonymous account' : user?.email}
           </p>
         </div>
-        <button className="icon-btn profile-close-btn" onClick={onClose} aria-label="Close">✕</button>
+        <div className="profile-header-actions">
+          <button
+            className="pins-panel-theme-btn"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          >
+            {theme === 'dark' ? '☀' : '🌙'}
+          </button>
+          <button className="icon-btn profile-close-btn" onClick={onClose} aria-label="Close">✕</button>
+        </div>
       </div>
 
       {showAvatarPicker && (

@@ -3498,6 +3498,7 @@ html[data-theme="light"] {
 }
 
 .profile-close-btn { flex-shrink: 0; }
+.profile-header-actions { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
 
 /* ── Section layout ── */
 
