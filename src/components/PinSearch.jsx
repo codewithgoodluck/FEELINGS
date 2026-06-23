@@ -91,7 +91,10 @@ export default function PinSearch({ onClose, onFlyTo }) {
 
           {showResults && results.map((pin) => (
             <div key={pin.id} className="pin-result-card" role="listitem">
-              <span className="pin-result-mood" aria-hidden="true">{pin.mood}</span>
+              <div className="pin-result-mood-col">
+                <span className="pin-result-mood" aria-hidden="true">{pin.mood}</span>
+                <span className="pin-result-mood-name">{MOOD_LABELS[pin.mood] ?? ''}</span>
+              </div>
               <div className="pin-result-info">
                 <p className="pin-result-msg">
                   {pin.message

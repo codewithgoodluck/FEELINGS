@@ -72,9 +72,8 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(null)
 
   // ── UI state ───────────────────────────────────────────────────────────────
-  const [panel, setPanel]                     = useState(PANEL.NONE)
-  const [showFeedPanel, setShowFeedPanel]     = useState(() => window.innerWidth >= 640)
-  const [feedCloseSignal, setFeedCloseSignal] = useState(0)
+  const [panel, setPanel]                 = useState(PANEL.NONE)
+  const [showFeedPanel, setShowFeedPanel] = useState(() => window.innerWidth >= 640)
   const [showSearch, setShowSearch]           = useState(false)
   const mapFlyTo                              = useRef(null)
   const [pendingLocation, setPendingLocation] = useState(null)
@@ -242,7 +241,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app${showFeedPanel ? ' feed-panel-open' : ''}`}>
       <MapView
         key={theme}
         theme={theme}
@@ -324,17 +323,15 @@ export default function App() {
         ?
       </button>
 
-      <button
-        className="feed-btn"
-        onClick={() => {
-          if (showFeedPanel) setFeedCloseSignal(s => s + 1)
-          else setShowFeedPanel(true)
-        }}
-        aria-label="Live pin feed"
-        aria-pressed={showFeedPanel}
-      >
-        ☰
-      </button>
+      {!showFeedPanel && (
+        <button
+          className="feed-btn"
+          onClick={() => setShowFeedPanel(true)}
+          aria-label="Open live pin feed"
+        >
+          ☰
+        </button>
+      )}
 
       {showSearch && (
         <PinSearch
@@ -437,7 +434,6 @@ export default function App() {
 
       {showFeedPanel && (
         <PinsPanel
-          closeSignal={feedCloseSignal}
           onClose={() => setShowFeedPanel(false)}
           onFlyTo={(lng, lat) => mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })}
           onPinClick={(pin) => { setActivePin(pin); setPanel(PANEL.PEEK) }}

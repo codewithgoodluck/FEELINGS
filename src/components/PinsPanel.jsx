@@ -16,11 +16,10 @@ function timeAgo(ts) {
 
 const CLOSE_MS = 300
 
-export default function PinsPanel({ onClose, onFlyTo, onPinClick, closeSignal = 0 }) {
+export default function PinsPanel({ onClose, onFlyTo, onPinClick }) {
   const [pins, setPins]       = useState([])
   const [closing, setClosing] = useState(false)
   const timerRef              = useRef(null)
-  const dismissRef            = useRef(null)
 
   useEffect(() => subscribeToPins(setPins), [])
   useEffect(() => () => clearTimeout(timerRef.current), [])
@@ -30,12 +29,6 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, closeSignal = 
     setClosing(true)
     timerRef.current = setTimeout(afterClose ?? onClose, CLOSE_MS)
   }
-
-  dismissRef.current = dismiss
-
-  useEffect(() => {
-    if (closeSignal > 0) dismissRef.current()
-  }, [closeSignal])
 
   function handleSelect(pin) {
     onFlyTo(pin.lng, pin.lat)
