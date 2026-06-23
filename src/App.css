@@ -3470,8 +3470,9 @@ html[data-theme="light"] .jl-toast {
 }
 
 .pins-panel-time {
-  font-size: 0.75rem;
-  color: var(--ink-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-1);
 }
 
 .pins-panel-location {
