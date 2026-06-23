@@ -18,7 +18,7 @@ import { useTheme } from './hooks/useTheme'
 import ProfilePanel from './components/ProfilePanel'
 import JoinLeaveToast from './components/JoinLeaveToast'
 import PinsPanel from './components/PinsPanel'
-import { subscribeToLivePresence, countryFlag } from './utils/presence'
+import { subscribeToLivePresence, countryFlag, countryName } from './utils/presence'
 import './App.css'
 
 const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile' }
@@ -70,6 +70,9 @@ export default function App() {
     () => sessionStorage.getItem('hay_location_asked') === '1'
   )
   const [userLocation, setUserLocation] = useState(null)
+  const [userCountry,  setUserCountry]  = useState(
+    () => sessionStorage.getItem('hay_user_country') || null
+  )
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [panel, setPanel]                 = useState(PANEL.NONE)
@@ -158,7 +161,13 @@ export default function App() {
     setPendingLocation(finalLoc)
     setPlaceName(null)
     setPanel(PANEL.CHECKIN)
-    if (loc) reverseGeocodePlaceName(loc.lat, loc.lng).then(setPlaceName).catch(() => {})
+    if (loc) {
+      reverseGeocodePlaceName(loc.lat, loc.lng).then(setPlaceName).catch(() => {})
+      // Store home country so press-and-hold drops can be restricted to it
+      reverseGeocodeCountry(loc.lat, loc.lng).then((c) => {
+        if (c) { setUserCountry(c); sessionStorage.setItem('hay_user_country', c) }
+      }).catch(() => {})
+    }
   }
 
   function handleLocationSkip() {
@@ -180,6 +189,11 @@ export default function App() {
     try {
       const { lat, lng } = fuzzLocation(lngLat.lat, lngLat.lng)
       const country      = await reverseGeocodeCountry(lat, lng)
+      // Block drops outside the user's home country (only enforced when country is known)
+      if (userCountry && country && country !== userCountry) {
+        showToast(`You can only drop pins in ${countryName(userCountry) ?? userCountry}.`, 'error')
+        return
+      }
       const streakCount  = recordCheckIn()
       const hasStreak    = streakCount >= 7
       await createPin({ uid: user.uid, lat, lng, mood, message: '', verified: userLocation !== null, country, isFlash: false, hasStreak })
