@@ -7,7 +7,7 @@ import PinSheet from './components/PinSheet'
 import MirrorPrompt from './components/MirrorPrompt'
 import HelpPanel from './components/HelpPanel'
 import { createPin, deactivatePin, subscribeToUserConversations, getPin, clearAllPins } from './utils/db'
-import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry, reverseGeocodePlaceName } from './utils/location'
+import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry, reverseGeocodePlaceName, haversineKm } from './utils/location'
 import { getAnonColour, getAnonIdentity } from './utils/identity'
 import { recordCheckIn } from './utils/streak'
 import { initPresence, heartbeat, markInactive } from './utils/presence'
@@ -186,6 +186,19 @@ export default function App() {
   async function handleHoldDrop(lngLat, mood) {
     if (!user) return
     if (!isFinite(lngLat.lat) || !isFinite(lngLat.lng) || Math.abs(lngLat.lat) > 90 || Math.abs(lngLat.lng) > 180) return
+
+    // ── Location guard (sync, no network) ────────────────────────────────────
+    // If we have the user's GPS, the tap point must be within 100 km of it.
+    // Pins outside that radius are deactivated — users must place pins where they
+    // physically are, not fake a remote location on the globe.
+    if (userLocation) {
+      const dist = haversineKm(lngLat.lat, lngLat.lng, userLocation.lat, userLocation.lng)
+      if (dist > 100) {
+        showToast('Pin deactivated — you can only drop pins near your current location.', 'error')
+        return
+      }
+    }
+
     try {
       const { lat, lng } = fuzzLocation(lngLat.lat, lngLat.lng)
       const country      = await reverseGeocodeCountry(lat, lng)
@@ -218,6 +231,10 @@ export default function App() {
 
   async function handleCheckInSubmit({ mood, message, isFlash }) {
     if (!pendingLocation || !user) throw new Error('Not ready — please wait a moment and try again')
+    if (userLocation) {
+      const dist = haversineKm(pendingLocation.lat, pendingLocation.lng, userLocation.lat, userLocation.lng)
+      if (dist > 100) throw new Error('Pin deactivated — you can only drop pins near your current location.')
+    }
     const { lat, lng } = fuzzLocation(pendingLocation.lat, pendingLocation.lng)
     const country      = await reverseGeocodeCountry(lat, lng)
     const streakCount  = recordCheckIn()

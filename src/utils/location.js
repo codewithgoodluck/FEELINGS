@@ -1,5 +1,16 @@
 const FUZZ_DEGREES = 0.0005 // ~50 m — enough for privacy, close enough to be useful
 
+// Great-circle distance in kilometres (Haversine formula)
+export function haversineKm(lat1, lng1, lat2, lng2) {
+  const R     = 6371
+  const toRad = (d) => d * Math.PI / 180
+  const dLat  = toRad(lat2 - lat1)
+  const dLng  = toRad(lng2 - lng1)
+  const a = Math.sin(dLat / 2) ** 2
+          + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 export function fuzzLocation(lat, lng) {
   const latOffset = (Math.random() - 0.5) * FUZZ_DEGREES * 2
   const lngOffset = (Math.random() - 0.5) * FUZZ_DEGREES * 2
