@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { subscribeToPins } from '../utils/db'
 import { countryFlag, countryName } from '../utils/presence'
+import { useTheme } from '../hooks/useTheme'
 
 function timeAgo(ts) {
   if (!ts) return ''
@@ -31,6 +32,7 @@ const MOOD_COLORS = {
 const CLOSE_MS = 300
 
 export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId, unreadPinIds }) {
+  const { theme, toggle: toggleTheme } = useTheme()
   const [pins, setPins]       = useState([])
   const [closing, setClosing] = useState(false)
   const timerRef              = useRef(null)
@@ -104,7 +106,17 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
               <span className="pins-panel-live-dot" aria-hidden="true" />
               Activity
             </h2>
-            <button className="pins-panel-close" onClick={() => dismiss()} aria-label="Close">✕</button>
+            <div className="pins-panel-header-actions">
+              <button
+                className="pins-panel-theme-btn"
+                onClick={toggleTheme}
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              >
+                {theme === 'dark' ? '☀' : '🌙'}
+              </button>
+              <button className="pins-panel-close" onClick={() => dismiss()} aria-label="Close">✕</button>
+            </div>
           </div>
           <p className="pins-panel-subtitle">
             <span className="pins-panel-count-badge">{pins.length}</span>
