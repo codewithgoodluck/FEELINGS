@@ -6,7 +6,7 @@ import ChatPanel from './components/ChatPanel'
 import PinSheet from './components/PinSheet'
 import MirrorPrompt from './components/MirrorPrompt'
 import HelpPanel from './components/HelpPanel'
-import { createPin, deactivatePin, subscribeToUserConversations, getPin, clearAllPins } from './utils/db'
+import { createPin, deactivatePin, subscribeToUserConversations, getPin, clearAllPins, countPinsWithMood } from './utils/db'
 import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry, reverseGeocodePlaceName, haversineKm } from './utils/location'
 import { getAnonColour, getAnonIdentity, getAvatar } from './utils/identity'
 import { recordCheckIn } from './utils/streak'
@@ -22,9 +22,14 @@ import { subscribeToLivePresence, countryFlag, countryName } from './utils/prese
 import CountryLockSheet from './components/CountryLockSheet'
 import BottomNav from './components/BottomNav'
 import LocationGate from './components/LocationGate'
+import MoodJournal from './components/MoodJournal'
 import './App.css'
 
-const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile' }
+const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile', JOURNAL: 'journal' }
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+}
 
 // Track tip visibility once per localStorage key
 function useTip(key) {
@@ -106,6 +111,16 @@ export default function App() {
   const [celebration, setCelebration]         = useState(false)
   const [showSosConfirm, setShowSosConfirm]   = useState(false)
   const [sosLoading,     setSosLoading]       = useState(false)
+  const [sameMoodNudge,  setSameMoodNudge]    = useState(null) // { emoji, count }
+
+  // Daily nudge: show if user hasn't checked in today
+  const [showDailyNudge, setShowDailyNudge] = useState(
+    () => {
+      const lastDate = localStorage.getItem('hay_last_checkin_date')
+      const gateSet  = localStorage.getItem('hay_location_gate') === '1'
+      return gateSet && lastDate !== getTodayKey()
+    }
+  )
   const prevConvsRef = useRef({})
 
   // ── Avatar + settings state ───────────────────────────────────────────────
@@ -332,12 +347,20 @@ export default function App() {
     const streakCount  = recordCheckIn()
     const hasStreak    = streakCount >= 7
     await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country: tapped.code, isFlash, hasStreak })
+    localStorage.setItem('hay_last_checkin_date', getTodayKey())
+    setShowDailyNudge(false)
     setPanel(PANEL.NONE)
     setPendingLocation(null)
     mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })
     setCelebration(true)
     setTimeout(() => setCelebration(false), 2800)
     showToast('Pin dropped! Open the live feed to see it.', 'success')
+    try {
+      const count = (await countPinsWithMood(mood)) - 1
+      if (count > 0) {
+        setTimeout(() => showToast(`${count} ${count === 1 ? 'person' : 'people'} also feeling ${mood} right now`, 'info'), 3500)
+      }
+    } catch {}
   }
 
   function handleShareHere() {
@@ -579,6 +602,25 @@ export default function App() {
         />
       )}
 
+      {/* Daily nudge banner — shown once per day above the FAB */}
+      {showDailyNudge && panel === PANEL.NONE && (
+        <div className="daily-nudge" role="status">
+          <span className="daily-nudge-text">How are you feeling today?</span>
+          <button
+            className="daily-nudge-cta"
+            onClick={() => {
+              setShowDailyNudge(false)
+              handleFabClick()
+            }}
+          >Share →</button>
+          <button
+            className="daily-nudge-dismiss"
+            onClick={() => setShowDailyNudge(false)}
+            aria-label="Dismiss"
+          >✕</button>
+        </div>
+      )}
+
       {/* FAB — drop a pin */}
       {panel === PANEL.NONE && (
         <button className="fab" onClick={handleFabClick} aria-label="Share how you're feeling">
@@ -722,7 +764,12 @@ export default function App() {
           onClusterPinsChange={(v) => { setClusterPins(v); localStorage.setItem('hay_pin_cluster', v ? '1' : '0') }}
           hideCountryBadge={hideCountryBadge}
           onHideCountryBadgeChange={(v) => { setHideCountryBadge(v); localStorage.setItem('hay_hide_country', v ? '1' : '0') }}
+          onOpenJournal={() => { setPanel(PANEL.JOURNAL) }}
         />
+      )}
+
+      {panel === PANEL.JOURNAL && (
+        <MoodJournal onClose={() => setPanel(PANEL.NONE)} />
       )}
 
       {showFeedPanel && (

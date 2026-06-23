@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HowAreYou — Pin Interactions Concept</title>
+<style>
+  :root{
+    --bg:#0f1117;
+    --card:#161924;
+    --ink:#f5f3ef;
+    --ink-dim:rgba(245,243,239,.5);
+    --ink-faint:rgba(245,243,239,.28);
+    --accent:#e8c468;
+    --ring:rgba(232,196,104,.4);
+    --dot:rgba(245,243,239,.16);
+    --bubble-mine:#3a3520;
+    --bubble-theirs:#1d212c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
+  html,body{
+    height:100%;
+    background:#05060a;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--ink);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .stage-label{
+    position:fixed; top:18px; left:50%; transform:translateX(-50%);
+    font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:rgba(245,243,239,.45); z-index:80; text-align:center; width:300px;
+  }
+  .phone{
+    position:relative; width:380px; height:760px;
+    background:var(--bg); border-radius:42px;
+    border:1px solid rgba(255,255,255,.08);
+    box-shadow:0 40px 90px -20px rgba(0,0,0,.7), 0 0 0 8px #0a0b10;
+    overflow:hidden; touch-action:none;
+  }
+  .notch{ position:absolute; top:10px; left:50%; transform:translateX(-50%); width:120px; height:22px; background:#000; border-radius:14px; z-index:90; }
+
+  .map-canvas{ position:absolute; inset:0;
+    background:radial-gradient(ellipse at 50% 30%, #161b2b 0%, #0a0c14 70%); }
+  .world-dot{ position:absolute; width:2px;height:2px;border-radius:50%; background:var(--dot); }
+
+  .stat-bar{
+    position:absolute; top:18px; left:18px; right:18px;
+    display:flex; align-items:center; gap:10px;
+    background:rgba(15,17,23,.7); backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.08); border-radius:14px;
+    padding:10px 14px; font-size:12.5px; z-index:20;
+  }
+  .stat-dot{ width:7px;height:7px;border-radius:50%;background:#5fd98a; box-shadow:0 0 8px #5fd98a; }
+  .stat-bar b{ color:var(--ink); } .stat-bar span{ color:var(--ink-dim); }
+
+  /* existing pins */
+  .map-pin{
+    position:absolute; font-size:20px;
+    transform:translate(-50%,-100%);
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,.5));
+    animation:bob 3.6s ease-in-out infinite; cursor:pointer; z-index:12;
+  }
+  @keyframes bob{ 0%,100%{margin-top:0;} 50%{margin-top:-5px;} }
+  .map-pin.tapped{ animation:none; transform:translate(-50%,-100%) scale(1.15); }
+
+  /* long-press charge ring */
+  .charge-wrap{ position:absolute; transform:translate(-50%,-50%); z-index:15; pointer-events:none; }
+  .charge-ring{
+    width:46px; height:46px; border-radius:50%;
+    background:conic-gradient(var(--accent) calc(var(--p,0)*1%), rgba(255,255,255,.12) 0);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+            mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  }
+  .charge-ghost{
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-160%);
+    font-size:20px; opacity:.85;
+  }
+
+  /* mood popover */
+  .mood-pop{
+    position:absolute; transform:translate(-50%, calc(-100% - 14px));
+    background:rgba(20,22,30,.97); border:1px solid rgba(255,255,255,.12);
+    border-radius:16px; padding:8px; display:flex; gap:6px;
+    opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease;
+    z-index:30;
+  }
+  .mood-pop.show{ opacity:1; pointer-events:auto; transform:translate(-50%, calc(-100% - 6px)); }
+  .mood-pop button{
+    font-size:19px; width:34px; height:34px; border-radius:10px;
+    background:rgba(255,255,255,.05); border:none; cursor:pointer;
+  }
+  .mood-pop button:active{ background:rgba(232,196,104,.25); }
+
+  .hint-toast{
+    position:absolute; transform:translate(-50%,-130%);
+    background:rgba(20,22,30,.95); border:1px solid rgba(255,255,255,.1);
+    color:var(--ink-dim); font-size:11.5px; padding:7px 11px; border-radius:10px;
+    opacity:0; transition:opacity .25s ease; pointer-events:none; z-index:30; white-space:nowrap;
+  }
+  .hint-toast.show{ opacity:1; }
+
+  .land-ring{
+    position:absolute; width:10px;height:10px; border-radius:50%;
+    transform:translate(-50%,-50%);
+    border:1.5px solid var(--ring); pointer-events:none; z-index:11;
+    animation:landRing .8s ease-out forwards;
+  }
+  @keyframes landRing{ 0%{width:10px;height:10px;opacity:.9;} 100%{width:90px;height:90px;opacity:0;} }
+
+  .fab{
+    position:absolute; right:20px; bottom:90px; width:54px; height:54px;
+    border-radius:50%; background:var(--accent); color:#1a1306; font-size:26px;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 8px 24px rgba(232,196,104,.35); z-index:20; cursor:pointer;
+  }
+
+  /* ---- the morphing sheet: hidden -> peek -> full chat ---- */
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0; top:100%;
+    background:var(--card); border-radius:24px 24px 0 0;
+    box-shadow:0 -10px 40px rgba(0,0,0,.5);
+    transition:top .45s cubic-bezier(.22,.8,.25,1), border-radius .4s ease;
+    z-index:50; overflow:hidden; display:flex; flex-direction:column;
+  }
+  .sheet.peek{ top:calc(100% - 196px); }
+  .sheet.full{ top:0; border-radius:0; }
+
+  .sheet-handle{ width:36px; height:4px; border-radius:3px; background:rgba(255,255,255,.15); margin:10px auto 4px; flex:0 0 auto; }
+
+  .peek-content, .full-content{
+    position:absolute; inset:0; padding-top:20px;
+    opacity:0; transition:opacity .25s ease; pointer-events:none;
+  }
+  .sheet.peek .peek-content{ opacity:1; pointer-events:auto; transition-delay:.15s; }
+  .sheet.full .full-content{ opacity:1; pointer-events:auto; transition-delay:.2s; display:flex; flex-direction:column; height:100%; }
+
+  .peek-row{ display:flex; align-items:center; gap:12px; padding:6px 20px 14px; }
+  .peek-emoji{ font-size:34px; }
+  .peek-name{ font-size:14.5px; font-weight:600; }
+  .peek-msg{ font-size:12.5px; color:var(--ink-dim); margin-top:2px; }
+  .peek-actions{ display:flex; gap:10px; padding:0 20px; }
+  .btn{ border:none; border-radius:12px; padding:11px 16px; font-size:13.5px; cursor:pointer; font-weight:600; }
+  .btn-primary{ background:var(--accent); color:#1a1306; flex:1; }
+  .btn-ghost{ background:rgba(255,255,255,.06); color:var(--ink-dim); }
+
+  .chat-header{
+    display:flex; align-items:center; gap:10px; padding:14px 16px;
+    border-bottom:1px solid rgba(255,255,255,.06); flex:0 0 auto;
+  }
+  .chat-back{ background:none; border:none; color:var(--ink-dim); font-size:18px; cursor:pointer; padding:4px; }
+  .chat-avatar{ font-size:20px; }
+  .chat-name{ font-size:14px; font-weight:600; flex:1; }
+  .chat-close{ background:none; border:none; color:var(--ink-faint); font-size:16px; cursor:pointer; }
+
+  .chat-thread{ flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .bubble{ max-width:76%; padding:9px 13px; border-radius:16px; font-size:13px; line-height:1.4; opacity:0; transform:translateY(6px); animation:bubbleIn .3s ease forwards; }
+  @keyframes bubbleIn{ to{opacity:1; transform:translateY(0);} }
+  .bubble.theirs{ align-self:flex-start; background:var(--bubble-theirs); border-bottom-left-radius:4px; }
+  .bubble.mine{ align-self:flex-end; background:var(--bubble-mine); color:#f5ecc8; border-bottom-right-radius:4px; }
+
+  .chat-input-row{ display:flex; gap:8px; padding:12px 14px; border-top:1px solid rgba(255,255,255,.06); flex:0 0 auto; }
+  .chat-input{
+    flex:1; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08);
+    border-radius:14px; padding:10px 13px; color:var(--ink); font-size:13px; outline:none;
+  }
+  .chat-send{ background:var(--accent); color:#1a1306; border:none; border-radius:14px; padding:0 16px; font-size:13px; font-weight:700; cursor:pointer; }
+
+  .replay{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14);
+    color:var(--ink-dim); font-size:12.5px; padding:9px 18px; border-radius:999px; cursor:pointer; z-index:100;
+  }
+  .replay:hover{ color:var(--ink); border-color:rgba(255,255,255,.3); }
+</style>
+</head>
+<body>
+
+  <div class="stage-label" id="stageLabel">Press &amp; hold anywhere to drop a pin · tap a pin to peek</div>
+
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="map-canvas" id="mapCanvas">
+
+      <div class="stat-bar">
+        <div class="stat-dot"></div>
+        <b>1,247</b><span>&nbsp;live&nbsp;·&nbsp;</span><b>62</b><span>&nbsp;countries</span>
+      </div>
+
+      <!-- existing pins -->
+      <div class="map-pin" data-mood="😌" data-name="Amber Owl" data-msg="Long day but getting through it." style="left:40%; top:32%;">😌</div>
+      <div class="map-pin" data-mood="😊" data-name="Coral Fox" data-msg="Coffee finally kicked in ☕" style="left:60%; top:40%;">😊</div>
+      <div class="map-pin" data-mood="🤔" data-name="Sage Heron" data-msg="Still figuring some things out." style="left:27%; top:52%;">🤔</div>
+      <div class="map-pin" data-mood="😰" data-name="Indigo Wren" data-msg="Big interview tomorrow, nervous." style="left:68%; top:56%;">😰</div>
+
+      <div class="fab" id="fab">+</div>
+    </div>
+
+    <div class="sheet" id="sheet">
+      <div class="sheet-handle"></div>
+
+      <div class="peek-content" id="peekContent">
+        <div class="peek-row">
+          <div class="peek-emoji" id="peekEmoji">😌</div>
+          <div>
+            <div class="peek-name" id="peekName">Amber Owl</div>
+            <div class="peek-msg" id="peekMsg">Long day but getting through it.</div>
+          </div>
+        </div>
+        <div class="peek-actions">
+          <button class="btn btn-ghost" id="peekClose">✕</button>
+          <button class="btn btn-primary" id="peekSayHi">👋 Say hi</button>
+        </div>
+      </div>
+
+      <div class="full-content" id="fullContent">
+        <div class="chat-header">
+          <button class="chat-back" id="chatBack">←</button>
+          <div class="chat-avatar" id="chatAvatar">😌</div>
+          <div class="chat-name" id="chatName">Amber Owl</div>
+          <button class="chat-close" id="chatClose">✕</button>
+        </div>
+        <div class="chat-thread" id="chatThread"></div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chatInput" placeholder="Message…" />
+          <button class="chat-send" id="chatSend">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="replay" id="replayBtn">↺ Replay</button>
+
+<script>
+  const canvas = document.getElementById('mapCanvas');
+  const sheet = document.getElementById('sheet');
+  const stageLabel = document.getElementById('stageLabel');
+
+  // world dots
+  const regions = [
+    {x:[8,28], y:[14,40], n:50}, {x:[20,34], y:[42,72], n:30},
+    {x:[44,54], y:[14,30], n:22}, {x:[44,58], y:[32,68], n:45},
+    {x:[56,86], y:[10,46], n:60}, {x:[74,86], y:[60,72], n:16},
+  ];
+  regions.forEach(r => { for(let i=0;i<r.n;i++){
+    const d=document.createElement('div'); d.className='world-dot';
+    d.style.left=(r.x[0]+Math.random()*(r.x[1]-r.x[0]))+'%';
+    d.style.top=(r.y[0]+Math.random()*(r.y[1]-r.y[0]))+'%';
+    canvas.insertBefore(d, canvas.firstChild.nextSibling);
+  }});
+
+  const ICEBREAKERS = {
+    '😌':"Hey, saw you're feeling calm today — what's helping with that?",
+    '😊':"Hey! Glad today's a good one for you 🙂",
+    '🤔':"Hey, what's on your mind today?",
+    '😰':"Hey, good luck tomorrow — want to talk it through?",
+  };
+  const REPLIES = {
+    '😌':"Aw thanks for asking 🙂 just taking it slow today.",
+    '😊':"Thank you! Honestly the little things today 😊",
+    '🤔':"Appreciate you asking. Still sorting it out, but talking helps.",
+    '😰':"That actually means a lot, thank you 🙏",
+  };
+
+  let currentPin = null;
+
+  // ---- press-and-hold to drop a pin ----
+  let chargeTimer = null, chargeEl = null, startPt = null;
+  const HOLD_MS = 550;
+
+  function pct(e, rectEl){
+    const r = rectEl.getBoundingClientRect();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: ((cx-r.left)/r.width)*100, y: ((cy-r.top)/r.height)*100 };
+  }
+
+  function startCharge(e){
+    if (e.target.closest('.map-pin') || e.target.closest('.fab')) return;
+    if (sheet.classList.contains('peek') || sheet.classList.contains('full')) return;
+    const p = pct(e, canvas);
+    startPt = p;
+    chargeEl = document.createElement('div');
+    chargeEl.className = 'charge-wrap';
+    chargeEl.style.left = p.x+'%'; chargeEl.style.top = p.y+'%';
+    chargeEl.innerHTML = `<div class="charge-ring"></div><div class="charge-ghost">📍</div>`;
+    canvas.appendChild(chargeEl);
+    stageLabel.textContent = 'Hold a little longer…';
+
+    const ringEl = chargeEl.querySelector('.charge-ring');
+    const start = performance.now();
+    function tick(now){
+      const t = Math.min(1,(now-start)/HOLD_MS);
+      ringEl.style.setProperty('--p', Math.round(t*100));
+      if (t < 1 && chargeEl) chargeTimer = requestAnimationFrame(tick);
+      else if (chargeEl) armDrop(p);
+    }
+    chargeTimer = requestAnimationFrame(tick);
+  }
+
+  function cancelCharge(tooSoon){
+    if (chargeTimer) cancelAnimationFrame(chargeTimer);
+    chargeTimer = null;
+    if (chargeEl){
+      const wasShort = chargeEl.querySelector('.charge-ring').style.getPropertyValue('--p') < 70;
+      if (tooSoon && wasShort && startPt) showHint(startPt, 'Press & hold to drop a pin here');
+      chargeEl.remove(); chargeEl = null;
+    }
+    stageLabel.textContent = 'Press & hold anywhere to drop a pin · tap a pin to peek';
+  }
+
+  function showHint(p, text){
+    const t = document.createElement('div');
+    t.className = 'hint-toast'; t.textContent = text;
+    t.style.left = p.x+'%'; t.style.top = p.y+'%';
+    canvas.appendChild(t);
+    requestAnimationFrame(()=>t.classList.add('show'));
+    setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),250); }, 1100);
+  }
+
+  function armDrop(p){
+    chargeEl.remove(); chargeEl = null;
+    stageLabel.textContent = 'Pick a mood for this spot';
+    const pop = document.createElement('div');
+    pop.className = 'mood-pop';
+    pop.style.left = p.x+'%'; pop.style.top = p.y+'%';
+    ['😊','😔','😤','😴','🤔','🥳'].forEach(m=>{
+      const b=document.createElement('button'); b.textContent=m;
+      b.onclick=()=>{ dropPin(p,m); pop.remove(); };
+      pop.appendChild(b);
+    });
+    canvas.appendChild(pop);
+    requestAnimationFrame(()=>pop.classList.add('show'));
+  }
+
+  function dropPin(p, mood){
+    const ring = document.createElement('div');
+    ring.className='land-ring'; ring.style.left=p.x+'%'; ring.style.top=p.y+'%';
+    canvas.appendChild(ring); setTimeout(()=>ring.remove(),850);
+
+    const pin = document.createElement('div');
+    pin.className='map-pin tapped'; pin.textContent=mood;
+    pin.style.left=p.x+'%'; pin.style.top=p.y+'%';
+    pin.style.transition='transform .55s cubic-bezier(.34,1.56,.64,1), opacity .3s ease';
+    pin.style.transform='translate(-50%,-260%) scale(.5)'; pin.style.opacity='0';
+    canvas.appendChild(pin);
+    requestAnimationFrame(()=>{ pin.style.transform='translate(-50%,-100%) scale(1)'; pin.style.opacity='1'; });
+    setTimeout(()=>{ pin.classList.remove('tapped'); pin.style.animation='bob 3.6s ease-in-out infinite'; }, 600);
+
+    stageLabel.textContent = 'Pin dropped — visible to the world for 24h';
+    setTimeout(()=>{ stageLabel.textContent='Press & hold anywhere to drop a pin · tap a pin to peek'; }, 2200);
+  }
+
+  canvas.addEventListener('pointerdown', startCharge);
+  canvas.addEventListener('pointerup', ()=>cancelCharge(true));
+  canvas.addEventListener('pointerleave', ()=>cancelCharge(false));
+
+  document.getElementById('fab').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    armDrop({x:50,y:46});
+  });
+
+  // ---- tap a pin -> peek -> chat morph ----
+  function openPeek(pinEl){
+    currentPin = { mood: pinEl.dataset.mood, name: pinEl.dataset.name, msg: pinEl.dataset.msg };
+    document.getElementById('peekEmoji').textContent = currentPin.mood;
+    document.getElementById('peekName').textContent = currentPin.name;
+    document.getElementById('peekMsg').textContent = currentPin.msg;
+    document.getElementById('chatAvatar').textContent = currentPin.mood;
+    document.getElementById('chatName').textContent = currentPin.name;
+    document.getElementById('chatThread').innerHTML = '';
+    sheet.classList.remove('full');
+    sheet.classList.add('peek');
+    stageLabel.textContent = `Peeking ${currentPin.name}'s mood`;
+  }
+
+  canvas.querySelectorAll('.map-pin[data-name]').forEach(p=>{
+    p.addEventListener('click', (e)=>{ e.stopPropagation(); openPeek(p); });
+  });
+
+  document.getElementById('peekClose').addEventListener('click', ()=>{
+    sheet.classList.remove('peek');
+    stageLabel.textContent = 'Press & hold anywhere to drop a pin · tap a pin to peek';
+  });
+
+  document.getElementById('peekSayHi').addEventListener('click', ()=>{
+    sheet.classList.remove('peek');
+    sheet.classList.add('full');
+    document.getElementById('chatInput').value = ICEBREAKERS[currentPin.mood] || 'Hey, how are you doing?';
+    stageLabel.textContent = 'Pin morphed into chat — icebreaker pre-filled';
+  });
+
+  document.getElementById('chatBack').addEventListener('click', ()=>{
+    sheet.classList.remove('full');
+    sheet.classList.add('peek');
+    stageLabel.textContent = `Peeking ${currentPin.name}'s mood`;
+  });
+  document.getElementById('chatClose').addEventListener('click', ()=>{
+    sheet.classList.remove('full','peek');
+    stageLabel.textContent = 'Press & hold anywhere to drop a pin · tap a pin to peek';
+  });
+
+  function addBubble(text, mine){
+    const t = document.getElementById('chatThread');
+    const b = document.createElement('div');
+    b.className = 'bubble ' + (mine?'mine':'theirs');
+    b.textContent = text;
+    t.appendChild(b);
+    t.scrollTop = t.scrollHeight;
+  }
+
+  document.getElementById('chatSend').addEventListener('click', sendMsg);
+  document.getElementById('chatInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendMsg(); });
+
+  function sendMsg(){
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text) return;
+    addBubble(text, true);
+    input.value = '';
+    setTimeout(()=>{ addBubble(REPLIES[currentPin.mood] || "Hey 🙂 thanks for reaching out.", false); }, 900);
+  }
+
+  document.getElementById('replayBtn').addEventListener('click', ()=>{
+    sheet.classList.remove('peek','full');
+    canvas.querySelectorAll('.map-pin:not([data-name])').forEach(p=>p.remove());
+    canvas.querySelectorAll('.mood-pop, .hint-toast, .charge-wrap, .land-ring').forEach(p=>p.remove());
+    stageLabel.textContent = 'Press & hold anywhere to drop a pin · tap a pin to peek';
+  });
+</script>
+</body>
+</html>

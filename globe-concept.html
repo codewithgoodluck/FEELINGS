@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HowAreYou — Living Globe Concept</title>
+<style>
+  :root{
+    --bg:#0f1117; --card:#161924; --ink:#f5f3ef;
+    --ink-dim:rgba(245,243,239,.5); --ink-faint:rgba(245,243,239,.28);
+    --accent:#e8c468;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
+  html,body{ height:100%; background:#05060a; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--ink); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+
+  .stage-label{ position:fixed; top:18px; left:50%; transform:translateX(-50%); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:rgba(245,243,239,.5); z-index:80; text-align:center; width:320px; transition:opacity .3s ease; }
+
+  .phone{ position:relative; width:380px; height:760px; background:var(--bg); border-radius:42px; border:1px solid rgba(255,255,255,.08); box-shadow:0 40px 90px -20px rgba(0,0,0,.7), 0 0 0 8px #0a0b10; overflow:hidden; }
+  .notch{ position:absolute; top:10px; left:50%; transform:translateX(-50%); width:120px; height:22px; background:#000; border-radius:14px; z-index:90; }
+
+  .globe-wrap{ position:absolute; inset:0; background:radial-gradient(ellipse at 50% 30%, #11141f 0%, #05060a 75%); touch-action:none; }
+  canvas{ position:absolute; inset:0; width:100%; height:100%; }
+
+  .stat-bar{ position:absolute; top:18px; left:18px; right:18px; display:flex; align-items:center; gap:10px; background:rgba(15,17,23,.7); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:10px 14px; font-size:12.5px; z-index:20; }
+  .stat-dot{ width:7px;height:7px;border-radius:50%;background:#5fd98a; box-shadow:0 0 8px #5fd98a; }
+  .stat-bar b{ color:var(--ink); } .stat-bar span{ color:var(--ink-dim); }
+
+  .ticker{ position:absolute; left:18px; right:18px; bottom:84px; text-align:center; font-size:12px; color:var(--ink-dim); opacity:0; transition:opacity .5s ease; z-index:20; pointer-events:none; }
+  .ticker.show{ opacity:1; }
+
+  .legend{ position:absolute; left:18px; bottom:20px; display:flex; flex-wrap:wrap; gap:6px; max-width:230px; z-index:20; }
+  .chip{ display:flex; align-items:center; gap:5px; background:rgba(15,17,23,.7); border:1px solid rgba(255,255,255,.08); border-radius:999px; padding:4px 9px 4px 7px; font-size:10.5px; color:var(--ink-dim); }
+  .chip i{ width:7px; height:7px; border-radius:50%; display:inline-block; }
+
+  .tooltip{ position:absolute; transform:translate(-50%,-130%); background:rgba(20,22,30,.95); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:8px 12px; font-size:12px; white-space:nowrap; opacity:0; transition:opacity .2s ease; z-index:30; pointer-events:none; }
+  .tooltip.show{ opacity:1; }
+  .tooltip b{ color:var(--ink); }
+
+  .hint{ position:absolute; bottom:20px; right:18px; font-size:10.5px; color:var(--ink-faint); z-index:20; text-align:right; max-width:120px; }
+
+  .replay{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); color:var(--ink-dim); font-size:12.5px; padding:9px 18px; border-radius:999px; cursor:pointer; z-index:100; }
+  .replay:hover{ color:var(--ink); border-color:rgba(255,255,255,.3); }
+</style>
+</head>
+<body>
+
+  <div class="stage-label" id="stageLabel">Globe projection + atmosphere</div>
+
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="globe-wrap" id="globeWrap">
+      <canvas id="cv"></canvas>
+
+      <div class="stat-bar">
+        <div class="stat-dot"></div>
+        <b id="liveCount">1,247</b><span>&nbsp;live&nbsp;·&nbsp;</span><b>62</b><span>&nbsp;countries</span>
+      </div>
+
+      <div class="ticker" id="ticker">Someone in Lagos just checked in 🥳</div>
+
+      <div class="legend" id="legend"></div>
+      <div class="hint">Drag to rotate — auto-spins when idle</div>
+      <div class="tooltip" id="tooltip"></div>
+    </div>
+  </div>
+
+  <button class="replay" id="replayBtn">↺ Reset view</button>
+
+<script>
+  const canvas = document.getElementById('cv');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('globeWrap');
+  const stageLabel = document.getElementById('stageLabel');
+  const tooltip = document.getElementById('tooltip');
+  const ticker = document.getElementById('ticker');
+  const liveCountEl = document.getElementById('liveCount');
+
+  let W, H, cx, cy, R;
+  function resize(){
+    const rect = wrap.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    cx = W/2; cy = H*0.46; R = Math.min(W,H)*0.36;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ---- continent dot field (lat, lon) ----
+  const REGIONS = [
+    {lat:[15,65], lon:[-160,-55], n:55},   // N America
+    {lat:[-55,12], lon:[-82,-34], n:34},   // S America
+    {lat:[36,68],  lon:[-10,40],  n:24},   // Europe
+    {lat:[-35,35], lon:[-18,50],  n:50},   // Africa
+    {lat:[5,70],   lon:[40,150],  n:65},   // Asia
+    {lat:[-40,-10],lon:[113,153], n:16},   // Australia
+  ];
+  const dots = [];
+  REGIONS.forEach(r=>{
+    for(let i=0;i<r.n;i++){
+      dots.push({
+        lat: r.lat[0]+Math.random()*(r.lat[1]-r.lat[0]),
+        lon: r.lon[0]+Math.random()*(r.lon[1]-r.lon[0]),
+      });
+    }
+  });
+
+  // ---- mood clusters ----
+  const CLUSTERS = [
+    {city:'London',   lat:51.5,  lon:-0.1,   mood:'😊', color:'#e8c468', count:142},
+    {city:'New York',  lat:40.7,  lon:-74.0,  mood:'😌', color:'#06D6A0', count:188},
+    {city:'Lagos',     lat:6.5,   lon:3.4,    mood:'🥳', color:'#FFB703', count:96},
+    {city:'Tokyo',     lat:35.7,  lon:139.7,  mood:'🤔', color:'#81B29A', count:121},
+    {city:'São Paulo', lat:-23.5, lon:-46.6,  mood:'😔', color:'#5B8AF5', count:77},
+    {city:'Sydney',    lat:-33.9, lon:151.2,  mood:'😰', color:'#E07A5F', count:54},
+  ];
+
+  const TICKER_CITIES = ['Manchester','Toronto','Nairobi','Manila','Berlin','Mumbai','Mexico City','Seoul','Cairo','Accra','Lisbon','Jakarta'];
+  const TICKER_MOODS = ['😊','😔','😤','😴','🤔','🥳','😰','😌'];
+
+  // legend
+  const legend = document.getElementById('legend');
+  CLUSTERS.forEach(c=>{
+    const el = document.createElement('div');
+    el.className='chip';
+    el.innerHTML = `<i style="background:${c.color}"></i>${c.mood} ${c.city}`;
+    legend.appendChild(el);
+  });
+
+  // ---- rotation state ----
+  let lonOffset = 0, tilt = -12;
+  let autoSpin = true;
+  let dragging = false, lastX=0, lastY=0;
+
+  function project(lat, lon){
+    const phi = lat * Math.PI/180;
+    const theta = (lon + lonOffset) * Math.PI/180;
+    let x = Math.cos(phi)*Math.sin(theta);
+    let y = Math.sin(phi);
+    let z = Math.cos(phi)*Math.cos(theta);
+    const t = tilt*Math.PI/180;
+    const y2 = y*Math.cos(t) - z*Math.sin(t);
+    const z2 = y*Math.sin(t) + z*Math.cos(t);
+    return { x: cx + x*R, y: cy - y2*R, z: z2, visible: z2 > -0.05 };
+  }
+
+  // graticule lines
+  const meridians = []; for(let lon=-150; lon<=180; lon+=30) meridians.push(lon);
+  const parallels = []; for(let lat=-60; lat<=60; lat+=30) parallels.push(lat);
+
+  // live pulses
+  let pulses = [];
+  function spawnPulse(){
+    const visibleDots = dots.map(d=>({...d,p:project(d.lat,d.lon)})).filter(d=>d.p.visible);
+    const pool = visibleDots.length ? visibleDots : dots.map(d=>({...d,p:project(d.lat,d.lon)}));
+    const pick = pool[Math.floor(Math.random()*pool.length)];
+    pulses.push({ lat:pick.lat, lon:pick.lon, born:performance.now() });
+
+    const city = TICKER_CITIES[Math.floor(Math.random()*TICKER_CITIES.length)];
+    const mood = TICKER_MOODS[Math.floor(Math.random()*TICKER_MOODS.length)];
+    ticker.textContent = `Someone in ${city} just checked in ${mood}`;
+    ticker.classList.add('show');
+    setTimeout(()=>ticker.classList.remove('show'), 2000);
+
+    let lc = parseInt(liveCountEl.textContent.replace(/,/g,''));
+    liveCountEl.textContent = (lc + (Math.random()>.4?1:-1)).toLocaleString();
+  }
+  setInterval(spawnPulse, 2600);
+
+  // caption cycle
+  const CAPTIONS = [
+    'Globe projection + atmosphere',
+    'Idle auto-rotate — drag to explore',
+    'Mood-colored clusters',
+    'Live pulses, worldwide',
+  ];
+  let capIdx = 0;
+  setInterval(()=>{
+    stageLabel.style.opacity = 0;
+    setTimeout(()=>{ capIdx = (capIdx+1)%CAPTIONS.length; stageLabel.textContent = CAPTIONS[capIdx]; stageLabel.style.opacity = 1; }, 280);
+  }, 3400);
+
+  function draw(now){
+    ctx.clearRect(0,0,W,H);
+
+    if (autoSpin && !dragging) lonOffset += 0.045;
+
+    // atmosphere glow
+    const grad = ctx.createRadialGradient(cx,cy,R*0.92, cx,cy,R*1.32);
+    grad.addColorStop(0,'rgba(110,160,255,0.35)');
+    grad.addColorStop(1,'rgba(110,160,255,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx,cy,R*1.32,0,Math.PI*2); ctx.fill();
+
+    // sphere body
+    const sphereGrad = ctx.createRadialGradient(cx-R*0.35, cy-R*0.4, R*0.1, cx, cy, R*1.05);
+    sphereGrad.addColorStop(0,'#262c44');
+    sphereGrad.addColorStop(0.55,'#161b2e');
+    sphereGrad.addColorStop(1,'#0a0c16');
+    ctx.fillStyle = sphereGrad;
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fill();
+
+    // graticule
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.lineWidth = 1;
+    meridians.forEach(lon=>{
+      ctx.beginPath(); let started=false;
+      for(let lat=-90; lat<=90; lat+=6){
+        const p = project(lat,lon);
+        if (!p.visible){ started=false; continue; }
+        if (!started){ ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    });
+    parallels.forEach(lat=>{
+      ctx.beginPath(); let started=false;
+      for(let lon=-180; lon<=180; lon+=6){
+        const p = project(lat,lon);
+        if (!p.visible){ started=false; continue; }
+        if (!started){ ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    });
+
+    // continent dots
+    dots.forEach(d=>{
+      const p = project(d.lat,d.lon);
+      if (!p.visible) return;
+      const a = 0.18 + 0.55*Math.max(0,p.z);
+      ctx.fillStyle = `rgba(245,243,239,${a})`;
+      const s = 1 + 0.7*Math.max(0,p.z);
+      ctx.beginPath(); ctx.arc(p.x,p.y,s,0,Math.PI*2); ctx.fill();
+    });
+
+    // mood clusters (breathing glow blobs)
+    const clusterScreen = [];
+    CLUSTERS.forEach((c,i)=>{
+      const p = project(c.lat,c.lon);
+      clusterScreen.push({...c, p});
+      if (!p.visible) return;
+      const breathe = 1 + 0.12*Math.sin(now/650 + i*1.3);
+      const baseR = (8 + Math.sqrt(c.count)*0.9) * (0.5+0.5*Math.max(0,p.z));
+      const rad = baseR*breathe;
+      const g = ctx.createRadialGradient(p.x,p.y,0, p.x,p.y,rad*1.8);
+      g.addColorStop(0, c.color+'cc'); g.addColorStop(1, c.color+'00');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(p.x,p.y,rad*1.8,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle = c.color;
+      ctx.beginPath(); ctx.arc(p.x,p.y,rad*0.45,0,Math.PI*2); ctx.fill();
+    });
+    window.__clusterScreen = clusterScreen;
+
+    // live pulses
+    pulses = pulses.filter(pl => now - pl.born < 1300);
+    pulses.forEach(pl=>{
+      const p = project(pl.lat, pl.lon);
+      if (!p.visible) return;
+      const t = (now - pl.born)/1300;
+      ctx.strokeStyle = `rgba(232,196,104,${1-t})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(p.x,p.y, 4+t*34, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = `rgba(232,196,104,${1-t*0.6})`;
+      ctx.beginPath(); ctx.arc(p.x,p.y, 3,0,Math.PI*2); ctx.fill();
+    });
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  // ---- drag to rotate ----
+  function onDown(e){
+    dragging = true; autoSpin = false;
+    const pt = e.touches?e.touches[0]:e;
+    lastX = pt.clientX; lastY = pt.clientY;
+  }
+  function onMove(e){
+    if(!dragging) return;
+    const pt = e.touches?e.touches[0]:e;
+    const dx = pt.clientX-lastX, dy = pt.clientY-lastY;
+    lonOffset += dx*0.35;
+    tilt = Math.max(-55, Math.min(55, tilt - dy*0.25));
+    lastX = pt.clientX; lastY = pt.clientY;
+  }
+  function onUp(e){
+    if(!dragging) return;
+    const pt = e.changedTouches?e.changedTouches[0]:e;
+    const moved = Math.abs(pt.clientX-lastX)+Math.abs(pt.clientY-lastY);
+    dragging = false;
+    setTimeout(()=>{ autoSpin = true; }, 1300);
+
+    if (moved < 4){
+      const rect = wrap.getBoundingClientRect();
+      const px = pt.clientX-rect.left, py = pt.clientY-rect.top;
+      const hit = (window.__clusterScreen||[]).find(c=>{
+        if(!c.p.visible) return false;
+        return Math.hypot(c.p.x-px, c.p.y-py) < 20;
+      });
+      if (hit){
+        tooltip.innerHTML = `${hit.mood} <b>${hit.city}</b> — ${hit.count} feeling this`;
+        tooltip.style.left = hit.p.x+'px'; tooltip.style.top = hit.p.y+'px';
+        tooltip.classList.add('show');
+        setTimeout(()=>tooltip.classList.remove('show'), 1800);
+      }
+    }
+  }
+  wrap.addEventListener('mousedown', onDown);
+  wrap.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+  wrap.addEventListener('touchstart', onDown, {passive:true});
+  wrap.addEventListener('touchmove', onMove, {passive:true});
+  wrap.addEventListener('touchend', onUp);
+
+  document.getElementById('replayBtn').addEventListener('click', ()=>{
+    lonOffset = 0; tilt = -12; autoSpin = true; pulses = [];
+  });
+</script>
+</body>
+</html>

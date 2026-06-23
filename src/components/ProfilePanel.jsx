@@ -22,6 +22,7 @@ export default function ProfilePanel({
   rotateGlobe, onRotateGlobeChange,
   clusterPins, onClusterPinsChange,
   hideCountryBadge, onHideCountryBadgeChange,
+  onOpenJournal,
 }) {
   const { user, isAnonymous, registerAccount, loginAccount } = useAuth()
   const { theme, toggle: toggleTheme } = useTheme()
@@ -174,6 +175,10 @@ export default function ProfilePanel({
             {streak > 0 ? `${streak} day${streak !== 1 ? 's' : ''}` : 'Start today'}
           </span>
         </div>
+        <button className="profile-journal-btn" onClick={onOpenJournal}>
+          <span>📖 My mood journal</span>
+          <span className="profile-journal-arrow">→</span>
+        </button>
       </div>
 
       {/* ── Preferences ──────────────────────────────────────────────────── */}

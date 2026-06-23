@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HowAreYou — Day/Night + Arc Ticker Concept</title>
+<style>
+  :root{
+    --bg:#0f1117; --ink:#f5f3ef;
+    --ink-dim:rgba(245,243,239,.5); --ink-faint:rgba(245,243,239,.28);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
+  html,body{ height:100%; background:#05060a; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--ink); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+
+  .stage-label{ position:fixed; top:18px; left:50%; transform:translateX(-50%); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:rgba(245,243,239,.5); z-index:80; text-align:center; width:320px; transition:opacity .3s ease; }
+  .stage-sub{ position:fixed; top:36px; left:50%; transform:translateX(-50%); font-size:10px; color:var(--ink-faint); z-index:80; }
+
+  .phone{ position:relative; width:380px; height:760px; background:var(--bg); border-radius:42px; border:1px solid rgba(255,255,255,.08); box-shadow:0 40px 90px -20px rgba(0,0,0,.7), 0 0 0 8px #0a0b10; overflow:hidden; }
+  .notch{ position:absolute; top:10px; left:50%; transform:translateX(-50%); width:120px; height:22px; background:#000; border-radius:14px; z-index:90; }
+
+  .globe-wrap{ position:absolute; inset:0; background:radial-gradient(ellipse at 50% 30%, #11141f 0%, #05060a 75%); touch-action:none; }
+  canvas{ position:absolute; inset:0; width:100%; height:100%; }
+
+  .stat-bar{ position:absolute; top:18px; left:18px; right:18px; display:flex; align-items:center; gap:10px; background:rgba(15,17,23,.7); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:10px 14px; font-size:12.5px; z-index:20; }
+  .stat-dot{ width:7px;height:7px;border-radius:50%;background:#5fd98a; box-shadow:0 0 8px #5fd98a; }
+  .stat-bar b{ color:var(--ink); } .stat-bar span{ color:var(--ink-dim); }
+
+  .ticker{ position:absolute; left:18px; right:18px; bottom:64px; text-align:center; font-size:12px; color:var(--ink-dim); opacity:0; transition:opacity .5s ease; z-index:20; pointer-events:none; }
+  .ticker.show{ opacity:1; }
+
+  .hint{ position:absolute; bottom:20px; left:18px; right:18px; font-size:10.5px; color:var(--ink-faint); z-index:20; text-align:center; }
+
+  .replay{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); color:var(--ink-dim); font-size:12.5px; padding:9px 18px; border-radius:999px; cursor:pointer; z-index:100; }
+  .replay:hover{ color:var(--ink); border-color:rgba(255,255,255,.3); }
+</style>
+</head>
+<body>
+
+  <div class="stage-label" id="stageLabel">Day / night terminator</div>
+  <div class="stage-sub">time-of-day sped up for preview</div>
+
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="globe-wrap" id="globeWrap">
+      <canvas id="cv"></canvas>
+
+      <div class="stat-bar">
+        <div class="stat-dot"></div>
+        <b id="liveCount">1,247</b><span>&nbsp;live&nbsp;·&nbsp;</span><b>62</b><span>&nbsp;countries</span>
+      </div>
+
+      <div class="ticker" id="ticker">Someone in Lagos just checked in 🥳</div>
+      <div class="hint">Night side glows with quiet activity — drag to rotate</div>
+    </div>
+  </div>
+
+  <button class="replay" id="replayBtn">↺ Reset view</button>
+
+<script>
+  const canvas = document.getElementById('cv');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('globeWrap');
+  const stageLabel = document.getElementById('stageLabel');
+  const ticker = document.getElementById('ticker');
+  const liveCountEl = document.getElementById('liveCount');
+
+  let W,H,cx,cy,R;
+  function resize(){
+    const rect = wrap.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    cx = W/2; cy = H*0.46; R = Math.min(W,H)*0.36;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const D2R = Math.PI/180;
+
+  // ---- continent dots (earth-frame lat/lon) ----
+  const REGIONS = [
+    {lat:[15,65], lon:[-160,-55], n:55}, {lat:[-55,12], lon:[-82,-34], n:34},
+    {lat:[36,68],  lon:[-10,40],  n:24}, {lat:[-35,35], lon:[-18,50],  n:50},
+    {lat:[5,70],   lon:[40,150],  n:65}, {lat:[-40,-10],lon:[113,153], n:16},
+  ];
+  const dots = [];
+  REGIONS.forEach(r=>{ for(let i=0;i<r.n;i++) dots.push({
+    lat: r.lat[0]+Math.random()*(r.lat[1]-r.lat[0]),
+    lon: r.lon[0]+Math.random()*(r.lon[1]-r.lon[0]),
+  });});
+
+  const CLUSTERS = [
+    {city:'London', lat:51.5, lon:-0.1, mood:'😊', color:'#e8c468'},
+    {city:'New York', lat:40.7, lon:-74.0, mood:'😌', color:'#06D6A0'},
+    {city:'Lagos', lat:6.5, lon:3.4, mood:'🥳', color:'#FFB703'},
+    {city:'Tokyo', lat:35.7, lon:139.7, mood:'🤔', color:'#81B29A'},
+    {city:'São Paulo', lat:-23.5, lon:-46.6, mood:'😔', color:'#5B8AF5'},
+    {city:'Sydney', lat:-33.9, lon:151.2, mood:'😰', color:'#E07A5F'},
+  ];
+  const TICKER_CITIES = ['Manchester','Toronto','Nairobi','Manila','Berlin','Mumbai','Mexico City','Seoul','Cairo','Accra','Lisbon','Jakarta'];
+  const TICKER_MOODS = ['😊','😔','😤','😴','🤔','🥳','😰','😌'];
+
+  // ---- rotation / sun state ----
+  let lonOffset = 0, tilt = -12;
+  let autoSpin = true, dragging=false, lastX=0,lastY=0;
+  let sunLon = -30, sunLat = 18; // subsolar point, animates over time
+
+  function earthXYZ(lat,lon){
+    const phi = lat*D2R, theta = lon*D2R;
+    return { x: Math.cos(phi)*Math.sin(theta), y: Math.sin(phi), z: Math.cos(phi)*Math.cos(theta) };
+  }
+  function rotateView(x,y,z){
+    const th = lonOffset*D2R;
+    let x1 = x*Math.cos(th) + z*Math.sin(th);
+    let z1 = -x*Math.sin(th) + z*Math.cos(th);
+    const t = tilt*D2R;
+    let y2 = y*Math.cos(t) - z1*Math.sin(t);
+    let z2 = y*Math.sin(t) + z1*Math.cos(t);
+    return { x:x1, y:y2, z:z2 };
+  }
+  function project(lat,lon){
+    const e = earthXYZ(lat,lon); const v = rotateView(e.x,e.y,e.z);
+    return { x:cx+v.x*R, y:cy-v.y*R, z:v.z, visible: v.z>-0.05 };
+  }
+  function projectXYZ(x,y,z){
+    const v = rotateView(x,y,z);
+    return { x:cx+v.x*R, y:cy-v.y*R, z:v.z, visible: v.z>-0.05 };
+  }
+  function cross(a,b){ return {x:a.y*b.z-a.z*b.y, y:a.z*b.x-a.x*b.z, z:a.x*b.y-a.y*b.x}; }
+  function norm(a){ const l=Math.hypot(a.x,a.y,a.z)||1; return {x:a.x/l,y:a.y/l,z:a.z/l}; }
+  function dot3(a,b){ return a.x*b.x+a.y*b.y+a.z*b.z; }
+
+  function lerpColor(c1,c2,t){
+    return [0,1,2].map(i=>Math.round(c1[i]+(c2[i]-c1[i])*t));
+  }
+  const GOLD=[232,196,104], WHITE=[245,243,239];
+
+  // ticker / pulses
+  let pulses = [];
+  function spawnPulse(){
+    const visibleDots = dots.map(d=>({...d,p:project(d.lat,d.lon)})).filter(d=>d.p.visible);
+    const pool = visibleDots.length?visibleDots:dots.map(d=>({...d,p:project(d.lat,d.lon)}));
+    const pick = pool[Math.floor(Math.random()*pool.length)];
+    const angle = Math.random()*Math.PI*2;
+    pulses.push({ lat:pick.lat, lon:pick.lon, born:performance.now(), angle });
+
+    const city = TICKER_CITIES[Math.floor(Math.random()*TICKER_CITIES.length)];
+    const mood = TICKER_MOODS[Math.floor(Math.random()*TICKER_MOODS.length)];
+    ticker.textContent = `Someone in ${city} just checked in ${mood}`;
+    ticker.classList.add('show');
+    setTimeout(()=>ticker.classList.remove('show'), 2000);
+
+    let lc = parseInt(liveCountEl.textContent.replace(/,/g,''));
+    liveCountEl.textContent = (lc+(Math.random()>.4?1:-1)).toLocaleString();
+  }
+  setInterval(spawnPulse, 2400);
+
+  const CAPTIONS = [
+    ['Day / night terminator','time-of-day sped up for preview'],
+    ['Night side glows with city lights','quiet activity, always visible'],
+    ['Live check-ins arc off the surface','every pin, anywhere, in real time'],
+  ];
+  let capIdx=0;
+  const stageSub = document.querySelector('.stage-sub');
+  setInterval(()=>{
+    stageLabel.style.opacity=0; stageSub.style.opacity=0;
+    setTimeout(()=>{ capIdx=(capIdx+1)%CAPTIONS.length;
+      stageLabel.textContent=CAPTIONS[capIdx][0]; stageSub.textContent=CAPTIONS[capIdx][1];
+      stageLabel.style.opacity=1; stageSub.style.opacity=1;
+    },280);
+  }, 4200);
+
+  function draw(now){
+    ctx.clearRect(0,0,W,H);
+    if (autoSpin && !dragging) lonOffset += 0.045;
+    sunLon += 0.12;
+
+    const S = earthXYZ(sunLat, sunLon);
+
+    // atmosphere
+    const ag = ctx.createRadialGradient(cx,cy,R*0.92, cx,cy,R*1.3);
+    ag.addColorStop(0,'rgba(110,160,255,0.3)'); ag.addColorStop(1,'rgba(110,160,255,0)');
+    ctx.fillStyle = ag; ctx.beginPath(); ctx.arc(cx,cy,R*1.3,0,Math.PI*2); ctx.fill();
+
+    // sphere body
+    const sg = ctx.createRadialGradient(cx-R*0.35,cy-R*0.4,R*0.1, cx,cy,R*1.05);
+    sg.addColorStop(0,'#20253a'); sg.addColorStop(0.55,'#12162a'); sg.addColorStop(1,'#080a14');
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fill();
+
+    // ---- terminator great circle ----
+    let up = Math.abs(S.y) > 0.95 ? {x:1,y:0,z:0} : {x:0,y:1,z:0};
+    const u = norm(cross(S, up));
+    const v = cross(S, u);
+    const termPts = [];
+    for(let t=0;t<360;t+=3){
+      const rad=t*D2R, cosr=Math.cos(rad), sinr=Math.sin(rad);
+      const x = u.x*cosr + v.x*sinr, y = u.y*cosr + v.y*sinr, z = u.z*cosr + v.z*sinr;
+      termPts.push(projectXYZ(x,y,z));
+    }
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,150,90,0.55)'; ctx.shadowBlur = 7;
+    ctx.strokeStyle = 'rgba(255,165,100,0.55)'; ctx.lineWidth = 2;
+    ctx.beginPath(); let started=false; let prevVis=null;
+    termPts.forEach((p,i)=>{
+      if (!p.visible){ started=false; prevVis=false; return; }
+      if (!started){ ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y);
+      if (prevVis===false){ // just entered visibility — sunrise/sunset glow
+        const gg = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,16);
+        gg.addColorStop(0,'rgba(255,180,110,0.45)'); gg.addColorStop(1,'rgba(255,180,110,0)');
+        ctx.save(); ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(p.x,p.y,16,0,Math.PI*2); ctx.fill(); ctx.restore();
+      }
+      prevVis = true;
+    });
+    ctx.stroke();
+    ctx.restore();
+
+    // ---- graticule (faint) ----
+    ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1;
+    for(let lon=-150; lon<=180; lon+=30){
+      ctx.beginPath(); let st=false;
+      for(let lat=-90; lat<=90; lat+=8){ const p=project(lat,lon); if(!p.visible){st=false;continue;} if(!st){ctx.moveTo(p.x,p.y);st=true;}else ctx.lineTo(p.x,p.y); }
+      ctx.stroke();
+    }
+
+    // ---- continent dots, sun + camera shaded ----
+    dots.forEach(d=>{
+      const p = project(d.lat,d.lon);
+      if (!p.visible) return;
+      const e = earthXYZ(d.lat,d.lon);
+      const lit = dot3(e,S); // >0 day, <0 night
+      const blend = Math.max(0, Math.min(1, (lit+0.08)/0.16));
+      const camA = 0.25 + 0.6*Math.max(0,p.z);
+
+      if (blend < 0.97){
+        const twinkle = 0.35 + 0.45*Math.abs(Math.sin(now/900 + d.lat*3));
+        const col = lerpColor(GOLD, WHITE, blend);
+        const a = camA * (twinkle*(1-blend) + blend);
+        ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${a.toFixed(2)})`;
+        const s = (1+0.6*Math.max(0,p.z)) * (1-blend*0.25);
+        ctx.beginPath(); ctx.arc(p.x,p.y,s,0,Math.PI*2); ctx.fill();
+      } else {
+        ctx.fillStyle = `rgba(245,243,239,${camA.toFixed(2)})`;
+        const s = 1+0.6*Math.max(0,p.z);
+        ctx.beginPath(); ctx.arc(p.x,p.y,s,0,Math.PI*2); ctx.fill();
+      }
+    });
+
+    // ---- mood clusters ----
+    CLUSTERS.forEach((c,i)=>{
+      const p = project(c.lat,c.lon);
+      if (!p.visible) return;
+      const breathe = 1+0.12*Math.sin(now/650+i*1.3);
+      const rad = 11*breathe*(0.5+0.5*Math.max(0,p.z));
+      const g = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rad*1.9);
+      g.addColorStop(0,c.color+'dd'); g.addColorStop(1,c.color+'00');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(p.x,p.y,rad*1.9,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=c.color; ctx.beginPath(); ctx.arc(p.x,p.y,rad*0.42,0,Math.PI*2); ctx.fill();
+    });
+
+    // ---- pulses + comet arcs ----
+    pulses = pulses.filter(pl=>now-pl.born<1100);
+    pulses.forEach(pl=>{
+      const p = project(pl.lat,pl.lon);
+      if (!p.visible) return;
+      const t = (now-pl.born)/1100;
+
+      // ripple
+      ctx.strokeStyle = `rgba(232,196,104,${(1-t).toFixed(2)})`;
+      ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(p.x,p.y,4+t*30,0,Math.PI*2); ctx.stroke();
+
+      // comet arc trailing from the point
+      const len = 14 + t*46;
+      const dx = Math.cos(pl.angle), dy = Math.sin(pl.angle);
+      const midx = p.x + dx*len*0.55 - dy*10;
+      const midy = p.y + dy*len*0.55 + dx*10;
+      const endx = p.x + dx*len, endy = p.y + dy*len;
+      const arcA = Math.max(0, 1-t*1.3);
+      ctx.strokeStyle = `rgba(255,210,140,${arcA.toFixed(2)})`;
+      ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.quadraticCurveTo(midx,midy,endx,endy); ctx.stroke();
+      ctx.fillStyle = `rgba(255,225,170,${arcA.toFixed(2)})`;
+      ctx.beginPath(); ctx.arc(endx,endy,1.8,0,Math.PI*2); ctx.fill();
+
+      ctx.fillStyle = `rgba(255,225,170,${(1-t*0.6).toFixed(2)})`;
+      ctx.beginPath(); ctx.arc(p.x,p.y,2.4,0,Math.PI*2); ctx.fill();
+    });
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  // drag to rotate
+  function onDown(e){ dragging=true; autoSpin=false; const pt=e.touches?e.touches[0]:e; lastX=pt.clientX; lastY=pt.clientY; }
+  function onMove(e){ if(!dragging) return; const pt=e.touches?e.touches[0]:e; const dx=pt.clientX-lastX, dy=pt.clientY-lastY; lonOffset+=dx*0.35; tilt=Math.max(-55,Math.min(55,tilt-dy*0.25)); lastX=pt.clientX; lastY=pt.clientY; }
+  function onUp(){ if(!dragging) return; dragging=false; setTimeout(()=>{autoSpin=true;},1300); }
+  wrap.addEventListener('mousedown',onDown); wrap.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp);
+  wrap.addEventListener('touchstart',onDown,{passive:true}); wrap.addEventListener('touchmove',onMove,{passive:true}); wrap.addEventListener('touchend',onUp);
+
+  document.getElementById('replayBtn').addEventListener('click', ()=>{
+    lonOffset=0; tilt=-12; sunLon=-30; autoSpin=true; pulses=[];
+  });
+</script>
+</body>
+</html>

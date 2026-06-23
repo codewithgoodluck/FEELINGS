@@ -34,10 +34,11 @@ const CLOSE_MS = 300
 
 export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId, unreadPinIds, currentUserId, onDeletePin }) {
   const { theme, toggle: toggleTheme } = useTheme()
-  const [pins, setPins]       = useState([])
-  const [closing, setClosing] = useState(false)
-  const timerRef              = useRef(null)
-  const itemEls               = useRef({})
+  const [pins, setPins]           = useState([])
+  const [moodFilter, setMoodFilter] = useState(null)
+  const [closing, setClosing]     = useState(false)
+  const timerRef                  = useRef(null)
+  const itemEls                   = useRef({})
 
   useEffect(() => subscribeToPins((raw) => {
     const sorted = [...raw].sort((a, b) => {
@@ -125,20 +126,38 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
           </p>
         </div>
 
-        {/* ── Mood summary strip ── */}
+        {/* ── Mood filter strip ── */}
         {topMoods.length > 0 && (
           <div className="feed-mood-strip">
             {topMoods.map(([emoji, count]) => (
-              <div key={emoji} className="feed-mood-pill">
+              <button
+                key={emoji}
+                className={`feed-mood-pill${moodFilter === emoji ? ' feed-mood-pill--active' : ''}`}
+                onClick={() => setMoodFilter(f => f === emoji ? null : emoji)}
+                aria-pressed={moodFilter === emoji}
+                title={`Filter by ${emoji}`}
+              >
                 <span className="feed-mood-pill-emoji">{emoji}</span>
                 <span className="feed-mood-pill-count">{count}</span>
-              </div>
+              </button>
             ))}
+            {moodFilter && (
+              <button
+                className="feed-mood-clear"
+                onClick={() => setMoodFilter(null)}
+                aria-label="Clear filter"
+              >
+                ✕ clear
+              </button>
+            )}
           </div>
         )}
 
         {/* ── Cards ── */}
         <div className="pins-panel-list">
+          {moodFilter && (
+            <p className="feed-filter-label">Showing {pins.filter(p => p.mood === moodFilter).length} people feeling {moodFilter}</p>
+          )}
           {pins.length === 0 ? (
             <div className="feed-empty">
               <span className="feed-empty-icon">🌍</span>
@@ -146,7 +165,7 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
               <p className="feed-empty-sub">Be the first to share how you feel.</p>
             </div>
           ) : (
-            pins.map(pin => {
+            (moodFilter ? pins.filter(p => p.mood === moodFilter) : pins).map(pin => {
               const isActive  = activePinId === pin.id
               const hasUnread = unreadPinIds?.has(pin.id)
               const isOwn     = currentUserId && pin.uid === currentUserId

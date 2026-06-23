@@ -1,0 +1,14 @@
+
+> howareyou@0.0.0 dev
+> vite
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m817[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[2m10:12:07 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m10:17:59 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m3:49:37 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mcountry-lock-concept.html[22m
+[2m4:12:36 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2m.claude/worktrees/agent-a5936295ac7dfbce5/index.html[22m
+[2m4:16:13 PM[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2m.claude/worktrees/agent-a5936295ac7dfbce5/dist/index.html[22m

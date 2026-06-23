@@ -1,4 +1,37 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+
+const PROMPTS = [
+  "What's one thing on your mind right now?",
+  "What made today feel different?",
+  "Is there something you've been holding in?",
+  "What are you looking forward to — even something small?",
+  "What would help you feel a little better right now?",
+  "What's draining you most today?",
+  "Is there someone you wish you could talk to?",
+  "What's the last thing that made you smile?",
+  "What emotion have you been avoiding?",
+  "What do you wish people knew about how you're feeling?",
+  "What's one thing that went okay today?",
+  "What are you proud of, even if it feels small?",
+  "What are you afraid to say out loud?",
+  "Is there something you need to let go of?",
+  "What's been surprising about today?",
+  "What would make tomorrow a little easier?",
+  "What are you grateful for right now?",
+  "What's weighing on you most?",
+  "What do you need but haven't asked for?",
+  "What's one kind thing you could do for yourself today?",
+  "What feeling keeps coming back?",
+  "What's something you're still figuring out?",
+  "What do you wish someone would ask you?",
+  "What's hard to admit right now?",
+  "What are you hoping for?",
+  "What's been on replay in your head?",
+  "What do you need more of right now?",
+  "What's one thing that brought you comfort lately?",
+  "What are you ready to move on from?",
+  "How have you been treating yourself today?",
+]
 
 const MOODS = [
   { emoji: '😊', label: 'Good' },
@@ -27,6 +60,11 @@ export default function CheckInPanel({ location, onSubmit, onClose, initialMood,
   const [isFlash, setIsFlash]       = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState('')
+
+  const todayPrompt = useMemo(() => {
+    const dayIndex = Math.floor(Date.now() / 86400000) % PROMPTS.length
+    return PROMPTS[dayIndex]
+  }, [])
 
   async function handleSubmit() {
     if (!selectedMood) return
@@ -86,6 +124,19 @@ export default function CheckInPanel({ location, onSubmit, onClose, initialMood,
             </button>
           ))}
         </div>
+
+        {/* Daily prompt suggestion */}
+        {!message && (
+          <button
+            className="checkin-prompt"
+            onClick={() => setMessage(todayPrompt + ' ')}
+            aria-label="Use today's prompt"
+          >
+            <span className="checkin-prompt-label">Today's prompt</span>
+            <span className="checkin-prompt-text">"{todayPrompt}"</span>
+            <span className="checkin-prompt-cta">Tap to use →</span>
+          </button>
+        )}
 
         <textarea
           className="check-in-text"

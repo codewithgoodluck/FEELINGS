@@ -61,6 +61,33 @@ export function subscribeToPins(callback) {
   })
 }
 
+// Subscribe to all pins by a single user (journal)
+export function subscribeToUserPins(uid, callback) {
+  const q = query(
+    collection(db, 'pins'),
+    where('uid', '==', uid),
+    limit(100)
+  )
+  return onSnapshot(q, (snap) => {
+    const now = new Date()
+    const pins = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => !p.expiresAt || p.expiresAt.toDate() > now || p.active === false)
+      .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))
+    callback(pins)
+  }, err => console.error('subscribeToUserPins:', err))
+}
+
+// Count active pins with a given mood (for same-mood nudge)
+export async function countPinsWithMood(mood) {
+  const snap = await getDocs(query(collection(db, 'pins'), where('mood', '==', mood), limit(100)))
+  const now = new Date()
+  return snap.docs.filter(d => {
+    const data = d.data()
+    return data.active !== false && (!data.expiresAt || data.expiresAt.toDate() > now)
+  }).length
+}
+
 // Deactivate a pin (soft delete — keeps conversation history)
 export async function deactivatePin(pinId) {
   await updateDoc(doc(db, 'pins', pinId), { active: false })
