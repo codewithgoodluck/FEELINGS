@@ -16,6 +16,59 @@ const MOOD_COLORS = {
   '😶': '#888',    '🤩': '#ffb703', '🫶': '#e07a5f', '🥱': '#888',
 }
 
+function MoodCalendar({ pins }) {
+  const dayMap = {}
+  pins.forEach(p => {
+    if (!p.createdAt || !p.mood) return
+    const d   = p.createdAt?.toDate ? p.createdAt.toDate() : new Date(p.createdAt)
+    const key = d.toISOString().slice(0, 10)
+    if (!dayMap[key]) dayMap[key] = {}
+    dayMap[key][p.mood] = (dayMap[key][p.mood] || 0) + 1
+  })
+
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const today    = new Date(); today.setHours(23, 59, 59, 999)
+  const start    = new Date(today); start.setDate(start.getDate() - 363)
+  start.setDate(start.getDate() - start.getDay()) // align to Sunday
+
+  const weeks = []
+  let d = new Date(start)
+  while (d <= today) {
+    const week = []
+    for (let i = 0; i < 7; i++) {
+      const key   = d.toISOString().slice(0, 10)
+      const moods = dayMap[key]
+      const top   = moods ? Object.entries(moods).sort((a, b) => b[1] - a[1])[0]?.[0] : null
+      const color = top ? (MOOD_COLORS[top] ?? '#5b8af5') : null
+      week.push({ key, color, isToday: key === todayStr })
+      d = new Date(d); d.setDate(d.getDate() + 1)
+    }
+    weeks.push(week)
+  }
+
+  return (
+    <div className="mood-cal">
+      <p className="mood-cal-title">Year in moods</p>
+      <div className="mood-cal-scroll">
+        <div className="mood-cal-grid">
+          {weeks.map((week, wi) => (
+            <div key={wi} className="mood-cal-week">
+              {week.map(({ key, color, isToday }) => (
+                <div
+                  key={key}
+                  className={`mood-cal-cell${color ? ' mood-cal-cell--active' : ''}${isToday ? ' mood-cal-cell--today' : ''}`}
+                  style={color ? { background: color } : {}}
+                  title={key}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function formatDate(ts) {
   if (!ts) return ''
   const d = ts?.toDate ? ts.toDate() : new Date(ts)
@@ -99,6 +152,9 @@ export default function MoodJournal({ onClose }) {
           </div>
         </div>
       )}
+
+      {/* Year calendar */}
+      {pins && pins.length > 0 && <MoodCalendar pins={pins} />}
 
       {/* Mood breakdown chart */}
       {pins && pins.length > 0 && Object.keys(moodCounts).length > 0 && (

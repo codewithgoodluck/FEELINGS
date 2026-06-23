@@ -248,6 +248,17 @@ export async function reportMessage(conversationId, messageId, reporterUid, reas
   })
 }
 
+// Toggle an emoji reaction on a pin (💙, 🤝, ❤️ etc.)
+export async function togglePinReaction(pinId, uid, emoji) {
+  const ref  = doc(db, 'pins', pinId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return
+  const current = snap.data().reactions?.[emoji] ?? []
+  await updateDoc(ref, {
+    [`reactions.${emoji}`]: current.includes(uid) ? arrayRemove(uid) : arrayUnion(uid),
+  })
+}
+
 // Soft-delete a message (marks deleted, clears content — keeps the doc for thread integrity)
 export async function deleteMessage(conversationId, messageId) {
   await updateDoc(doc(db, 'conversations', conversationId, 'messages', messageId), {

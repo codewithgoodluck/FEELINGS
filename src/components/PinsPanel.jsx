@@ -30,6 +30,8 @@ const MOOD_COLORS = {
   '😶': '#888',    '🤩': '#ffb703', '🫶': '#e07a5f', '🥱': '#888',
 }
 
+const REACTION_EMOJIS = ['💙', '🤝', '❤️']
+
 const CLOSE_MS = 300
 
 export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId, unreadPinIds, currentUserId, onDeletePin, blockedUids }) {
@@ -212,6 +214,11 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
                       {pin.message && (
                         <p className="feed-card-message">"{pin.message}"</p>
                       )}
+                      {pin.reactions && (() => {
+                        const hits = REACTION_EMOJIS.filter(e => (pin.reactions[e]?.length ?? 0) > 0)
+                        const tot  = hits.reduce((s, e) => s + (pin.reactions[e]?.length ?? 0), 0)
+                        return hits.length > 0 ? <p className="feed-card-reactions">{hits.join('')} {tot}</p> : null
+                      })()}
                     </div>
                   </button>
 

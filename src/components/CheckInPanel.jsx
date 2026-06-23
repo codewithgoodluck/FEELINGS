@@ -53,7 +53,7 @@ const MOODS = [
   { emoji: '🥱', label: 'Bored' },
 ]
 
-export default function CheckInPanel({ location, onSubmit, onClose, initialMood, placeName }) {
+export default function CheckInPanel({ location, onSubmit, onClose, initialMood, placeName, statusMsg }) {
   const [selectedMood, setSelectedMood] = useState(
     initialMood ? (MOODS.find((m) => m.emoji === initialMood) ?? null) : null
   )
@@ -158,8 +158,21 @@ export default function CheckInPanel({ location, onSubmit, onClose, initialMood,
           ))}
         </div>
 
+        {/* Status message pre-fill */}
+        {!message && statusMsg && (
+          <button
+            className="checkin-prompt checkin-prompt--status"
+            onClick={() => setMessage(statusMsg + ' ')}
+            aria-label="Use your status message"
+          >
+            <span className="checkin-prompt-label">Your status</span>
+            <span className="checkin-prompt-text">"{statusMsg}"</span>
+            <span className="checkin-prompt-cta">Tap to use →</span>
+          </button>
+        )}
+
         {/* Daily prompt suggestion */}
-        {!message && (
+        {!message && !statusMsg && (
           <button
             className="checkin-prompt"
             onClick={() => setMessage(todayPrompt + ' ')}

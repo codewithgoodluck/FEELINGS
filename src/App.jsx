@@ -134,6 +134,10 @@ export default function App() {
   const [travelMode,         setTravelMode]         = useState(() => localStorage.getItem('hay_travel_mode') === '1')
   const [blockedUids,        setBlockedUids]        = useState(() => getBlockedUids())
   const [showHeatmap,        setShowHeatmap]        = useState(false)
+  const [satellite,          setSatellite]          = useState(false)
+  const [statusMsg,          setStatusMsg]          = useState(() => localStorage.getItem('hay_status_msg') || '')
+  const [showLowMoodNudge,   setShowLowMoodNudge]   = useState(false)
+  const [lastLowMood,        setLastLowMood]        = useState(null)
 
   // ── Country lock overlay state ─────────────────────────────────────────────
   const [countryLockData,  setCountryLockData]  = useState(null) // { tappedCode, tappedName }
@@ -177,6 +181,19 @@ export default function App() {
     if (!mirrorDone) return
     const t = setTimeout(showTipFab, 1500)
     return () => clearTimeout(t)
+  }, [mirrorDone]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Low-mood follow-up nudge — show if user dropped a negative mood pin 2+ hours ago
+  useEffect(() => {
+    if (!mirrorDone) return
+    const lastTime  = parseInt(localStorage.getItem('hay_last_low_mood_time') || '0', 10)
+    const lastEmoji = localStorage.getItem('hay_last_low_mood')
+    if (!lastTime || !lastEmoji) return
+    const hoursAgo = (Date.now() - lastTime) / 3_600_000
+    if (hoursAgo >= 2 && hoursAgo < 24) {
+      setLastLowMood(lastEmoji)
+      setShowLowMoodNudge(true)
+    }
   }, [mirrorDone]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-clear blocked toast after 1.5 s (must be before any early returns)
@@ -363,6 +380,16 @@ export default function App() {
     await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country: tapped.code, isFlash, hasStreak, voiceUrl })
     localStorage.setItem('hay_last_checkin_date', getTodayKey())
     setShowDailyNudge(false)
+    setShowLowMoodNudge(false)
+    // Track negative mood for follow-up nudge
+    const LOW_MOODS = new Set(['😔', '😢', '😡', '😤', '😰', '😶', '🥺'])
+    if (LOW_MOODS.has(mood)) {
+      localStorage.setItem('hay_last_low_mood_time', String(Date.now()))
+      localStorage.setItem('hay_last_low_mood', mood)
+    } else {
+      localStorage.removeItem('hay_last_low_mood_time')
+      localStorage.removeItem('hay_last_low_mood')
+    }
     // Achievement checks
     const newlyUnlocked = recordCheckInAchievements(streakCount)
     newlyUnlocked.forEach((id, i) => {
@@ -462,10 +489,12 @@ export default function App() {
     }
   }
 
+  const mapStyleUrl = satellite ? 'mapbox://styles/mapbox/satellite-streets-v12' : null
+
   return (
     <div className={`app${showFeedPanel ? ' feed-panel-open' : ''}`}>
       <MapView
-        key={theme}
+        key={satellite ? 'satellite' : theme}
         theme={theme}
         userLocation={userLocation}
         onMapClick={handleMapClick}
@@ -482,6 +511,7 @@ export default function App() {
         rotateGlobe={rotateGlobe}
         clusterPins={clusterPins}
         showHeatmap={showHeatmap}
+        mapStyleUrl={mapStyleUrl}
       />
 
       {/* Transition overlay — fades out while map initialises behind it */}
@@ -602,7 +632,41 @@ export default function App() {
         🌡
       </button>
 
+      <button
+        className={`satellite-btn${satellite ? ' satellite-btn--on' : ''}`}
+        onClick={() => setSatellite(v => !v)}
+        aria-label={satellite ? 'Switch to standard map' : 'Switch to satellite view'}
+        aria-pressed={satellite}
+        title="Satellite view"
+      >
+        🛰
+      </button>
+
       <TrendingWidget />
+
+      {/* Low-mood follow-up nudge */}
+      {showLowMoodNudge && panel === PANEL.NONE && (
+        <div className="lowmood-nudge" role="status">
+          <span className="lowmood-nudge-emoji" aria-hidden="true">{lastLowMood}</span>
+          <div className="lowmood-nudge-body">
+            <p className="lowmood-nudge-title">How are you feeling now?</p>
+            <p className="lowmood-nudge-sub">You shared something tough a while ago.</p>
+          </div>
+          <button
+            className="lowmood-nudge-cta"
+            onClick={() => { setShowLowMoodNudge(false); handleFabClick() }}
+          >Check in</button>
+          <button
+            className="lowmood-nudge-dismiss"
+            onClick={() => {
+              setShowLowMoodNudge(false)
+              localStorage.removeItem('hay_last_low_mood_time')
+              localStorage.removeItem('hay_last_low_mood')
+            }}
+            aria-label="Dismiss"
+          >✕</button>
+        </div>
+      )}
 
       <button
         className="feed-btn"
@@ -770,6 +834,7 @@ export default function App() {
           onClose={() => setPanel(PANEL.NONE)}
           initialMood={mirrorMood}
           placeName={placeName}
+          statusMsg={statusMsg}
         />
       )}
 
@@ -809,6 +874,8 @@ export default function App() {
           onOpenJournal={() => { setPanel(PANEL.JOURNAL) }}
           travelMode={travelMode}
           onTravelModeChange={(v) => { setTravelMode(v); localStorage.setItem('hay_travel_mode', v ? '1' : '0') }}
+          statusMsg={statusMsg}
+          onStatusMsgChange={(v) => { setStatusMsg(v); localStorage.setItem('hay_status_msg', v) }}
         />
       )}
 

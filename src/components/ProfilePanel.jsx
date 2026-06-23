@@ -25,6 +25,7 @@ export default function ProfilePanel({
   hideCountryBadge, onHideCountryBadgeChange,
   onOpenJournal,
   travelMode, onTravelModeChange,
+  statusMsg, onStatusMsgChange,
 }) {
   const { user, isAnonymous, registerAccount, loginAccount } = useAuth()
   const { theme, toggle: toggleTheme } = useTheme()
@@ -198,6 +199,33 @@ export default function ProfilePanel({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* ── Status message ───────────────────────────────────────────────── */}
+      <div className="profile-section">
+        <p className="profile-section-label">Status</p>
+        <p className="profile-row-hint" style={{ marginBottom: '0.5rem' }}>
+          Auto-fills your check-in message so you don't have to retype it.
+        </p>
+        <div className="status-input-row">
+          <input
+            className="status-input"
+            type="text"
+            placeholder="e.g. Working from home today…"
+            maxLength={60}
+            value={statusMsg || ''}
+            onChange={e => onStatusMsgChange?.(e.target.value)}
+            aria-label="Mood status message"
+          />
+          {statusMsg && (
+            <button
+              className="status-clear-btn"
+              onClick={() => onStatusMsgChange?.('')}
+              aria-label="Clear status"
+            >✕</button>
+          )}
+        </div>
+        <p className="status-char-count">{(statusMsg || '').length}/60</p>
       </div>
 
       {/* ── Preferences ──────────────────────────────────────────────────── */}

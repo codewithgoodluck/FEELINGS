@@ -351,7 +351,7 @@ export default function MapView({
   onPinClick, onMapClick, onDeletePin,
   userLocation, unreadPinIds, activePinId,
   onNeighbourhoodClick, onFirstPins, previewLocation, onHoldDrop,
-  onFlyTo, theme, panelOpen,
+  onFlyTo, theme, mapStyleUrl, panelOpen,
   rotateGlobe = true, clusterPins = true, showHeatmap = false,
 }) {
   const mapContainer      = useRef(null)
@@ -440,7 +440,7 @@ export default function MapView({
 
     map.current = new mapboxgl.Map({
       container:  mapContainer.current,
-      style:      theme === 'light' ? 'mapbox://styles/mapbox/light-v11' : 'mapbox://styles/mapbox/dark-v11',
+      style:      mapStyleUrl ?? (theme === 'light' ? 'mapbox://styles/mapbox/light-v11' : 'mapbox://styles/mapbox/dark-v11'),
       center:     userLocation ? [userLocation.lng, userLocation.lat] : [0, 20],
       zoom:       userLocation ? 13 : 2,
       projection: 'globe',
@@ -460,8 +460,9 @@ export default function MapView({
     map.current.addControl(new mapboxgl.GeolocateControl({ trackUserLocation: false, showUserLocation: false }), 'bottom-right')
 
     map.current.on('load', () => {
-      // ── Globe atmosphere ─────────────────────────────────────────────────
-      if (theme === 'light') {
+      // ── Globe atmosphere (skip for satellite — it has its own) ──────────
+      if (mapStyleUrl) { /* satellite handles its own fog */ }
+      else if (theme === 'light') {
         map.current.setFog({
           color:            'rgb(200, 220, 240)',
           'high-color':     'rgb(80, 130, 210)',
