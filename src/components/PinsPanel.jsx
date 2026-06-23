@@ -32,7 +32,11 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick }) {
 
   function handleSelect(pin) {
     onFlyTo(pin.lng, pin.lat)
-    dismiss(() => onPinClick(pin))
+    if (window.innerWidth >= 640) {
+      onPinClick(pin)
+    } else {
+      dismiss(() => onPinClick(pin))
+    }
   }
 
   return (

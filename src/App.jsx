@@ -6,7 +6,7 @@ import ChatPanel from './components/ChatPanel'
 import PinSheet from './components/PinSheet'
 import MirrorPrompt from './components/MirrorPrompt'
 import HelpPanel from './components/HelpPanel'
-import { createPin, deactivatePin, subscribeToUserConversations, getPin } from './utils/db'
+import { createPin, deactivatePin, subscribeToUserConversations, getPin, clearAllPins } from './utils/db'
 import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry, reverseGeocodePlaceName } from './utils/location'
 import { getAnonColour, getAnonIdentity } from './utils/identity'
 import { recordCheckIn } from './utils/streak'
@@ -21,7 +21,7 @@ import PinsPanel from './components/PinsPanel'
 import { subscribeToLivePresence, countryFlag } from './utils/presence'
 import './App.css'
 
-const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile', FEED: 'feed' }
+const PANEL = { NONE: 'none', CHECKIN: 'checkin', CHAT: 'chat', PEEK: 'peek', HELP: 'help', INBOX: 'inbox', LOCATION: 'location', PROFILE: 'profile' }
 
 // Track tip visibility once per localStorage key
 function useTip(key) {
@@ -56,6 +56,7 @@ export default function App() {
   const showToast = useToast()
   const { theme, toggle: toggleTheme } = useTheme()
   useKeyboardOffset()
+  useEffect(() => { window.__clearAllPins = clearAllPins }, [])
 
   // ── First-run state ────────────────────────────────────────────────────────
   const [mirrorDone, setMirrorDone] = useState(
@@ -71,7 +72,8 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(null)
 
   // ── UI state ───────────────────────────────────────────────────────────────
-  const [panel, setPanel]                     = useState(() => window.innerWidth >= 640 ? PANEL.FEED : PANEL.NONE)
+  const [panel, setPanel]                     = useState(PANEL.NONE)
+  const [showFeedPanel, setShowFeedPanel]     = useState(() => window.innerWidth >= 640)
   const [showSearch, setShowSearch]           = useState(false)
   const mapFlyTo                              = useRef(null)
   const [pendingLocation, setPendingLocation] = useState(null)
@@ -323,9 +325,9 @@ export default function App() {
 
       <button
         className="feed-btn"
-        onClick={() => setPanel(p => p === PANEL.FEED ? PANEL.NONE : PANEL.FEED)}
+        onClick={() => setShowFeedPanel(v => !v)}
         aria-label="Live pin feed"
-        aria-pressed={panel === PANEL.FEED}
+        aria-pressed={showFeedPanel}
       >
         ☰
       </button>
@@ -429,9 +431,9 @@ export default function App() {
         <ProfilePanel onClose={() => setPanel(PANEL.NONE)} />
       )}
 
-      {panel === PANEL.FEED && (
+      {showFeedPanel && (
         <PinsPanel
-          onClose={() => setPanel(PANEL.NONE)}
+          onClose={() => setShowFeedPanel(false)}
           onFlyTo={(lng, lat) => mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })}
           onPinClick={(pin) => { setActivePin(pin); setPanel(PANEL.PEEK) }}
         />

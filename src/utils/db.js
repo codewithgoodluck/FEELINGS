@@ -11,6 +11,8 @@ import {
   setDoc,
   updateDoc,
   getDoc,
+  getDocs,
+  writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 
@@ -59,6 +61,16 @@ export function subscribeToPins(callback) {
 // Deactivate a pin (soft delete — keeps conversation history)
 export async function deactivatePin(pinId) {
   await updateDoc(doc(db, 'pins', pinId), { active: false })
+}
+
+// Deactivate all pins — dev utility, call via window.__clearAllPins()
+export async function clearAllPins() {
+  const snap = await getDocs(query(collection(db, 'pins'), limit(500)))
+  if (snap.empty) return 0
+  const batch = writeBatch(db)
+  snap.docs.forEach(d => batch.update(d.ref, { active: false }))
+  await batch.commit()
+  return snap.docs.length
 }
 
 // Fetch a single pin by ID (works even if active: false, for conversation history)
