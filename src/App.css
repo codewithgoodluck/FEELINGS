@@ -6133,4 +6133,229 @@ html[data-theme="light"] .profile-journal-btn { background: rgba(255,255,255,0.6
   padding: 0.25rem;
   line-height: 1;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TIER 5 — PIN CONTEXT TAGS
+═══════════════════════════════════════════════════════════════════════════ */
+
+.checkin-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+}
+
+.checkin-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--r-pill);
+  background: var(--ink-5);
+  border: 1.5px solid var(--border);
+  color: var(--ink-2);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 36px;
+}
+
+.checkin-tag:hover { background: var(--ink-4); color: var(--ink-0); }
+
+.checkin-tag--active {
+  background: rgba(91,138,245,0.18);
+  border-color: rgba(91,138,245,0.55);
+  color: #5b8af5;
+}
+
+.feed-badge--tag {
+  background: rgba(129,178,154,0.18);
+  color: #81b29a;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TIER 5 — NEARBY FEED FILTER
+═══════════════════════════════════════════════════════════════════════════ */
+
+.pins-panel-subtitle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pins-panel-nearby-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--r-pill);
+  background: var(--ink-5);
+  border: 1.5px solid var(--border);
+  color: var(--ink-2);
+  font-size: 0.73rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 30px;
+  white-space: nowrap;
+}
+
+.pins-panel-nearby-btn:hover { background: var(--ink-4); color: var(--ink-0); }
+
+.pins-panel-nearby-btn--on {
+  background: rgba(91,138,245,0.18);
+  border-color: rgba(91,138,245,0.5);
+  color: #5b8af5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TIER 5 — QUICK WAVE BUTTON
+═══════════════════════════════════════════════════════════════════════════ */
+
+.feed-card-wave {
+  padding: 0.3rem 0.55rem;
+  border-radius: var(--r-md);
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-width: 38px;
+  min-height: 36px;
+}
+
+.feed-card-wave:hover:not(:disabled) {
+  background: rgba(91,138,245,0.12);
+  border-color: rgba(91,138,245,0.45);
+}
+
+.feed-card-wave--done {
+  background: rgba(6,214,160,0.12);
+  border-color: rgba(6,214,160,0.45);
+  color: #06d6a0;
+  cursor: default;
+}
+
+.feed-card-wave:disabled { opacity: 0.6; cursor: default; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TIER 5 — MOOD SHARE CARD (journal header)
+═══════════════════════════════════════════════════════════════════════════ */
+
+.journal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.journal-share-btn {
+  padding: 0.3rem 0.75rem;
+  border-radius: var(--r-pill);
+  background: rgba(91,138,245,0.15);
+  border: 1.5px solid rgba(91,138,245,0.4);
+  color: #5b8af5;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+
+.journal-share-btn:hover { background: rgba(91,138,245,0.25); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TIER 5 — STREAK MILESTONE CELEBRATION
+═══════════════════════════════════════════════════════════════════════════ */
+
+.streak-celebration {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 900;
+  pointer-events: none;
+  animation: celebFadeIn 0.35s var(--ease-out) both, celebFadeOut 0.5s 3.5s ease-in both;
+}
+
+@keyframes celebFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes celebFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.streak-celebration-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,183,3,0.5);
+  animation: streakRing 1.4s ease-out infinite;
+  pointer-events: none;
+}
+
+.streak-celebration-ring + .streak-celebration-ring {
+  animation-delay: 0.5s;
+  border-color: rgba(255,122,56,0.4);
+}
+
+@keyframes streakRing {
+  0%   { width: 80px;  height: 80px;  opacity: 0.8; }
+  100% { width: 280px; height: 280px; opacity: 0; }
+}
+
+.streak-celebration-emoji {
+  font-size: 4.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 24px rgba(255,183,3,0.55));
+  animation: celebBounce 0.6s var(--ease-out) 0.15s both;
+}
+
+@keyframes celebBounce {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.streak-celebration-title {
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin: 0;
+  animation: fadeUp 0.4s var(--ease-out) 0.3s both;
+}
+
+.streak-celebration-sub {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.6);
+  margin: 0;
+  text-align: center;
+  max-width: 220px;
+  animation: fadeUp 0.4s var(--ease-out) 0.45s both;
+}
 .lowmood-nudge-dismiss:hover { color: var(--ink-1); }

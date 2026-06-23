@@ -34,6 +34,15 @@ const PROMPTS = [
   "How have you been treating yourself today?",
 ]
 
+const TAGS = [
+  { id: 'work',    emoji: '🏢', label: 'Work' },
+  { id: 'love',    emoji: '💕', label: 'Love' },
+  { id: 'health',  emoji: '🏥', label: 'Health' },
+  { id: 'sleep',   emoji: '🌙', label: 'Sleep' },
+  { id: 'study',   emoji: '🎓', label: 'Study' },
+  { id: 'life',    emoji: '🌍', label: 'Life' },
+]
+
 const MOODS = [
   { emoji: '😊', label: 'Good' },
   { emoji: '😔', label: 'Low' },
@@ -63,6 +72,7 @@ export default function CheckInPanel({ location, onSubmit, onClose, initialMood,
   const [error, setError]           = useState('')
   const [voiceBlob, setVoiceBlob]   = useState(null)
   const [recording, setRecording]   = useState(false)
+  const [selectedTag, setSelectedTag] = useState(null)
   const recorderRef = useRef(null)
   const chunksRef   = useRef([])
 
@@ -104,7 +114,7 @@ export default function CheckInPanel({ location, onSubmit, onClose, initialMood,
     try {
       let voiceUrl = null
       if (voiceBlob) voiceUrl = await uploadVoice(voiceBlob)
-      await onSubmit({ mood: selectedMood.emoji, message: message.trim(), isFlash, voiceUrl })
+      await onSubmit({ mood: selectedMood.emoji, message: message.trim(), isFlash, voiceUrl, tag: selectedTag })
     } catch (err) {
       setError(err?.message || 'Failed to post. Check your connection.')
       setSubmitting(false)
@@ -154,6 +164,21 @@ export default function CheckInPanel({ location, onSubmit, onClose, initialMood,
             >
               <span className="mood-emoji">{m.emoji}</span>
               <span className="mood-label">{m.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Context tag picker */}
+        <div className="checkin-tags" role="group" aria-label="Optional context">
+          {TAGS.map(t => (
+            <button
+              key={t.id}
+              type="button"
+              className={`checkin-tag${selectedTag === t.id ? ' checkin-tag--active' : ''}`}
+              onClick={() => setSelectedTag(v => v === t.id ? null : t.id)}
+              aria-pressed={selectedTag === t.id}
+            >
+              {t.emoji} {t.label}
             </button>
           ))}
         </div>

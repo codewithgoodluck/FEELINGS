@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { subscribeToUserPins } from '../utils/db'
 import { useAuth } from '../contexts/AuthContext'
+import { getStreakCount } from '../utils/streak'
+import { useToast } from '../contexts/ToastContext'
 
 const MOOD_LABELS = {
   '😊': 'Good',    '😔': 'Low',       '😤': 'Frustrated', '😴': 'Tired',
@@ -104,6 +106,7 @@ function groupByDay(pins) {
 
 export default function MoodJournal({ onClose }) {
   const { user } = useAuth()
+  const showToast = useToast()
   const [pins, setPins] = useState(null) // null = loading
 
   useEffect(() => {
@@ -112,6 +115,25 @@ export default function MoodJournal({ onClose }) {
   }, [user?.uid])
 
   // Mood frequency summary
+  async function handleShare() {
+    const total   = pins?.length ?? 0
+    const streak  = getStreakCount()
+    const top     = topMood ? topMood[0] : null
+    const text    = [
+      `My FEELINGS mood journal 🌍`,
+      `${total} check-in${total !== 1 ? 's' : ''}${top ? ` · ${top} most felt` : ''}${streak > 0 ? ` · ${streak}-day streak 🔥` : ''}`,
+      `https://f-kappa-one.vercel.app`,
+    ].join('\n')
+    if (navigator.share) {
+      try { await navigator.share({ text }) } catch {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(text)
+        showToast('Copied to clipboard!', 'success')
+      } catch { showToast('Could not copy', 'error') }
+    }
+  }
+
   const moodCounts = (pins ?? []).reduce((acc, p) => {
     if (p.mood) acc[p.mood] = (acc[p.mood] || 0) + 1
     return acc
@@ -130,7 +152,14 @@ export default function MoodJournal({ onClose }) {
           <h2 className="panel-title">Your mood journal</h2>
           <p className="panel-sub">Private — only visible to you.</p>
         </div>
-        <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+        <div className="journal-header-actions">
+          {pins && pins.length > 0 && (
+            <button className="journal-share-btn" onClick={handleShare} aria-label="Share your mood journey">
+              ↑ Share
+            </button>
+          )}
+          <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+        </div>
       </div>
 
       {/* Summary bar */}

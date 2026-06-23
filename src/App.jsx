@@ -138,6 +138,7 @@ export default function App() {
   const [statusMsg,          setStatusMsg]          = useState(() => localStorage.getItem('hay_status_msg') || '')
   const [showLowMoodNudge,   setShowLowMoodNudge]   = useState(false)
   const [lastLowMood,        setLastLowMood]        = useState(null)
+  const [streakCelebration,  setStreakCelebration]  = useState(null) // { streak, emoji }
 
   // ── Country lock overlay state ─────────────────────────────────────────────
   const [countryLockData,  setCountryLockData]  = useState(null) // { tappedCode, tappedName }
@@ -358,7 +359,7 @@ export default function App() {
     showToast('User blocked — their pins will no longer appear in your feed.', 'info')
   }
 
-  async function handleCheckInSubmit({ mood, message, isFlash, voiceUrl }) {
+  async function handleCheckInSubmit({ mood, message, isFlash, voiceUrl, tag }) {
     if (!pendingLocation || !user) throw new Error('Not ready — please wait a moment and try again')
     if (userLocation) {
       const dist = haversineKm(pendingLocation.lat, pendingLocation.lng, userLocation.lat, userLocation.lng)
@@ -377,7 +378,7 @@ export default function App() {
     }
     const streakCount  = recordCheckIn()
     const hasStreak    = streakCount >= 7
-    await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country: tapped.code, isFlash, hasStreak, voiceUrl })
+    await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country: tapped.code, isFlash, hasStreak, voiceUrl, tag })
     localStorage.setItem('hay_last_checkin_date', getTodayKey())
     setShowDailyNudge(false)
     setShowLowMoodNudge(false)
@@ -396,6 +397,15 @@ export default function App() {
       const a = ACHIEVEMENTS.find(x => x.id === id)
       if (a) setTimeout(() => showToast(`${a.emoji} Achievement unlocked: ${a.label}!`, 'success'), i * 1800 + 500)
     })
+    // Streak milestone celebration overlay
+    const STREAK_MILESTONES = new Set([3, 7, 14, 30])
+    if (STREAK_MILESTONES.has(streakCount)) {
+      const milestoneEmoji = streakCount >= 30 ? '🌙' : streakCount >= 14 ? '⚡' : streakCount >= 7 ? '💫' : '🔥'
+      setTimeout(() => {
+        setStreakCelebration({ streak: streakCount, emoji: milestoneEmoji })
+        setTimeout(() => setStreakCelebration(null), 4000)
+      }, 800)
+    }
     setPanel(PANEL.NONE)
     setPendingLocation(null)
     mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })
@@ -758,6 +768,17 @@ export default function App() {
         </div>
       )}
 
+      {/* Streak milestone celebration */}
+      {streakCelebration && (
+        <div className="streak-celebration" aria-live="polite" aria-atomic="true">
+          <div className="streak-celebration-ring" />
+          <div className="streak-celebration-ring" />
+          <div className="streak-celebration-emoji" aria-hidden="true">{streakCelebration.emoji}</div>
+          <p className="streak-celebration-title">{streakCelebration.streak}-day streak!</p>
+          <p className="streak-celebration-sub">You've been showing up for yourself.</p>
+        </div>
+      )}
+
       {/* First-pin celebration ripple */}
       {celebration && (
         <div className="celebration" aria-live="polite" aria-atomic="true">
@@ -889,6 +910,7 @@ export default function App() {
           unreadPinIds={unreadPinIds}
           currentUserId={user?.uid}
           blockedUids={blockedUids}
+          userLocation={userLocation}
           onClose={() => setShowFeedPanel(false)}
           onFlyTo={(lng, lat) => mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })}
           onPinClick={(pin) => { setActivePin(pin); setPanel(PANEL.PEEK) }}
