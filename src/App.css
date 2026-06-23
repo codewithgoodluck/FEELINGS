@@ -1687,47 +1687,94 @@
    THE MIRROR — full-screen mood gate before the map loads
 ═══════════════════════════════════════════════════════════════════════════ */
 
+/* ── Mirror / Onboarding ──────────────────────────────────────────────── */
 .mirror-screen {
+  position: fixed;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-  background: #080a0f;
+  background: #080a10;
   padding: 1.5rem;
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
+/* Soft centred glow */
+.mirror-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: 640px;
+  height: 640px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(91,138,245,0.08) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+/* Star-field: 1 px box-shadow dots on a zero-size element */
+.mirror-stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 8%   7%,  rgba(255,255,255,0.55) 0%, transparent 100%),
+    radial-gradient(1px 1px at 22%  18%, rgba(255,255,255,0.4)  0%, transparent 100%),
+    radial-gradient(1px 1px at 38%  4%,  rgba(255,255,255,0.45) 0%, transparent 100%),
+    radial-gradient(1px 1px at 54%  11%, rgba(255,255,255,0.35) 0%, transparent 100%),
+    radial-gradient(1px 1px at 70%  6%,  rgba(255,255,255,0.5)  0%, transparent 100%),
+    radial-gradient(1px 1px at 85%  15%, rgba(255,255,255,0.4)  0%, transparent 100%),
+    radial-gradient(1px 1px at 93%  28%, rgba(255,255,255,0.45) 0%, transparent 100%),
+    radial-gradient(1px 1px at 14%  42%, rgba(255,255,255,0.3)  0%, transparent 100%),
+    radial-gradient(1px 1px at 76%  38%, rgba(255,255,255,0.35) 0%, transparent 100%),
+    radial-gradient(1px 1px at 48%  52%, rgba(255,255,255,0.25) 0%, transparent 100%),
+    radial-gradient(1px 1px at 62%  72%, rgba(255,255,255,0.3)  0%, transparent 100%),
+    radial-gradient(1px 1px at 5%   84%, rgba(255,255,255,0.4)  0%, transparent 100%),
+    radial-gradient(1px 1px at 88%  88%, rgba(255,255,255,0.35) 0%, transparent 100%),
+    radial-gradient(1px 1px at 30%  92%, rgba(255,255,255,0.28) 0%, transparent 100%),
+    radial-gradient(1px 1px at 58%  95%, rgba(255,255,255,0.32) 0%, transparent 100%);
 }
 
 .mirror-card {
+  position: relative;
   width: 100%;
-  max-width: 360px;
+  max-width: 380px;
   text-align: center;
-  animation: fadeUp 0.55s var(--ease-out) both;
+  animation: fadeUp 0.5s var(--ease-out) both;
+}
+
+.mirror-wordmark {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.22);
+  margin-bottom: 2.5rem;
 }
 
 .mirror-eyebrow {
   font-size: 0.75rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-3);
-  margin-bottom: 1.25rem;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 0.875rem;
 }
 
 .mirror-heading {
   font-family: var(--font-display);
-  font-size: clamp(2rem, 7vw, 3rem);
+  font-size: clamp(1.9rem, 7vw, 2.75rem);
   font-weight: 400;
   letter-spacing: -0.03em;
-  color: var(--ink-0);
-  line-height: 1.1;
+  color: rgba(255,255,255,0.92);
+  line-height: 1.15;
   margin-bottom: 0.625rem;
 }
 
 .mirror-sub {
-  font-size: 0.9375rem;
-  color: var(--ink-3);
-  margin-bottom: 2.25rem;
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.38);
+  margin-bottom: 2rem;
   line-height: 1.6;
 }
 
@@ -1735,35 +1782,96 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.625rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.25rem;
+}
+
+@keyframes moodIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 
 .mirror-mood-btn {
-  font-size: 2rem;
-  padding: 0.875rem 0.25rem;
-  border-radius: var(--r-md);
-  background: var(--ink-5);
-  border: 2px solid transparent;
-  transition: background 0.15s, border-color 0.15s, transform 0.12s var(--ease-out);
+  aspect-ratio: 1;
+  font-size: 1.75rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.15s, border-color 0.18s, transform 0.14s var(--ease-out), opacity 0.2s;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
-  min-height: 64px;
+  animation: moodIn 0.35s var(--ease-out) both;
 }
 
-.mirror-mood-btn:hover  { background: var(--ink-4); }
-.mirror-mood-btn:active { transform: scale(0.92); }
+.mirror-mood-btn:not(:disabled):hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.18);
+}
+.mirror-mood-btn:not(:disabled):active { transform: scale(0.9); }
 
 .mirror-mood-btn--active {
-  background: rgba(255,255,255,0.09);
-  border-color: rgba(255,255,255,0.35);
-  transform: scale(1.08);
+  background: rgba(232,196,104,0.14);
+  border-color: rgba(232,196,104,0.55);
+  transform: scale(1.1);
+  box-shadow: 0 0 22px rgba(232,196,104,0.18);
 }
 
 .mirror-mood-btn--faded {
-  opacity: 0.14;
-  transform: scale(0.88);
+  opacity: 0.12;
+  transform: scale(0.86);
   pointer-events: none;
+}
+
+.mirror-hint {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.2);
+  letter-spacing: 0.04em;
+}
+
+/* ── Joining transition ─────────────────────────────────────────────── */
+.mirror-joining {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  animation: fadeUp 0.3s var(--ease-out) both;
+}
+
+@keyframes joinRing {
+  0%   { width: 56px; height: 56px; opacity: 0.75; }
+  100% { width: 220px; height: 220px; opacity: 0; }
+}
+
+.mirror-join-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 1.5px solid rgba(232,196,104,0.4);
+  animation: joinRing 1.3s ease-out infinite;
+  pointer-events: none;
+}
+.mirror-join-ring--2 { animation-delay: 0.45s; }
+
+.mirror-join-emoji {
+  font-size: 3.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 18px rgba(232,196,104,0.35));
+}
+
+.mirror-join-text {
+  font-size: 0.95rem;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.01em;
+  text-align: center;
+  max-width: 220px;
+  line-height: 1.55;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
