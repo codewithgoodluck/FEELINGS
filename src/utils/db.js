@@ -13,6 +13,8 @@ import {
   getDoc,
   getDocs,
   writeBatch,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 
@@ -131,6 +133,17 @@ export async function sendMessage(conversationId, { uid, text, gifUrl, voiceUrl,
 export async function setTyping(conversationId, uid, isTyping) {
   await updateDoc(doc(db, 'conversations', conversationId), {
     [`typing.${uid}`]: isTyping,
+  })
+}
+
+// Toggle an emoji reaction on a message (add if not present, remove if already reacted)
+export async function toggleReaction(conversationId, messageId, uid, emoji) {
+  const ref  = doc(db, 'conversations', conversationId, 'messages', messageId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return
+  const current = snap.data().reactions?.[emoji] ?? []
+  await updateDoc(ref, {
+    [`reactions.${emoji}`]: current.includes(uid) ? arrayRemove(uid) : arrayUnion(uid),
   })
 }
 

@@ -13,6 +13,7 @@ import {
   reportMessage,
   setTyping,
   markConversationSeen,
+  toggleReaction,
 } from '../utils/db'
 import { getAnonIdentity, getAnonColour } from '../utils/identity'
 import { uploadVoice, getSupportedMimeType } from '../utils/voiceStorage'
@@ -259,6 +260,8 @@ function VoicePlayer({ src, mime, isMe, msgId }) {
   )
 }
 
+const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
+
 // ── Shared thread UI ──────────────────────────────────────────────────────────
 
 function ConversationThread({ conversationId, pin, user, onBack, initialInput }) {
@@ -347,7 +350,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
   // Clear pending timer refs on unmount
   useEffect(() => () => {
     clearTimeout(longPressTimerRef.current)
-    clearTimeout(reportAutoDismissRef.current)
+    clearTimeout(actionDismissRef.current)
     clearTimeout(celebrationTimerRef.current)
   }, [])
 
@@ -498,21 +501,21 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
     })
   }
 
-  const [reportPopMsgId, setReportPopMsgId]   = useState(null)
-  const longPressTimerRef    = useRef(null)
-  const didLongPressRef      = useRef(false)
-  const reportAutoDismissRef = useRef(null)
+  const [actionPopId, setActionPopId] = useState(null)
+  const longPressTimerRef = useRef(null)
+  const didLongPressRef   = useRef(false)
+  const actionDismissRef  = useRef(null)
 
-  function openReportPop(msgId) {
-    setReportPopMsgId(msgId)
-    clearTimeout(reportAutoDismissRef.current)
-    reportAutoDismissRef.current = setTimeout(() => setReportPopMsgId(null), 2500)
+  function openActionPop(msgId) {
+    setActionPopId(msgId)
+    clearTimeout(actionDismissRef.current)
+    actionDismissRef.current = setTimeout(() => setActionPopId(null), 4000)
   }
 
   function startLongPress(msgId) {
     longPressTimerRef.current = setTimeout(() => {
       didLongPressRef.current = true
-      openReportPop(msgId)
+      openActionPop(msgId)
     }, 480)
   }
 
@@ -520,9 +523,17 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
     clearTimeout(longPressTimerRef.current)
   }
 
+  async function handleReact(msgId, emoji) {
+    setActionPopId(null)
+    clearTimeout(actionDismissRef.current)
+    try {
+      await toggleReaction(conversationId, msgId, user.uid, emoji)
+    } catch (err) { console.error('toggleReaction failed:', err) }
+  }
+
   async function handleReportMessage(msgId) {
-    setReportPopMsgId(null)
-    clearTimeout(reportAutoDismissRef.current)
+    setActionPopId(null)
+    clearTimeout(actionDismissRef.current)
     try {
       await reportMessage(conversationId, msgId, user.uid, 'User report')
       showToast('Message reported.', 'success')
@@ -557,7 +568,7 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
       </div>
 
       {/* Scrollable messages */}
-      <div ref={msgListRef} className="message-list" role="log" aria-live="polite" onClick={(e) => { if (!e.target.closest('.msg-report-pop')) setReportPopMsgId(null) }}>
+      <div ref={msgListRef} className="message-list" role="log" aria-live="polite" onClick={(e) => { if (!e.target.closest('.reaction-picker')) setActionPopId(null) }}>
         {privacyNote && (
           <div className="chat-privacy-note">
             <span>🔒 Stay anonymous — never share personal details</span>
@@ -620,8 +631,29 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                     msg.gifUrl   ? 'message-bubble--gif'   : '',
                     grpMod,
                   ].filter(Boolean).join(' ')
+                  const msgReactions = Object.entries(msg.reactions ?? {})
+                    .filter(([, uids]) => uids.length > 0)
                   return (
                     <div key={msg.id} className={`message ${isMe ? 'message--mine' : 'message--theirs'}${newMsgIds.has(msg.id) ? ' msg-new' : ''}`}>
+                      {/* Reaction / report picker — appears on long-press */}
+                      {actionPopId === msg.id && (
+                        <div className={`reaction-picker${isMe ? ' reaction-picker--mine' : ''}`} onClick={e => e.stopPropagation()}>
+                          {REACTIONS.map((emoji) => {
+                            const reacted = (msg.reactions?.[emoji] ?? []).includes(user.uid)
+                            return (
+                              <button
+                                key={emoji}
+                                className={`reaction-pick-btn${reacted ? ' reaction-pick-btn--active' : ''}`}
+                                onClick={() => handleReact(msg.id, emoji)}
+                                aria-label={`React with ${emoji}`}
+                              >{emoji}</button>
+                            )
+                          })}
+                          {!isMe && (
+                            <button className="reaction-pick-report" onClick={() => handleReportMessage(msg.id)} aria-label="Report message">⚑</button>
+                          )}
+                        </div>
+                      )}
                       <div
                         className={bubbleClass}
                         onClick={() => {
@@ -632,14 +664,12 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                         tabIndex={0}
                         onKeyDown={(e) => e.key === 'Enter' && setExpandedMsgId(id => id === msg.id ? null : msg.id)}
                         aria-label="Toggle timestamp"
-                        {...(!isMe && {
-                          onMouseDown: () => startLongPress(msg.id),
-                          onMouseUp: cancelLongPress,
-                          onMouseLeave: cancelLongPress,
-                          onTouchStart: () => startLongPress(msg.id),
-                          onTouchEnd: cancelLongPress,
-                          onTouchCancel: cancelLongPress,
-                        })}
+                        onMouseDown={() => startLongPress(msg.id)}
+                        onMouseUp={cancelLongPress}
+                        onMouseLeave={cancelLongPress}
+                        onTouchStart={() => startLongPress(msg.id)}
+                        onTouchEnd={cancelLongPress}
+                        onTouchCancel={cancelLongPress}
                       >
                         {msg.voiceUrl ? (
                           <VoicePlayer src={msg.voiceUrl} mime={msg.voiceMime} isMe={isMe} msgId={msg.id} />
@@ -648,14 +678,22 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                         ) : (
                           msg.text
                         )}
-                        {!isMe && reportPopMsgId === msg.id && (
-                          <div className="msg-report-pop" onClick={e => e.stopPropagation()}>
-                            <button className="msg-report-btn" onClick={() => handleReportMessage(msg.id)}>
-                              ⚑ Report this message
-                            </button>
-                          </div>
-                        )}
                       </div>
+                      {/* Reaction pills */}
+                      {msgReactions.length > 0 && (
+                        <div className={`reaction-pills${isMe ? ' reaction-pills--mine' : ''}`}>
+                          {msgReactions.map(([emoji, uids]) => (
+                            <button
+                              key={emoji}
+                              className={`reaction-pill${uids.includes(user.uid) ? ' reaction-pill--mine' : ''}`}
+                              onClick={() => handleReact(msg.id, emoji)}
+                              aria-label={`${emoji} ${uids.length}`}
+                            >
+                              {emoji} <span className="reaction-count">{uids.length}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       {expandedMsgId === msg.id && (
                         <p className="msg-time">{formatTime(msg)}</p>
                       )}
