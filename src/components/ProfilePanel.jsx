@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../hooks/useTheme'
 import { getAnonIdentity, getAnonColour, AVATAR_OPTIONS, saveAvatar } from '../utils/identity'
 import { getStreakCount } from '../utils/streak'
+import { ACHIEVEMENTS, getUnlocked } from '../utils/achievements'
 
 const AUTH_ERROR_MSGS = {
   EMAIL_IN_USE:        'This email is already registered. Try the Log in tab.',
@@ -23,11 +24,13 @@ export default function ProfilePanel({
   clusterPins, onClusterPinsChange,
   hideCountryBadge, onHideCountryBadgeChange,
   onOpenJournal,
+  travelMode, onTravelModeChange,
 }) {
   const { user, isAnonymous, registerAccount, loginAccount } = useAuth()
   const { theme, toggle: toggleTheme } = useTheme()
 
   const streak      = getStreakCount()
+  const unlocked    = getUnlocked()
   const avatarColor = getAnonColour(user?.uid || 'anon')
   const anonName    = getAnonIdentity(user?.uid || 'anon', null)
   const displayName = isAnonymous
@@ -179,6 +182,22 @@ export default function ProfilePanel({
           <span>📖 My mood journal</span>
           <span className="profile-journal-arrow">→</span>
         </button>
+
+        {/* Achievements */}
+        <p className="profile-achievements-label">Achievements</p>
+        <div className="profile-achievements">
+          {ACHIEVEMENTS.map(a => (
+            <div
+              key={a.id}
+              className={`achievement-badge${unlocked.has(a.id) ? ' achievement-badge--unlocked' : ''}`}
+              title={unlocked.has(a.id) ? a.desc : '???'}
+              aria-label={unlocked.has(a.id) ? `${a.label}: ${a.desc}` : 'Locked achievement'}
+            >
+              <span className="achievement-emoji">{unlocked.has(a.id) ? a.emoji : '🔒'}</span>
+              <span className="achievement-label">{unlocked.has(a.id) ? a.label : '???'}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ── Preferences ──────────────────────────────────────────────────── */}
@@ -256,6 +275,19 @@ export default function ProfilePanel({
             aria-pressed={clusterPins}
           >
             {clusterPins ? 'On' : 'Off'}
+          </button>
+        </div>
+        <div className="profile-row">
+          <div>
+            <span className="profile-row-key">✈ Travel mode</span>
+            <p className="profile-row-hint">Temporarily drop pins outside your home country.</p>
+          </div>
+          <button
+            className={`settings-toggle${travelMode ? ' settings-toggle--on' : ''}`}
+            onClick={() => onTravelModeChange?.(!travelMode)}
+            aria-pressed={!!travelMode}
+          >
+            {travelMode ? 'On' : 'Off'}
           </button>
         </div>
       </div>

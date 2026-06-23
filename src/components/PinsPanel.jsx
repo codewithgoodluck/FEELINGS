@@ -32,7 +32,7 @@ const MOOD_COLORS = {
 
 const CLOSE_MS = 300
 
-export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId, unreadPinIds, currentUserId, onDeletePin }) {
+export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId, unreadPinIds, currentUserId, onDeletePin, blockedUids }) {
   const { theme, toggle: toggleTheme } = useTheme()
   const [pins, setPins]           = useState([])
   const [moodFilter, setMoodFilter] = useState(null)
@@ -158,6 +158,9 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
           {moodFilter && (
             <p className="feed-filter-label">Showing {pins.filter(p => p.mood === moodFilter).length} people feeling {moodFilter}</p>
           )}
+          {(moodFilter ? pins.filter(p => p.mood === moodFilter) : pins).filter(p => !blockedUids?.has(p.uid)).length === 0 && pins.length > 0 && moodFilter && (
+            <p className="feed-filter-label">No unblocked pins with this mood right now.</p>
+          )}
           {pins.length === 0 ? (
             <div className="feed-empty">
               <span className="feed-empty-icon">🌍</span>
@@ -165,7 +168,7 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
               <p className="feed-empty-sub">Be the first to share how you feel.</p>
             </div>
           ) : (
-            (moodFilter ? pins.filter(p => p.mood === moodFilter) : pins).map(pin => {
+            (moodFilter ? pins.filter(p => p.mood === moodFilter) : pins).filter(p => !blockedUids?.has(p.uid)).map(pin => {
               const isActive  = activePinId === pin.id
               const hasUnread = unreadPinIds?.has(pin.id)
               const isOwn     = currentUserId && pin.uid === currentUserId

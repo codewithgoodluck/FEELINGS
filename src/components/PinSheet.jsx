@@ -22,7 +22,7 @@ function buildIcebreaker(pinMood, myMood) {
   return ICEBREAKERS[pinMood] || `Hey, saw you're feeling ${pinMood || 'something'} today 🙂`
 }
 
-export default function PinSheet({ pin, mirrorMood, onClose, onDelete }) {
+export default function PinSheet({ pin, mirrorMood, onClose, onDelete, onBlock }) {
   const { user } = useAuth()
   const [sheetState, setSheetState] = useState('peek')
   const [prefill, setPrefill]       = useState('')
@@ -99,6 +99,7 @@ export default function PinSheet({ pin, mirrorMood, onClose, onDelete }) {
             onBack={() => setSheetState('peek')}
             onClose={onClose}
             initialInput={prefill}
+            onBlock={onBlock}
           />
         </div>
       )}

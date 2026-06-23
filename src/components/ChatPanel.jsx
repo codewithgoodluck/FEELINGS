@@ -11,6 +11,7 @@ import {
   addRevealSystemMessage,
   reportPin,
   reportMessage,
+  deleteMessage,
   setTyping,
   markConversationSeen,
   toggleReaction,
@@ -19,6 +20,7 @@ import { getAnonIdentity, getAnonColour } from '../utils/identity'
 import { uploadVoice, getSupportedMimeType } from '../utils/voiceStorage'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
+import { unlock, ACHIEVEMENTS } from '../utils/achievements'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import GifPicker from './GifPicker'
@@ -543,6 +545,17 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
     }
   }
 
+  async function handleDeleteMessage(msgId) {
+    setActionPopId(null)
+    clearTimeout(actionDismissRef.current)
+    try {
+      await deleteMessage(conversationId, msgId)
+    } catch (err) {
+      console.error('deleteMessage failed:', err)
+      showToast('Could not delete — try again.', 'error')
+    }
+  }
+
   const voiceActive = voice.recording || !!voice.blob
 
   return (
@@ -635,8 +648,8 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                     .filter(([, uids]) => uids.length > 0)
                   return (
                     <div key={msg.id} className={`message ${isMe ? 'message--mine' : 'message--theirs'}${newMsgIds.has(msg.id) ? ' msg-new' : ''}`}>
-                      {/* Reaction / report picker — appears on long-press */}
-                      {actionPopId === msg.id && (
+                      {/* Reaction / report / delete picker — appears on long-press */}
+                      {actionPopId === msg.id && !msg.deleted && (
                         <div className={`reaction-picker${isMe ? ' reaction-picker--mine' : ''}`} onClick={e => e.stopPropagation()}>
                           {REACTIONS.map((emoji) => {
                             const reacted = (msg.reactions?.[emoji] ?? []).includes(user.uid)
@@ -649,6 +662,9 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                               >{emoji}</button>
                             )
                           })}
+                          {isMe && (
+                            <button className="reaction-pick-delete" onClick={() => handleDeleteMessage(msg.id)} aria-label="Delete message" title="Unsend">🗑</button>
+                          )}
                           {!isMe && (
                             <button className="reaction-pick-report" onClick={() => handleReportMessage(msg.id)} aria-label="Report message">⚑</button>
                           )}
@@ -671,7 +687,9 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                         onTouchEnd={cancelLongPress}
                         onTouchCancel={cancelLongPress}
                       >
-                        {msg.voiceUrl ? (
+                        {msg.deleted ? (
+                          <span className="msg-deleted">removed</span>
+                        ) : msg.voiceUrl ? (
                           <VoicePlayer src={msg.voiceUrl} mime={msg.voiceMime} isMe={isMe} msgId={msg.id} />
                         ) : msg.gifUrl ? (
                           <img src={msg.gifUrl} alt="GIF" className="message-gif" loading="lazy" />
@@ -958,11 +976,12 @@ function PinInbox({ pin, user, onSelectConv }) {
 
 // ── Shared panel body — used by ChatPanel (InboxSheet path) and PinSheet ─────
 
-export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
+export function ChatPanelContent({ pin, user, onBack, onClose, initialInput, onBlock }) {
   const [conversationId, setConversationId] = useState(null)
   const [inboxConvId, setInboxConvId]       = useState(null)
   const [connError, setConnError]           = useState(false)
   const [showReport, setShowReport]         = useState(false)
+  const [showBlock, setShowBlock]           = useState(false)
   const [isActive, setIsActive]             = useState(false)
   const isOwn = user.uid === pin.uid
 
@@ -983,7 +1002,10 @@ export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
     setConversationId(null)
     setConnError(false)
     getOrCreateConversation(pin.id, user.uid, pin.uid)
-      .then(setConversationId)
+      .then((convId) => {
+        setConversationId(convId)
+        unlock('first_chat') // silently unlock — badge visible in Profile
+      })
       .catch((err) => { console.error('Chat init failed:', err); setConnError(true) })
   }, [pin.id, user.uid, pin.uid, isOwn])
 
@@ -1031,7 +1053,10 @@ export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
         </div>
         <div className="chat-header-actions">
           {!isOwn && (
-            <button className="icon-btn" onClick={() => setShowReport(!showReport)} aria-label="Report">⚑</button>
+            <>
+              <button className="icon-btn" onClick={() => { setShowBlock(false); setShowReport(r => !r) }} aria-label="Report">⚑</button>
+              <button className="icon-btn chat-block-btn" onClick={() => { setShowReport(false); setShowBlock(b => !b) }} aria-label="Block user" title="Block this user">🚫</button>
+            </>
           )}
           <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
@@ -1043,6 +1068,16 @@ export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
           <div style={{ display: 'flex', gap: '8px' }}>
             <button className="btn btn--ghost btn--sm" onClick={() => setShowReport(false)}>Cancel</button>
             <button className="btn btn--danger btn--sm" onClick={handleReport}>Report</button>
+          </div>
+        </div>
+      )}
+
+      {showBlock && (
+        <div className="report-bar">
+          <p>Block this user? Their pins won't appear in your feed.</p>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn--ghost btn--sm" onClick={() => setShowBlock(false)}>Cancel</button>
+            <button className="btn btn--danger btn--sm" onClick={() => { setShowBlock(false); onBlock?.(pin.uid) }}>Block</button>
           </div>
         </div>
       )}
@@ -1072,12 +1107,12 @@ export function ChatPanelContent({ pin, user, onBack, onClose, initialInput }) {
 
 // ── Main ChatPanel — used from InboxSheet (direct-to-chat path) ───────────────
 
-export default function ChatPanel({ pin, onClose }) {
+export default function ChatPanel({ pin, onClose, onBlock }) {
   const { user } = useAuth()
   return (
     <div className="panel slide-up chat-panel" role="dialog" aria-label="Conversation">
       <div className="panel-handle" />
-      <ChatPanelContent pin={pin} user={user} onBack={null} onClose={onClose} initialInput="" />
+      <ChatPanelContent pin={pin} user={user} onBack={null} onClose={onClose} initialInput="" onBlock={onBlock} />
     </div>
   )
 }

@@ -246,6 +246,16 @@ export async function reportMessage(conversationId, messageId, reporterUid, reas
   })
 }
 
+// Soft-delete a message (marks deleted, clears content — keeps the doc for thread integrity)
+export async function deleteMessage(conversationId, messageId) {
+  await updateDoc(doc(db, 'conversations', conversationId, 'messages', messageId), {
+    deleted: true,
+    text:    '[removed]',
+    gifUrl:  null,
+    voiceUrl: null,
+  })
+}
+
 // Cancel a pending reveal request — removes uid from revealedBy and displayNames.
 // Only valid before the other participant has also revealed (callers should check bothRevealed).
 export async function unrequestReveal(conversationId, uid) {

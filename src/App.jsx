@@ -7,6 +7,8 @@ import PinSheet from './components/PinSheet'
 import MirrorPrompt from './components/MirrorPrompt'
 import HelpPanel from './components/HelpPanel'
 import { createPin, deactivatePin, subscribeToUserConversations, getPin, clearAllPins, countPinsWithMood } from './utils/db'
+import { blockUser, getBlockedUids } from './utils/blocked'
+import { ACHIEVEMENTS, recordCheckInAchievements, unlock } from './utils/achievements'
 import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry, reverseGeocodePlaceName, haversineKm } from './utils/location'
 import { getAnonColour, getAnonIdentity, getAvatar } from './utils/identity'
 import { recordCheckIn } from './utils/streak'
@@ -128,6 +130,8 @@ export default function App() {
   const [rotateGlobe,        setRotateGlobe]        = useState(() => localStorage.getItem('hay_globe_rotate') !== '0')
   const [clusterPins,        setClusterPins]        = useState(() => localStorage.getItem('hay_pin_cluster')  !== '0')
   const [hideCountryBadge,   setHideCountryBadge]   = useState(() => localStorage.getItem('hay_hide_country') === '1')
+  const [travelMode,         setTravelMode]         = useState(() => localStorage.getItem('hay_travel_mode') === '1')
+  const [blockedUids,        setBlockedUids]        = useState(() => getBlockedUids())
 
   // ── Country lock overlay state ─────────────────────────────────────────────
   const [countryLockData,  setCountryLockData]  = useState(null) // { tappedCode, tappedName }
@@ -292,7 +296,7 @@ export default function App() {
       const { lat, lng } = fuzzLocation(lngLat.lat, lngLat.lng)
       // Deliberate fallback: if geocode fails (network error / null), allow pin through silently
       const tapped = await reverseGeocodeCountry(lat, lng)
-      if (userCountry && tapped.code && tapped.code !== userCountry) {
+      if (!travelMode && userCountry && tapped.code && tapped.code !== userCountry) {
         // Show red ripple at tap point
         if (screenPt) setBadRipple(screenPt)
         // Show deactivated ghost pin
@@ -327,6 +331,14 @@ export default function App() {
     await deactivatePin(pinId)
   }
 
+  function handleBlock(uid) {
+    if (!uid) return
+    blockUser(uid)
+    setBlockedUids(prev => new Set([...prev, uid]))
+    setPanel(PANEL.NONE)
+    showToast('User blocked — their pins will no longer appear in your feed.', 'info')
+  }
+
   async function handleCheckInSubmit({ mood, message, isFlash }) {
     if (!pendingLocation || !user) throw new Error('Not ready — please wait a moment and try again')
     if (userLocation) {
@@ -336,7 +348,7 @@ export default function App() {
     const { lat, lng } = fuzzLocation(pendingLocation.lat, pendingLocation.lng)
     // Deliberate fallback: if geocode fails (network error / null), allow pin through silently
     const tapped = await reverseGeocodeCountry(lat, lng)
-    if (tapped.code && userCountry && tapped.code !== userCountry) {
+    if (!travelMode && tapped.code && userCountry && tapped.code !== userCountry) {
       setPanel(PANEL.NONE)
       setBlockedToastMsg(
         `🚫 That spot is in ${tapped.name ?? tapped.code} — share how you feel in ${userCountryName ?? userCountry} instead.`
@@ -349,6 +361,12 @@ export default function App() {
     await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country: tapped.code, isFlash, hasStreak })
     localStorage.setItem('hay_last_checkin_date', getTodayKey())
     setShowDailyNudge(false)
+    // Achievement checks
+    const newlyUnlocked = recordCheckInAchievements(streakCount)
+    newlyUnlocked.forEach((id, i) => {
+      const a = ACHIEVEMENTS.find(x => x.id === id)
+      if (a) setTimeout(() => showToast(`${a.emoji} Achievement unlocked: ${a.label}!`, 'success'), i * 1800 + 500)
+    })
     setPanel(PANEL.NONE)
     setPendingLocation(null)
     mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })
@@ -479,8 +497,15 @@ export default function App() {
 
       {toast && <MessageToast text={toast} onDismiss={() => setToast(null)} />}
 
+      {/* Travel mode badge */}
+      {travelMode && (
+        <div className="travel-mode-badge" aria-label="Travel mode active">
+          ✈ Travel mode on
+        </div>
+      )}
+
       {/* Country badge — shows user's locked country below stat bar */}
-      {userCountry && countryBadgeShow && !hideCountryBadge && (
+      {userCountry && countryBadgeShow && !hideCountryBadge && !travelMode && (
         <div className="country-badge" aria-label={`You're in ${userCountryName ?? userCountry}`}>
           <span className="country-badge-dot" aria-hidden="true" />
           <span className="country-badge-label">You're in</span>
@@ -739,6 +764,7 @@ export default function App() {
           mirrorMood={mirrorMood}
           onClose={() => setPanel(PANEL.NONE)}
           onDelete={async (pinId) => { await handleDeletePin(pinId); setPanel(PANEL.NONE) }}
+          onBlock={handleBlock}
         />
       )}
 
@@ -746,11 +772,12 @@ export default function App() {
         <ChatPanel
           pin={activePin}
           onClose={() => setPanel(PANEL.NONE)}
+          onBlock={handleBlock}
         />
       )}
 
       {panel === PANEL.HELP && (
-        <HelpPanel onClose={() => setPanel(PANEL.NONE)} />
+        <HelpPanel onClose={() => setPanel(PANEL.NONE)} userCountry={userCountry} />
       )}
 
       {panel === PANEL.PROFILE && (
@@ -765,6 +792,8 @@ export default function App() {
           hideCountryBadge={hideCountryBadge}
           onHideCountryBadgeChange={(v) => { setHideCountryBadge(v); localStorage.setItem('hay_hide_country', v ? '1' : '0') }}
           onOpenJournal={() => { setPanel(PANEL.JOURNAL) }}
+          travelMode={travelMode}
+          onTravelModeChange={(v) => { setTravelMode(v); localStorage.setItem('hay_travel_mode', v ? '1' : '0') }}
         />
       )}
 
@@ -777,6 +806,7 @@ export default function App() {
           activePinId={activePin?.id}
           unreadPinIds={unreadPinIds}
           currentUserId={user?.uid}
+          blockedUids={blockedUids}
           onClose={() => setShowFeedPanel(false)}
           onFlyTo={(lng, lat) => mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })}
           onPinClick={(pin) => { setActivePin(pin); setPanel(PANEL.PEEK) }}
