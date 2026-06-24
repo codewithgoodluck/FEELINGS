@@ -24,6 +24,7 @@ import { unlock, ACHIEVEMENTS } from '../utils/achievements'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import GifPicker from './GifPicker'
+import TranslateButton from './TranslateButton'
 
 function markSeen(convId) {
   try { localStorage.setItem('hay_seen_' + convId, Date.now()) } catch {}
@@ -697,6 +698,10 @@ function ConversationThread({ conversationId, pin, user, onBack, initialInput })
                           msg.text
                         )}
                       </div>
+                      {/* Translate button — received text messages only */}
+                      {!isMe && !msg.deleted && !msg.voiceUrl && !msg.gifUrl && msg.text && (
+                        <TranslateButton text={msg.text} className="msg-translate" />
+                      )}
                       {/* Reaction pills */}
                       {msgReactions.length > 0 && (
                         <div className={`reaction-pills${isMe ? ' reaction-pills--mine' : ''}`}>

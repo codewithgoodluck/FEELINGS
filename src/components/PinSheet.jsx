@@ -3,6 +3,7 @@ import { getAnonIdentity } from '../utils/identity'
 import { useAuth } from '../contexts/AuthContext'
 import { ChatPanelContent } from './ChatPanel'
 import { deactivatePin, togglePinReaction } from '../utils/db'
+import TranslateButton from './TranslateButton'
 
 const REACTION_EMOJIS = ['💙', '🤝', '❤️']
 
@@ -109,7 +110,10 @@ export default function PinSheet({ pin, mirrorMood, onClose, onDelete, onBlock }
             <div className="hay-sheet-peek-emoji">{pin.mood}</div>
             <div className="hay-sheet-peek-info">
               <p className="hay-sheet-peek-name">{getAnonIdentity(pin.uid, pin.country)}</p>
-              <p className="hay-sheet-peek-msg">{pin.message || 'No message — just a feeling.'}</p>
+              <p className="hay-sheet-peek-msg">
+                {pin.message || 'No message — just a feeling.'}
+                {pin.message && <TranslateButton text={pin.message} />}
+              </p>
             </div>
           </div>
           {pin.voiceUrl && (

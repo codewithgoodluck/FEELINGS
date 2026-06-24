@@ -4,6 +4,7 @@ import { countryFlag, countryName } from '../utils/presence'
 import { useTheme } from '../hooks/useTheme'
 import { useToast } from '../contexts/ToastContext'
 import { haversineKm } from '../utils/location'
+import TranslateButton from './TranslateButton'
 
 function timeAgo(ts) {
   if (!ts) return ''
@@ -259,7 +260,10 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
                       )}
 
                       {pin.message && (
-                        <p className="feed-card-message">"{pin.message}"</p>
+                        <p className="feed-card-message">
+                          "{pin.message}"
+                          <TranslateButton text={pin.message} className="feed-card-translate" />
+                        </p>
                       )}
                       {pin.reactions && (() => {
                         const hits = REACTION_EMOJIS.filter(e => (pin.reactions[e]?.length ?? 0) > 0)

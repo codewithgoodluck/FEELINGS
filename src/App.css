@@ -2918,6 +2918,86 @@ html[data-theme="light"] .sos-confirm {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   TRANSLATE BUTTON
+═══════════════════════════════════════════════════════════════════════════ */
+
+.translate-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  vertical-align: middle;
+}
+
+.translate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: rgba(255,255,255,0.06);
+  color: var(--ink-3);
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+.translate-btn:hover:not(:disabled) {
+  background: rgba(91,138,245,0.15);
+  border-color: rgba(91,138,245,0.4);
+  color: #7ba8f7;
+}
+.translate-btn--on {
+  background: rgba(91,138,245,0.12);
+  border-color: rgba(91,138,245,0.35);
+  color: #7ba8f7;
+}
+.translate-btn:disabled { opacity: 0.5; cursor: default; }
+.translate-err { color: #e07a5f; }
+
+.translate-output {
+  display: block;
+  margin-top: 0.25rem;
+  font-style: italic;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+/* Chat message context — sits below the bubble */
+.msg-translate {
+  margin-top: 0.2rem;
+  margin-left: 0.25rem;
+}
+.msg-translate .translate-output {
+  font-size: 0.8rem;
+  margin-top: 0.15rem;
+}
+
+/* Feed card context — inline after the message text */
+.feed-card-translate .translate-output {
+  font-size: 0.8125rem;
+}
+
+/* Light mode */
+html[data-theme="light"] .translate-btn {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.12);
+  color: var(--ink-3);
+}
+html[data-theme="light"] .translate-btn:hover:not(:disabled),
+html[data-theme="light"] .translate-btn--on {
+  background: rgba(91,138,245,0.1);
+  border-color: rgba(91,138,245,0.3);
+  color: #3a6fd8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    MAP TOOLTIPS — dark pill hints
 ═══════════════════════════════════════════════════════════════════════════ */
 
