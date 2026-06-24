@@ -181,7 +181,9 @@ export default function App() {
   const [tipFab, showTipFab, dismissTipFab] = useTip('pin_seen')
 
   // "Tap any pin" hint — flashes at page center every 30 s when map is idle
-  const [showPinHint, setShowPinHint] = useState(false)
+  const [showPinHint,   setShowPinHint]   = useState(false)
+  // Pin legend card — explains pin types, shows every 60 s when map is idle
+  const [showPinLegend, setShowPinLegend] = useState(false)
 
   // Show FAB tip 1.5 s after mirror is done
   useEffect(() => {
@@ -202,6 +204,25 @@ export default function App() {
     }
     const initialTimer = setTimeout(flash, 8000)
     const interval     = setInterval(flash, 30000)
+    return () => {
+      clearTimeout(initialTimer)
+      clearInterval(interval)
+      clearTimeout(hideTimer)
+    }
+  }, [mirrorDone]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Periodic pin-legend card — first shows at 20 s, then every 60 s
+  useEffect(() => {
+    if (!mirrorDone) return
+    let hideTimer = null
+    function showLegend() {
+      if (panelRef.current === PANEL.NONE) {
+        setShowPinLegend(true)
+        hideTimer = setTimeout(() => setShowPinLegend(false), 8000)
+      }
+    }
+    const initialTimer = setTimeout(showLegend, 20000)
+    const interval     = setInterval(showLegend, 60000)
     return () => {
       clearTimeout(initialTimer)
       clearInterval(interval)
@@ -457,16 +478,15 @@ export default function App() {
   function handleFabClick() {
     dismissTipFab()
     if (panel !== PANEL.NONE) { setPanel(PANEL.NONE); return }
-    // First FAB tap → show location sheet instead of going straight to check-in
-    if (!locationAsked) {
+    // Require a real location before opening check-in — re-prompt if not yet granted
+    if (!userLocation) {
       setPanel(PANEL.LOCATION)
       return
     }
-    const loc = userLocation || { lat: 20, lng: 0 }
-    setPendingLocation(loc)
+    setPendingLocation(userLocation)
     setPlaceName(null)
     setPanel(PANEL.CHECKIN)
-    if (userLocation) reverseGeocodePlaceName(loc.lat, loc.lng).then(setPlaceName).catch(() => {})
+    reverseGeocodePlaceName(userLocation.lat, userLocation.lng).then(setPlaceName).catch(() => {})
   }
 
   async function handleCryForHelp() {
@@ -803,6 +823,24 @@ export default function App() {
         <div className="map-tooltip map-tooltip--center" onClick={() => setShowPinHint(false)} role="status">
           <span className="map-tooltip-text">Tap any pin to chat anonymously</span>
           <button className="map-tooltip-close" onClick={(e) => { e.stopPropagation(); setShowPinHint(false) }} aria-label="Dismiss">✕</button>
+        </div>
+      )}
+
+      {/* Pin legend card — explains different pin types, shows every 60 s */}
+      {showPinLegend && panel === PANEL.NONE && (
+        <div className="pin-legend" role="status" aria-label="Pin guide">
+          <div className="pin-legend-header">
+            <span className="pin-legend-title">Pin Guide</span>
+            <button className="pin-legend-close" onClick={() => setShowPinLegend(false)} aria-label="Dismiss">✕</button>
+          </div>
+          <div className="pin-legend-grid">
+            <span className="pin-legend-item"><span className="pin-legend-dot pin-legend-dot--you">✦</span>Your pin</span>
+            <span className="pin-legend-item"><span className="pin-legend-dot pin-legend-dot--verified">✓</span>Verified location</span>
+            <span className="pin-legend-item"><span className="pin-legend-dot">⚡</span>Flash — expires soon</span>
+            <span className="pin-legend-item"><span className="pin-legend-dot">🔥</span>Streak — 7+ days</span>
+            <span className="pin-legend-item"><span className="pin-legend-dot pin-legend-dot--sos">❤️‍🩹</span>Needs support</span>
+            <span className="pin-legend-item"><span className="pin-legend-dot">💬</span>Has messages</span>
+          </div>
         </div>
       )}
 

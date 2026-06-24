@@ -2493,7 +2493,7 @@ html[data-theme="light"] .sos-confirm {
 .theme-btn {
   position: absolute;
   top: max(1rem, env(safe-area-inset-top, 0px));
-  right: calc(1rem + 2*(36px + 0.5rem));
+  right: calc(1rem + 3*(36px + 0.5rem));
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -2520,7 +2520,7 @@ html[data-theme="light"] .sos-confirm {
 .profile-btn {
   position: absolute;
   top: max(1rem, env(safe-area-inset-top, 0px));
-  right: calc(1rem + 3*(36px + 0.5rem));
+  right: calc(1rem + 4*(36px + 0.5rem));
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -2548,7 +2548,7 @@ html[data-theme="light"] .sos-confirm {
 .search-btn {
   position: absolute;
   top: max(1rem, env(safe-area-inset-top, 0px));
-  right: calc(1rem + 36px + 0.5rem);
+  right: calc(1rem + 2*(36px + 0.5rem));
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -2995,6 +2995,93 @@ html[data-theme="light"] .translate-btn--on {
   background: rgba(91,138,245,0.1);
   border-color: rgba(91,138,245,0.3);
   color: #3a6fd8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PIN LEGEND CARD
+═══════════════════════════════════════════════════════════════════════════ */
+
+.pin-legend {
+  position: fixed;
+  bottom: max(1.75rem, env(safe-area-inset-bottom, 1.75rem));
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(12,14,22,0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 0.625rem 0.875rem 0.75rem;
+  z-index: 450;
+  min-width: 260px;
+  max-width: calc(100vw - 2rem);
+  box-shadow: 0 6px 32px rgba(0,0,0,0.55);
+  animation: legendSlideUp 0.22s cubic-bezier(0.22,1,0.36,1) both;
+  pointer-events: auto;
+}
+
+@keyframes legendSlideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
+}
+
+.pin-legend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.pin-legend-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.pin-legend-close {
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.1rem 0.25rem;
+  border-radius: 4px;
+  -webkit-tap-highlight-color: transparent;
+}
+.pin-legend-close:hover { color: var(--ink-1); }
+
+.pin-legend-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem 0.75rem;
+}
+
+.pin-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.pin-legend-dot {
+  font-size: 0.875rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.pin-legend-dot--you      { color: #ffd23f; font-weight: 800; }
+.pin-legend-dot--verified { color: #5de3ae; }
+.pin-legend-dot--sos      { }
+
+/* Light mode */
+html[data-theme="light"] .pin-legend {
+  background: rgba(240,243,251,0.97);
+}
+html[data-theme="light"] .pin-legend-item {
+  color: var(--ink-2);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -4303,7 +4390,7 @@ html[data-theme="light"] .jl-toast {
 .feed-btn {
   position: absolute;
   top: max(0.75rem, env(safe-area-inset-top, 0.75rem));
-  right: calc(1rem + 4 * (36px + 0.5rem));
+  right: calc(1rem + 5*(36px + 0.5rem));
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -4841,6 +4928,11 @@ html[data-theme="light"] .feed-btn[aria-pressed="true"] {
   /* ── FAB tooltip: lift above nav + FAB ── */
   .map-tooltip--fab {
     bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 5.25rem);
+  }
+
+  /* ── Pin legend: lift above bottom nav ── */
+  .pin-legend {
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 0.75rem);
   }
 
   /* ── Mapbox controls: lift above bottom nav ── */
@@ -5806,8 +5898,8 @@ html[data-theme="light"] .profile-journal-btn { background: rgba(255,255,255,0.6
 
 .globe-btn {
   position: absolute;
-  top: max(4.5rem, calc(4.5rem + env(safe-area-inset-top)));
-  right: max(1rem, env(safe-area-inset-right, 1rem));
+  top: max(1rem, env(safe-area-inset-top, 0px));
+  right: calc(1rem + 1*(36px + 0.5rem));
   width: 36px;
   height: 36px;
   border-radius: var(--r-pill);
@@ -5833,8 +5925,8 @@ html[data-theme="light"] .profile-journal-btn { background: rgba(255,255,255,0.6
 
 .globe-customizer {
   position: absolute;
-  top: max(4.5rem, calc(4.5rem + env(safe-area-inset-top)));
-  right: calc(max(1rem, env(safe-area-inset-right, 1rem)) + 44px);
+  top: max(3.5rem, calc(env(safe-area-inset-top, 0px) + 3.5rem));
+  right: calc(1rem + 1*(36px + 0.5rem));
   width: 280px;
   background: var(--sheet-2);
   border: 1px solid var(--border);
