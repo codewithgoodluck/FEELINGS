@@ -31,6 +31,7 @@ import TrendingWidget from './components/TrendingWidget'
 import OnboardingTour from './components/OnboardingTour'
 import MoodMatchCard from './components/MoodMatchCard'
 import WeeklyInsight from './components/WeeklyInsight'
+import EchoLogo from './components/EchoLogo'
 import GlobeCustomizer from './components/GlobeCustomizer'
 import { GLOBE_STYLES, getGlobeStyle } from './utils/globeStyles'
 import './App.css'
@@ -408,7 +409,12 @@ export default function App() {
 
   // ── Auth loading splash ────────────────────────────────────────────────────
   if (loading) {
-    return <div className="splash"><p className="splash-text">Echo</p></div>
+    return (
+      <div className="splash">
+        <EchoLogo size={72} className="splash-logo" />
+        <p className="splash-text">Echo</p>
+      </div>
+    )
   }
 
   // ── Location gate — FIRST: must share location before anything else ─────────

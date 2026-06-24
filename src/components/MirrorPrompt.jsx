@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import EchoLogo from './EchoLogo'
 
 const MOODS = [
   '😊', '😔', '😤', '😴',
@@ -34,10 +35,13 @@ export default function MirrorPrompt({ onAnswer }) {
         </div>
       ) : (
         <div className="mirror-card">
-          <p className="mirror-wordmark" aria-hidden="true">HowAreYou</p>
-          <p className="mirror-eyebrow">before you see the world</p>
+          <div className="mirror-brand" aria-hidden="true">
+            <EchoLogo size={44} className="mirror-brand-logo" />
+            <span className="mirror-wordmark">Echo</span>
+          </div>
+          <p className="mirror-eyebrow">anonymous mood map · real people · right now</p>
           <h1 className="mirror-heading">How are you feeling<br />right now?</h1>
-          <p className="mirror-sub">Be honest. No one else sees this first.</p>
+          <p className="mirror-sub">Your answer places a pin on the live map. No account needed — completely anonymous.</p>
 
           <div className="mirror-mood-grid">
             {MOODS.map((emoji, i) => (
