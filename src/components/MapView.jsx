@@ -48,13 +48,42 @@ const PIN_STYLE = `
     height: 40px;
   }
 
-  /* ── Own pin: golden border ───────────────────── */
+  /* ── Own pin: golden border + scale ──────────── */
+  .hay-pin-wrap--own {
+    transform: scale(1.18);
+    transform-origin: center bottom;
+  }
   .hay-pin-wrap--own .hay-pin {
-    border: 2.5px solid rgba(255, 205, 55, 0.9) !important;
-    box-shadow: 0 0 0 2px rgba(255, 205, 55, 0.22), 0 2px 8px rgba(0,0,0,0.35);
+    border: 3px solid rgba(255, 210, 60, 1) !important;
+    box-shadow: 0 0 0 3px rgba(255,205,55,0.25), 0 4px 18px rgba(0,0,0,0.5);
   }
   .hay-pin-wrap--own .hay-pin-mood {
-    border-color: rgba(255, 205, 55, 0.6);
+    border-color: rgba(255, 205, 55, 0.75);
+  }
+
+  /* ── "You" label above own pin ─────────────── */
+  .hay-pin-own-tag {
+    position: absolute;
+    bottom: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 210, 55, 0.97);
+    color: #1a1000;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 2px 7px 2px 6px;
+    border-radius: 20px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 4;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+    animation: ownTagPop 0.3s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  @keyframes ownTagPop {
+    from { opacity: 0; transform: translateX(-50%) scale(0.7) translateY(4px); }
+    to   { opacity: 1; transform: translateX(-50%) scale(1)   translateY(0);   }
   }
 
   /* ── Streak glow ring ──────────────────────────── */
@@ -1087,6 +1116,14 @@ export default function MapView({
               }
             }, delay)
           }
+        }
+
+        // "You" label — own pins only
+        if (isOwn) {
+          const ownTag = document.createElement('div')
+          ownTag.className   = 'hay-pin-own-tag'
+          ownTag.textContent = '✦ You'
+          wrap.appendChild(ownTag)
         }
 
         // Delete button (any pin)
