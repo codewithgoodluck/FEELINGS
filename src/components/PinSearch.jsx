@@ -72,6 +72,25 @@ export default function PinSearch({ onClose, onFlyTo }) {
         <button className="icon-btn pin-search-close" onClick={onClose} aria-label="Close search">✕</button>
       </div>
 
+      {/* Quick mood chips — shown when input is empty */}
+      {!hasQuery && (
+        <div className="pin-search-empty-state">
+          <p className="pin-search-empty-state-label">Search by mood, message, or country</p>
+          <div className="pin-search-chips">
+            {Object.entries(MOOD_LABELS).map(([emoji, label]) => (
+              <button
+                key={emoji}
+                className="pin-search-chip"
+                onClick={() => setQuery(label)}
+                aria-label={`Search for ${label} pins`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Results area */}
       {hasQuery && (
         <div className="pin-search-results" role="list" aria-live="polite" aria-label="Search results">

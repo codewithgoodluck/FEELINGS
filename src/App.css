@@ -2640,6 +2640,43 @@ html[data-theme="light"] .sos-confirm {
   color: var(--ink-3);
 }
 
+/* Empty state — shown before any query */
+.pin-search-empty-state {
+  padding: 1rem 0.875rem 0.5rem;
+}
+
+.pin-search-empty-state-label {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  margin-bottom: 0.625rem;
+}
+
+.pin-search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pin-search-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pin-search-chip:hover {
+  background: rgba(91,138,245,0.15);
+  border-color: rgba(91,138,245,0.4);
+  transform: scale(1.12);
+}
+
 /* Scrollable results */
 .pin-search-results {
   overflow-y: auto;
@@ -2910,6 +2947,17 @@ html[data-theme="light"] .sos-confirm {
 
 .map-tooltip--top {
   top: max(4rem, calc(env(safe-area-inset-top, 0px) + 4rem));
+}
+
+.map-tooltip--center {
+  top: 50%;
+  transform: translate(-50%, -50%);
+  animation: pinHintPulse 2s ease-in-out infinite;
+}
+
+@keyframes pinHintPulse {
+  0%, 100% { opacity: 1;   transform: translate(-50%, -50%) scale(1);    }
+  50%       { opacity: 0.8; transform: translate(-50%, -50%) scale(1.05); }
 }
 
 .map-tooltip-text {
@@ -3665,6 +3713,13 @@ html[data-theme="light"] {
 
   /* Pin search panel */
   .pin-search-panel { background: rgba(240,243,251,0.98); }
+  .pin-search-chip {
+    background: rgba(0,0,0,0.04);
+    border-color: rgba(0,0,0,0.1);
+  }
+  .pin-search-chip:hover {
+    background: rgba(91,138,245,0.12);
+  }
 
   /* Celebration text pill */
   .celebration-text { background: rgba(224,230,248,0.93); }
@@ -4713,15 +4768,10 @@ html[data-theme="light"] .feed-btn[aria-pressed="true"] {
     bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
-  /* ── TrendingWidget: move below stats bar on mobile ── */
+  /* ── TrendingWidget: top of page, flush with safe area ── */
   .trending-widget {
-    top: max(3.25rem, calc(env(safe-area-inset-top, 0px) + 3.25rem));
+    top: max(0.5rem, env(safe-area-inset-top, 0.5rem));
     font-size: 0.72rem;
-  }
-
-  /* ── "Tap any pin" tooltip: clear of stats bar ── */
-  .map-tooltip--top {
-    top: max(5.5rem, calc(env(safe-area-inset-top, 0px) + 5.5rem));
   }
 
   /* ── Tap-hint pill: lift above nav ── */
@@ -5915,7 +5965,7 @@ html[data-theme="light"] .profile-journal-btn { background: rgba(255,255,255,0.6
 
 .trending-widget {
   position: absolute;
-  top: max(3.5rem, calc(env(safe-area-inset-top, 0px) + 3.5rem));
+  top: max(0.625rem, env(safe-area-inset-top, 0.625rem));
   left: 50%;
   transform: translateX(-50%);
   display: flex;

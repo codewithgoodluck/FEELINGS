@@ -44,7 +44,9 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
   const [moodFilter, setMoodFilter] = useState(null)
   const [nearbyOnly, setNearbyOnly] = useState(false)
   const [wavingId,   setWavingId]   = useState(null)
-  const [wavedIds,   setWavedIds]   = useState(() => new Set())
+  const [wavedIds,   setWavedIds]   = useState(() => {
+    try { return new Set(JSON.parse(sessionStorage.getItem('hay_waved_ids') || '[]')) } catch { return new Set() }
+  })
   const [closing, setClosing]     = useState(false)
   const timerRef                  = useRef(null)
   const itemEls                   = useRef({})
@@ -96,7 +98,11 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
       const convId = await getOrCreateConversation(pin.id, currentUserId, pin.uid)
       await sendMessage(convId, { uid: currentUserId, text: '👋 Sending you a wave' })
       showToast('Wave sent! 💙', 'success')
-      setWavedIds(prev => new Set([...prev, pin.id]))
+      setWavedIds(prev => {
+        const next = new Set([...prev, pin.id])
+        try { sessionStorage.setItem('hay_waved_ids', JSON.stringify([...next])) } catch {}
+        return next
+      })
     } catch { showToast('Failed to send wave', 'error') }
     setWavingId(null)
   }

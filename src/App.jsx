@@ -102,6 +102,8 @@ export default function App() {
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [panel, setPanel]                 = useState(PANEL.NONE)
+  const panelRef                          = useRef(PANEL.NONE)
+  panelRef.current = panel
   const [showFeedPanel, setShowFeedPanel] = useState(() => window.innerWidth >= 640)
   const [showSearch, setShowSearch]           = useState(false)
   const mapFlyTo                              = useRef(null)
@@ -175,16 +177,36 @@ export default function App() {
   }
 
   // ── Contextual tooltips ────────────────────────────────────────────────────
-  // pin_seen  = "Tap + to share your mood" (shown after map loads)
-  // chat_seen = "Tap any pin to chat anonymously" (shown when first pin appears)
+  // pin_seen = "Tap + to share your mood" (shown after map loads, one-time)
   const [tipFab, showTipFab, dismissTipFab] = useTip('pin_seen')
-  const [tipPin, showTipPin, dismissTipPin] = useTip('chat_seen')
+
+  // "Tap any pin" hint — flashes at page center every 30 s when map is idle
+  const [showPinHint, setShowPinHint] = useState(false)
 
   // Show FAB tip 1.5 s after mirror is done
   useEffect(() => {
     if (!mirrorDone) return
     const t = setTimeout(showTipFab, 1500)
     return () => clearTimeout(t)
+  }, [mirrorDone]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Periodic "Tap any pin" hint — starts after 8 s, repeats every 30 s
+  useEffect(() => {
+    if (!mirrorDone) return
+    let hideTimer = null
+    function flash() {
+      if (panelRef.current === PANEL.NONE) {
+        setShowPinHint(true)
+        hideTimer = setTimeout(() => setShowPinHint(false), 4000)
+      }
+    }
+    const initialTimer = setTimeout(flash, 8000)
+    const interval     = setInterval(flash, 30000)
+    return () => {
+      clearTimeout(initialTimer)
+      clearInterval(interval)
+      clearTimeout(hideTimer)
+    }
   }, [mirrorDone]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Low-mood follow-up nudge — show if user dropped a negative mood pin 2+ hours ago
@@ -293,8 +315,8 @@ export default function App() {
   function handleLocationSkip() {
     setLocationAsked(true)
     sessionStorage.setItem('hay_location_asked', '1')
-    setPendingLocation({ lat: 20, lng: 0 })
-    setPanel(PANEL.CHECKIN)
+    setPanel(PANEL.NONE)
+    showToast('Hold anywhere on the map to place your pin 📍', 'info')
   }
 
   // ── Map + panel event handlers ────────────────────────────────────────────
@@ -517,7 +539,7 @@ export default function App() {
         onPinClick={handlePinClick}
         onDeletePin={handleDeletePin}
         onNeighbourhoodClick={handleNeighbourhoodClick}
-        onFirstPins={showTipPin}
+        onFirstPins={undefined}
         unreadPinIds={unreadPinIds}
         activePinId={(panel === PANEL.CHAT || panel === PANEL.PEEK) ? activePin?.id : null}
         previewLocation={panel === PANEL.CHECKIN ? pendingLocation : null}
@@ -776,11 +798,11 @@ export default function App() {
         </div>
       )}
 
-      {/* Pin tooltip: "Tap any pin to chat anonymously" */}
-      {tipPin && panel === PANEL.NONE && (
-        <div className="map-tooltip map-tooltip--top" onClick={dismissTipPin} role="status">
+      {/* Pin hint — flashes at screen center every 30 s */}
+      {showPinHint && panel === PANEL.NONE && (
+        <div className="map-tooltip map-tooltip--center" onClick={() => setShowPinHint(false)} role="status">
           <span className="map-tooltip-text">Tap any pin to chat anonymously</span>
-          <button className="map-tooltip-close" onClick={(e) => { e.stopPropagation(); dismissTipPin() }} aria-label="Dismiss">✕</button>
+          <button className="map-tooltip-close" onClick={(e) => { e.stopPropagation(); setShowPinHint(false) }} aria-label="Dismiss">✕</button>
         </div>
       )}
 
