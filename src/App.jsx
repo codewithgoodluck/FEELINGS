@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from './contexts/AuthContext'
 import MapView from './components/MapView'
 import CheckInPanel from './components/CheckInPanel'
@@ -6,12 +6,14 @@ import ChatPanel from './components/ChatPanel'
 import PinSheet from './components/PinSheet'
 import MirrorPrompt from './components/MirrorPrompt'
 import HelpPanel from './components/HelpPanel'
-import { createPin, deactivatePin, subscribeToUserConversations, getPin, clearAllPins, countPinsWithMood } from './utils/db'
+import { createPin, deactivatePin, subscribeToUserConversations, getPin, clearAllPins, countPinsWithMood, subscribeToPins, subscribeToGlobalNewMessages } from './utils/db'
 import { blockUser, getBlockedUids } from './utils/blocked'
+import { unlockAudio, playMessageSound, playJoinSound } from './utils/notifSound'
+import { registerServiceWorker, subscribeToPush } from './utils/pushNotifications'
 import { ACHIEVEMENTS, recordCheckInAchievements, unlock } from './utils/achievements'
 import { fuzzLocation, getCurrentPosition, reverseGeocodeCountry, reverseGeocodePlaceName, haversineKm } from './utils/location'
 import { getAnonColour, getAnonIdentity, getAvatar } from './utils/identity'
-import { recordCheckIn } from './utils/streak'
+import { recordCheckIn, getRecoveryProgress } from './utils/streak'
 import { initPresence, heartbeat, markInactive } from './utils/presence'
 import { useToast } from './contexts/ToastContext'
 import StatsPanel from './components/StatsPanel'
@@ -26,6 +28,9 @@ import BottomNav from './components/BottomNav'
 import LocationGate from './components/LocationGate'
 import MoodJournal from './components/MoodJournal'
 import TrendingWidget from './components/TrendingWidget'
+import OnboardingTour from './components/OnboardingTour'
+import MoodMatchCard from './components/MoodMatchCard'
+import WeeklyInsight from './components/WeeklyInsight'
 import GlobeCustomizer from './components/GlobeCustomizer'
 import { GLOBE_STYLES, getGlobeStyle } from './utils/globeStyles'
 import './App.css'
@@ -69,6 +74,79 @@ export default function App() {
   const showToast = useToast()
   const { theme, toggle: toggleTheme, setTheme } = useTheme()
   useKeyboardOffset()
+
+  // Unlock AudioContext on first user gesture so sounds fire later without restriction
+  useEffect(() => {
+    const unlock = () => { unlockAudio(); document.removeEventListener('pointerdown', unlock, true) }
+    document.addEventListener('pointerdown', unlock, { capture: true, once: true, passive: true })
+    return () => document.removeEventListener('pointerdown', unlock, true)
+  }, [])
+
+  // Called when user opens any conversation — immediately drops the badge without waiting for Firestore
+  function handleConvSeen(convId) {
+    if (!convId) return
+    const now = Date.now()
+    try { localStorage.setItem('hay_seen_' + convId, now) } catch {}
+    setSeenTimestamps(prev => ({ ...prev, [convId]: now }))
+    // Also tick the global fab check so the global badge resets on next snapshot
+    fabLastCheckRef.current = now
+    try { localStorage.setItem('hay_fab_last_check', String(now)) } catch {}
+  }
+
+  // Register service worker + subscribe to push once user is signed in
+  useEffect(() => {
+    registerServiceWorker()
+  }, [])
+  useEffect(() => {
+    if (!user?.uid) return
+    subscribeToPush(user.uid)
+  }, [user?.uid])
+
+  // Listen for SW navigation messages (from push notification tap when app was open)
+  useEffect(() => {
+    function onSwMessage(e) {
+      if (e.data?.type !== 'NAVIGATE') return
+      const params = new URLSearchParams(new URL(e.data.url, window.location.origin).search)
+      const convId = params.get('conv')
+      const pinId  = params.get('pin')
+      const targetId = pinId || convId
+      if (!targetId) return
+      getPin(targetId).then(pin => {
+        if (!pin) return
+        mapFlyTo.current?.({ center: [pin.lng, pin.lat], zoom: 14 })
+        setActivePin(pin)
+        setPanel(convId ? PANEL.CHAT : PANEL.PEEK)
+      }).catch(() => {})
+    }
+    navigator.serviceWorker?.addEventListener('message', onSwMessage)
+    return () => navigator.serviceWorker?.removeEventListener('message', onSwMessage)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Toast events from PinSheet share button (uses custom event to avoid prop drilling)
+  useEffect(() => {
+    function onHayToast(e) { showToast(e.detail.text, e.detail.type || 'info') }
+    document.addEventListener('hay:toast', onHayToast)
+    return () => document.removeEventListener('hay:toast', onHayToast)
+  }, [showToast])
+
+  // Global new-message badge on the FAB — any conversation on the globe with recent messages from others
+  useEffect(() => {
+    if (!user?.uid) return
+    return subscribeToGlobalNewMessages(fabLastCheckRef.current, user.uid, ({ count, newest }) => {
+      setGlobalMsgCount(count)
+      setNewestGlobalConv(newest)
+    })
+  }, [user?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // New pins since last feed open — resets when user opens the feed tab
+  useEffect(() => subscribeToPins(pins => {
+    const lastOpen = feedLastOpenRef.current
+    setNewPinCount(pins.filter(p => {
+      const ts = p.createdAt?.seconds ? p.createdAt.seconds * 1000 : 0
+      return ts > lastOpen
+    }).length)
+  }), []) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) return
@@ -109,9 +187,70 @@ export default function App() {
   const mapFlyTo                              = useRef(null)
   const [pendingLocation, setPendingLocation] = useState(null)
   const [activePin, setActivePin]             = useState(null)
-  const [unreadCount, setUnreadCount]         = useState(0)
-  const [unreadPinIds, setUnreadPinIds]       = useState(new Set())
+  const [_unreadCount, setUnreadCount]        = useState(0)       // driven by NotificationManager (sound/notif)
   const [conversations, setConversations]     = useState([])
+  const [seenTimestamps, setSeenTimestamps]   = useState({})      // convId → ms, updated on open
+  const [newPinCount, setNewPinCount]         = useState(0)
+  const [globalMsgCount, setGlobalMsgCount]   = useState(0)
+  const [newestGlobalConv, setNewestGlobalConv] = useState(null)
+  const fabLastCheckRef = useRef(
+    parseInt(localStorage.getItem('hay_fab_last_check') || '0', 10) || Date.now()
+  )
+  const feedLastOpenRef = useRef(
+    parseInt(localStorage.getItem('hay_feed_last_open') || '0', 10) || (Date.now() - 3_600_000)
+  )
+  const [showOnboarding, setShowOnboarding]   = useState(
+    () => localStorage.getItem('hay_onboarding_done') !== '1'
+  )
+  const [moodMatchMood, setMoodMatchMood]     = useState(null)   // mood to show match for
+  const [showWeeklyInsight, setShowWeeklyInsight] = useState(false)
+  const [streakBroken, setStreakBroken]       = useState(false)
+  const [streakRecovered, setStreakRecovered] = useState(false)
+  const [recoveryProgress, setRecoveryProgress] = useState(() => getRecoveryProgress())
+  const activeChatPinIds = useMemo(
+    () => new Set(conversations.map(c => c.pinId).filter(Boolean)),
+    [conversations]
+  )
+
+  // Derived from Firestore conversations + locally-tracked seen timestamps.
+  // Reacts immediately when user opens a conversation — no Firestore round-trip needed.
+  const unreadCount = useMemo(() => {
+    if (!user) return 0
+    let count = 0
+    conversations.forEach(conv => {
+      if (!conv.lastMessageAt || conv.lastMessageUid === user.uid) return
+      const ts = conv.lastMessageAt?.seconds
+        ? conv.lastMessageAt.seconds * 1000
+        : (conv.lastMessageAt?.toDate?.()?.getTime?.() ?? 0)
+      const seenMs = seenTimestamps[conv.id]
+        ?? parseInt(localStorage.getItem('hay_seen_' + conv.id) || '0', 10)
+      if (ts > seenMs) count++
+    })
+    return count
+  }, [conversations, seenTimestamps, user])
+
+  const unreadPinIds = useMemo(() => {
+    if (!user) return new Set()
+    const pids = new Set()
+    conversations.forEach(conv => {
+      if (!conv.lastMessageAt || conv.lastMessageUid === user.uid || !conv.pinId) return
+      const ts = conv.lastMessageAt?.seconds
+        ? conv.lastMessageAt.seconds * 1000
+        : (conv.lastMessageAt?.toDate?.()?.getTime?.() ?? 0)
+      const seenMs = seenTimestamps[conv.id]
+        ?? parseInt(localStorage.getItem('hay_seen_' + conv.id) || '0', 10)
+      if (ts > seenMs) pids.add(conv.pinId)
+    })
+    return pids
+  }, [conversations, seenTimestamps, user])
+
+  const newestUnreadPinId = useMemo(() => {
+    if (!unreadPinIds.size) return null
+    return conversations
+      .filter(c => c.pinId && unreadPinIds.has(c.pinId))
+      .sort((a, b) => (b.lastMessageAt?.seconds ?? 0) - (a.lastMessageAt?.seconds ?? 0))
+      [0]?.pinId ?? null
+  }, [conversations, unreadPinIds])
   const [placeName, setPlaceName]             = useState(null)
   const [toast, setToast]                     = useState(null)
   const [neighbourhood, setNeighbourhood]     = useState(null)
@@ -173,6 +312,7 @@ export default function App() {
       return
     }
 
+    if (event.type === 'join') playJoinSound()
     setJlQueue(q => [...q, { id: `jl-${now}-${Math.random()}`, ...event }])
   }
 
@@ -243,6 +383,22 @@ export default function App() {
     }
   }, [mirrorDone]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Handle push notification deep-links: ?conv=<id> or ?pin=<id>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const convId = params.get('conv')
+    const pinId  = params.get('pin')
+    if (!convId && !pinId) return
+    window.history.replaceState({}, '', window.location.pathname)
+    const targetId = pinId || convId
+    getPin(targetId).then(pin => {
+      if (!pin) return
+      mapFlyTo.current?.({ center: [pin.lng, pin.lat], zoom: 14 })
+      setActivePin(pin)
+      setPanel(convId ? PANEL.CHAT : PANEL.PEEK)
+    }).catch(() => {})
+  }, [mirrorDone]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-clear blocked toast after 1.5 s (must be before any early returns)
   useEffect(() => {
     if (!blockedToastMsg) return
@@ -252,7 +408,7 @@ export default function App() {
 
   // ── Auth loading splash ────────────────────────────────────────────────────
   if (loading) {
-    return <div className="splash"><p className="splash-text">HowAreYou</p></div>
+    return <div className="splash"><p className="splash-text">Echo</p></div>
   }
 
   // ── Location gate — FIRST: must share location before anything else ─────────
@@ -362,7 +518,10 @@ export default function App() {
       const { lat, lng } = fuzzLocation(lngLat.lat, lngLat.lng)
       // Deliberate fallback: if geocode fails (network error / null), allow pin through silently
       const tapped = await reverseGeocodeCountry(lat, lng)
-      if (!travelMode && userCountry && tapped.code && tapped.code !== userCountry) {
+      // Grace period: first 3 check-ins can be anywhere (lets new users explore before the lock kicks in)
+      const totalCheckIns = parseInt(localStorage.getItem('hay_checkin_count') || '0', 10)
+      const lockActive = totalCheckIns >= 3
+      if (lockActive && !travelMode && userCountry && tapped.code && tapped.code !== userCountry) {
         // Show red ripple at tap point
         if (screenPt) setBadRipple(screenPt)
         // Show deactivated ghost pin
@@ -376,7 +535,7 @@ export default function App() {
         setTimeout(() => setCountryLockData({ tappedCode: tapped.code, tappedName: tapped.name }), 1300)
         return
       }
-      const streakCount  = recordCheckIn()
+      const { count: streakCount } = recordCheckIn()
       const hasStreak    = streakCount >= 7
       await createPin({ uid: user.uid, lat, lng, mood, message: '', verified: userLocation !== null, country: tapped.code, isFlash: false, hasStreak })
       mapFlyTo.current?.({ center: [lng, lat], zoom: 14 })
@@ -414,7 +573,9 @@ export default function App() {
     const { lat, lng } = fuzzLocation(pendingLocation.lat, pendingLocation.lng)
     // Deliberate fallback: if geocode fails (network error / null), allow pin through silently
     const tapped = await reverseGeocodeCountry(lat, lng)
-    if (!travelMode && tapped.code && userCountry && tapped.code !== userCountry) {
+    const totalCheckIns = parseInt(localStorage.getItem('hay_checkin_count') || '0', 10)
+    const lockActive = totalCheckIns >= 3
+    if (lockActive && !travelMode && tapped.code && userCountry && tapped.code !== userCountry) {
       setPanel(PANEL.NONE)
       setBlockedToastMsg(
         `🚫 That spot is in ${tapped.name ?? tapped.code} — share how you feel in ${userCountryName ?? userCountry} instead.`
@@ -422,9 +583,14 @@ export default function App() {
       setTimeout(() => setCountryLockData({ tappedCode: tapped.code, tappedName: tapped.name }), 1300)
       return // resolved without throw — CheckInPanel unmounts via setPanel(PANEL.NONE)
     }
-    const streakCount  = recordCheckIn()
+    const { count: streakCount, broken, recovered } = recordCheckIn()
     const hasStreak    = streakCount >= 7
     await createPin({ uid: user.uid, lat, lng, mood, message, verified: userLocation !== null, country: tapped.code, isFlash, hasStreak, voiceUrl, tag })
+    // Increment total check-in counter (for country-lock grace period)
+    try {
+      const prev = parseInt(localStorage.getItem('hay_checkin_count') || '0', 10)
+      localStorage.setItem('hay_checkin_count', String(prev + 1))
+    } catch {}
     localStorage.setItem('hay_last_checkin_date', getTodayKey())
     setShowDailyNudge(false)
     setShowLowMoodNudge(false)
@@ -451,6 +617,27 @@ export default function App() {
         setStreakCelebration({ streak: streakCount, emoji: milestoneEmoji })
         setTimeout(() => setStreakCelebration(null), 4000)
       }, 800)
+    }
+    // Streak broken / recovered notifications
+    if (broken) {
+      setStreakBroken(true)
+      setRecoveryProgress(getRecoveryProgress())
+      setTimeout(() => setStreakBroken(false), 6000)
+    }
+    if (recovered) {
+      setStreakRecovered(true)
+      showToast('🔄 Streak recovered! You\'re back on track.', 'success')
+      setTimeout(() => setStreakRecovered(false), 4000)
+    }
+    // Mood match — show after a short delay so check-in celebration shows first
+    setTimeout(() => setMoodMatchMood(mood), 3000)
+    // Weekly insight — show after 7+ total pins (once per week)
+    const totalPins = parseInt(localStorage.getItem('hay_checkin_count') || '0', 10)
+    const insightWeekKey = localStorage.getItem('hay_insight_week')
+    const thisWeek = new Date().toISOString().slice(0, 10).slice(0, 7) // YYYY-MM
+    if (totalPins >= 7 && insightWeekKey !== thisWeek) {
+      localStorage.setItem('hay_insight_week', thisWeek)
+      setTimeout(() => setShowWeeklyInsight(true), 5000)
     }
     setPanel(PANEL.NONE)
     setPendingLocation(null)
@@ -534,7 +721,16 @@ export default function App() {
       setPanel(PANEL.NONE)
     } else if (tab === 'feed') {
       setPanel(PANEL.NONE)
-      setShowFeedPanel(v => !v)
+      setShowFeedPanel(v => {
+        if (!v) {
+          // opening feed — reset "new pins" badge
+          const now = Date.now()
+          feedLastOpenRef.current = now
+          try { localStorage.setItem('hay_feed_last_open', String(now)) } catch {}
+          setNewPinCount(0)
+        }
+        return !v
+      })
     } else if (tab === 'messages') {
       setShowFeedPanel(false)
       setPanel(p => p === PANEL.INBOX ? PANEL.NONE : PANEL.INBOX)
@@ -561,6 +757,7 @@ export default function App() {
         onNeighbourhoodClick={handleNeighbourhoodClick}
         onFirstPins={undefined}
         unreadPinIds={unreadPinIds}
+        activeChatPinIds={activeChatPinIds}
         activePinId={(panel === PANEL.CHAT || panel === PANEL.PEEK) ? activePin?.id : null}
         previewLocation={panel === PANEL.CHECKIN ? pendingLocation : null}
         onFlyTo={(fn) => { mapFlyTo.current = fn }}
@@ -579,7 +776,6 @@ export default function App() {
         <NotificationManager
           user={user}
           onUnreadCount={setUnreadCount}
-          onUnreadPinIds={setUnreadPinIds}
           onConversations={setConversations}
           onToast={setToast}
           prevConvsRef={prevConvsRef}
@@ -797,14 +993,34 @@ export default function App() {
       {panel === PANEL.NONE && (
         <button className="fab" onClick={handleFabClick} aria-label="Share how you're feeling">
           +
-          {unreadCount > 0 && (
+          {(globalMsgCount > 0 || unreadCount > 0) && (
             <span
               className="fab-badge"
               role="button"
-              aria-label={`${unreadCount} unread messages`}
-              onClick={(e) => { e.stopPropagation(); setPanel(PANEL.INBOX) }}
+              aria-label={`${globalMsgCount || unreadCount} new message${(globalMsgCount || unreadCount) === 1 ? '' : 's'} on the globe`}
+              onClick={async (e) => {
+                e.stopPropagation()
+                // Reset global badge
+                const now = Date.now()
+                fabLastCheckRef.current = now
+                try { localStorage.setItem('hay_fab_last_check', String(now)) } catch {}
+                setGlobalMsgCount(0)
+                // Navigate: prefer user's own unread first, then newest global
+                const targetPinId = newestUnreadPinId || newestGlobalConv?.pinId
+                if (targetPinId) {
+                  try {
+                    const pin = await getPin(targetPinId)
+                    if (pin) {
+                      mapFlyTo.current?.({ center: [pin.lng, pin.lat], zoom: 14 })
+                      handlePinClick(pin)
+                      return
+                    }
+                  } catch {}
+                }
+                setPanel(PANEL.INBOX)
+              }}
             >
-              {unreadCount}
+              {globalMsgCount || unreadCount}
             </span>
           )}
         </button>
@@ -950,11 +1166,20 @@ export default function App() {
           pin={activePin}
           onClose={() => setPanel(PANEL.NONE)}
           onBlock={handleBlock}
+          onConvSeen={handleConvSeen}
         />
       )}
 
       {panel === PANEL.HELP && (
-        <HelpPanel onClose={() => setPanel(PANEL.NONE)} userCountry={userCountry} />
+        <HelpPanel
+          onClose={() => setPanel(PANEL.NONE)}
+          userCountry={userCountry}
+          onReplayTour={() => {
+            setPanel(PANEL.NONE)
+            localStorage.removeItem('hay_onboarding_done')
+            setShowOnboarding(true)
+          }}
+        />
       )}
 
       {panel === PANEL.PROFILE && (
@@ -973,6 +1198,12 @@ export default function App() {
           onTravelModeChange={(v) => { setTravelMode(v); localStorage.setItem('hay_travel_mode', v ? '1' : '0') }}
           statusMsg={statusMsg}
           onStatusMsgChange={(v) => { setStatusMsg(v); localStorage.setItem('hay_status_msg', v) }}
+          onHelpOpen={() => setPanel(PANEL.HELP)}
+          onReplayTour={() => {
+            setPanel(PANEL.NONE)
+            localStorage.removeItem('hay_onboarding_done')
+            setShowOnboarding(true)
+          }}
         />
       )}
 
@@ -1000,6 +1231,7 @@ export default function App() {
           conversations={conversations}
           user={user}
           onOpenPin={(pin) => { setActivePin(pin); setPanel(PANEL.CHAT) }}
+          onConvSeen={handleConvSeen}
           onClose={() => setPanel(PANEL.NONE)}
         />
       )}
@@ -1021,8 +1253,57 @@ export default function App() {
           activeTab={activeBottomTab}
           onTabChange={handleBottomTabChange}
           unreadCount={unreadCount}
+          unreadFeedCount={newPinCount}
           avatar={avatar}
         />
+      )}
+
+      {mirrorDone && showOnboarding && (
+        <OnboardingTour onDone={() => setShowOnboarding(false)} />
+      )}
+
+      {/* Mood match card — appears after check-in when others feel the same */}
+      {moodMatchMood && panel === PANEL.NONE && (
+        <MoodMatchCard
+          mood={moodMatchMood}
+          currentUid={user?.uid}
+          onFlyToPin={(pin) => {
+            mapFlyTo.current?.({ center: [pin.lng, pin.lat], zoom: 14 })
+            setActivePin(pin)
+            setPanel(PANEL.PEEK)
+          }}
+          onDismiss={() => setMoodMatchMood(null)}
+        />
+      )}
+
+      {/* Weekly mood insight — shown once per month after 7+ check-ins */}
+      {showWeeklyInsight && panel === PANEL.NONE && user && (
+        <WeeklyInsight
+          uid={user.uid}
+          onDismiss={() => setShowWeeklyInsight(false)}
+        />
+      )}
+
+      {/* Streak broken notice */}
+      {streakBroken && (
+        <div className="streak-broken" role="alert">
+          <span className="streak-broken-icon">💔</span>
+          <div className="streak-broken-body">
+            <strong>Streak reset</strong>
+            <span>Check in 3× this week to get back on track</span>
+          </div>
+          {recoveryProgress && (
+            <div className="streak-broken-progress">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`streak-broken-dot${i < recoveryProgress.done ? ' streak-broken-dot--done' : ''}`}
+                />
+              ))}
+            </div>
+          )}
+          <button className="streak-broken-close" onClick={() => setStreakBroken(false)} aria-label="Dismiss">✕</button>
+        </div>
       )}
     </div>
   )
@@ -1146,7 +1427,7 @@ function markConvSeen(convId) {
   try { localStorage.setItem('hay_seen_' + convId, Date.now()) } catch {}
 }
 
-function InboxSheet({ conversations, user, onOpenPin, onClose }) {
+function InboxSheet({ conversations, user, onOpenPin, onConvSeen, onClose }) {
   const [loadingId,    setLoadingId]    = useState(null)
   const [searchQuery,  setSearchQuery]  = useState('')
   const [localRead,    setLocalRead]    = useState(() => new Set())
@@ -1212,6 +1493,8 @@ function InboxSheet({ conversations, user, onOpenPin, onClose }) {
 
   async function handleTap(conv) {
     setLoadingId(conv.id)
+    markConvSeen(conv.id)
+    onConvSeen?.(conv.id)
     try {
       const pin = await getPin(conv.pinId)
       if (!pin) { showToast('This pin has expired.', 'info'); setLoadingId(null); return }
@@ -1316,7 +1599,7 @@ function InboxSheet({ conversations, user, onOpenPin, onClose }) {
 
 // ── Notification manager ──────────────────────────────────────────────────────
 
-function NotificationManager({ user, onUnreadCount, onUnreadPinIds, onConversations, onToast, prevConvsRef }) {
+function NotificationManager({ user, onUnreadCount, onConversations, onToast, prevConvsRef }) {
   const notifGranted = useRef(false)
 
   useEffect(() => {
@@ -1346,9 +1629,10 @@ function NotificationManager({ user, onUnreadCount, onUnreadPinIds, onConversati
             ? prev.lastMessageAt.seconds * 1000
             : prev?.lastMessageAt?.toDate?.()?.getTime?.() ?? 0
           if (prev !== undefined && ts > prevTs) {
+            playMessageSound()
             if (notifGranted.current && document.hidden) {
               try {
-                new Notification('HowAreYou 💬', {
+                new Notification('Echo 💬', {
                   body: conv.lastMessagePreview || 'New message',
                   icon: '/favicon.svg',
                   tag:  conv.id,
@@ -1364,7 +1648,6 @@ function NotificationManager({ user, onUnreadCount, onUnreadPinIds, onConversati
       convs.forEach((c) => { next[c.id] = c })
       prevConvsRef.current = next
       onUnreadCount(unread)
-      onUnreadPinIds(pinIds)
       onConversations?.(convs)
     })
     return unsub
