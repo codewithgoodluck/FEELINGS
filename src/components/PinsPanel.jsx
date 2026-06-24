@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { subscribeToPins, deactivatePin, getOrCreateConversation, sendMessage } from '../utils/db'
+import { subscribeToUserPins, deactivatePin } from '../utils/db'
 import { countryFlag, countryName } from '../utils/presence'
 import { useTheme } from '../hooks/useTheme'
-import { useToast } from '../contexts/ToastContext'
-import { haversineKm } from '../utils/location'
 import TranslateButton from './TranslateButton'
 
 function timeAgo(ts) {
@@ -36,30 +34,25 @@ const REACTION_EMOJIS = ['💙', '🤝', '❤️']
 
 const CLOSE_MS = 300
 
-const NEARBY_KM = 50
-
-export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId, unreadPinIds, currentUserId, onDeletePin, blockedUids, userLocation }) {
+export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, activePinId, unreadPinIds, currentUserId, onDeletePin }) {
   const { theme, toggle: toggleTheme } = useTheme()
-  const showToast = useToast()
   const [pins, setPins]           = useState([])
   const [moodFilter, setMoodFilter] = useState(null)
-  const [nearbyOnly, setNearbyOnly] = useState(false)
-  const [wavingId,   setWavingId]   = useState(null)
-  const [wavedIds,   setWavedIds]   = useState(() => {
-    try { return new Set(JSON.parse(sessionStorage.getItem('hay_waved_ids') || '[]')) } catch { return new Set() }
-  })
   const [closing, setClosing]     = useState(false)
   const timerRef                  = useRef(null)
   const itemEls                   = useRef({})
 
-  useEffect(() => subscribeToPins((raw) => {
-    const sorted = [...raw].sort((a, b) => {
-      const ta = a.createdAt?.seconds ?? Infinity
-      const tb = b.createdAt?.seconds ?? Infinity
-      return tb - ta
+  useEffect(() => {
+    if (!currentUserId) return
+    return subscribeToUserPins(currentUserId, (raw) => {
+      const sorted = [...raw].sort((a, b) => {
+        const ta = a.createdAt?.seconds ?? Infinity
+        const tb = b.createdAt?.seconds ?? Infinity
+        return tb - ta
+      })
+      setPins(sorted)
     })
-    setPins(sorted)
-  }), [])
+  }, [currentUserId])
   useEffect(() => () => clearTimeout(timerRef.current), [])
 
   useEffect(() => {
@@ -92,27 +85,9 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
     }
   }
 
-  async function handleWave(pin) {
-    if (!currentUserId || wavingId || wavedIds.has(pin.id)) return
-    setWavingId(pin.id)
-    try {
-      const convId = await getOrCreateConversation(pin.id, currentUserId, pin.uid)
-      await sendMessage(convId, { uid: currentUserId, text: '👋 Sending you a wave' })
-      showToast('Wave sent! 💙', 'success')
-      setWavedIds(prev => {
-        const next = new Set([...prev, pin.id])
-        try { sessionStorage.setItem('hay_waved_ids', JSON.stringify([...next])) } catch {}
-        return next
-      })
-    } catch { showToast('Failed to send wave', 'error') }
-    setWavingId(null)
-  }
-
-  // Apply filters: mood, blocked, nearby
+  // Apply mood filter (all pins are already the user's own)
   const baseFiltered = pins
     .filter(p => !moodFilter || p.mood === moodFilter)
-    .filter(p => !blockedUids?.has(p.uid))
-    .filter(p => !nearbyOnly || !userLocation || haversineKm(userLocation.lat, userLocation.lng, p.lat, p.lng) <= NEARBY_KM)
 
   // Mood summary: count per emoji, sorted by count desc
   const moodCounts = pins.reduce((acc, p) => {
@@ -139,8 +114,7 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
         <div className="pins-panel-header">
           <div className="pins-panel-header-main">
             <h2 className="pins-panel-title">
-              <span className="pins-panel-live-dot" aria-hidden="true" />
-              Activity
+              My Activity
             </h2>
             <div className="pins-panel-header-actions">
               <button
@@ -157,18 +131,8 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
           <div className="pins-panel-subtitle-row">
             <p className="pins-panel-subtitle">
               <span className="pins-panel-count-badge">{pins.length}</span>
-              {pins.length === 1 ? 'check-in' : 'check-ins'} live right now
+              {pins.length === 1 ? 'check-in' : 'check-ins'} from you
             </p>
-            {userLocation && (
-              <button
-                className={`pins-panel-nearby-btn${nearbyOnly ? ' pins-panel-nearby-btn--on' : ''}`}
-                onClick={() => setNearbyOnly(v => !v)}
-                aria-pressed={nearbyOnly}
-                title={nearbyOnly ? 'Show all pins' : `Show pins within ${NEARBY_KM}km`}
-              >
-                🎯 {nearbyOnly ? 'Near me' : 'Nearby'}
-              </button>
-            )}
           </div>
         </div>
 
@@ -201,21 +165,19 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
 
         {/* ── Cards ── */}
         <div className="pins-panel-list">
-          {(moodFilter || nearbyOnly) && baseFiltered.length !== pins.length && (
+          {moodFilter && baseFiltered.length !== pins.length && (
             <p className="feed-filter-label">
-              {nearbyOnly && `Within ${NEARBY_KM}km`}
-              {nearbyOnly && moodFilter && ' · '}
-              {moodFilter && `${baseFiltered.length} feeling ${moodFilter}`}
+              {baseFiltered.length} of your pins feeling {moodFilter}
             </p>
           )}
           {pins.length > 0 && baseFiltered.length === 0 && (
-            <p className="feed-filter-label">{nearbyOnly && !moodFilter ? 'No pins nearby.' : 'No pins matching filter.'}</p>
+            <p className="feed-filter-label">No pins matching filter.</p>
           )}
           {pins.length === 0 ? (
             <div className="feed-empty">
-              <span className="feed-empty-icon">🌍</span>
+              <span className="feed-empty-icon">✦</span>
               <p className="feed-empty-text">No check-ins yet.</p>
-              <p className="feed-empty-sub">Be the first to share how you feel.</p>
+              <p className="feed-empty-sub">Tap the + button to share how you feel.</p>
             </div>
           ) : (
             baseFiltered.map(pin => {
@@ -307,26 +269,13 @@ export default function PinsPanel({ onClose, onFlyTo, onPinClick, onChatDirect, 
                       >
                         📍
                       </button>
-                      {!isOwn && (
-                        <>
-                          <button
-                            className={`feed-card-wave${wavedIds.has(pin.id) ? ' feed-card-wave--done' : ''}`}
-                            onClick={e => { e.stopPropagation(); handleWave(pin) }}
-                            disabled={wavingId === pin.id || wavedIds.has(pin.id)}
-                            aria-label={wavedIds.has(pin.id) ? 'Wave sent' : 'Send a wave'}
-                            title="Send a wave without chatting"
-                          >
-                            {wavedIds.has(pin.id) ? '💙' : wavingId === pin.id ? '…' : '👋'}
-                          </button>
-                          <button
-                            className={`feed-card-chat${hasUnread ? ' feed-card-chat--unread' : ''}`}
-                            onClick={() => handleChatDirect(pin)}
-                            aria-label="Open chat for this pin"
-                          >
-                            💬 {hasUnread ? 'New msg' : 'Chat'}
-                          </button>
-                        </>
-                      )}
+                      <button
+                        className={`feed-card-chat${hasUnread ? ' feed-card-chat--unread' : ''}`}
+                        onClick={() => handleChatDirect(pin)}
+                        aria-label="See messages for this pin"
+                      >
+                        💬 {hasUnread ? 'New msg' : 'Messages'}
+                      </button>
                     </div>
                   </div>
                 </article>
