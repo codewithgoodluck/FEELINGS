@@ -3131,7 +3131,7 @@ html[data-theme="light"] .translate-btn--on {
 }
 .pin-legend-dot--you      { color: #ffd23f; font-weight: 800; }
 .pin-legend-dot--verified { color: #5de3ae; }
-.pin-legend-dot--sos      { }
+.pin-legend-dot--sos      { color: #ff2020; font-weight: 800; }
 
 /* Light mode */
 html[data-theme="light"] .pin-legend {

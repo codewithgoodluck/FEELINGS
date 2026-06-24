@@ -1060,7 +1060,7 @@ export default function App() {
             <span className="pin-legend-item"><span className="pin-legend-dot pin-legend-dot--verified">✓</span>Verified location</span>
             <span className="pin-legend-item"><span className="pin-legend-dot">⚡</span>Flash — expires soon</span>
             <span className="pin-legend-item"><span className="pin-legend-dot">🔥</span>Streak — 7+ days</span>
-            <span className="pin-legend-item"><span className="pin-legend-dot pin-legend-dot--sos">❤️‍🩹</span>Needs support</span>
+            <span className="pin-legend-item"><span className="pin-legend-dot pin-legend-dot--sos">🆘</span>Needs help</span>
             <span className="pin-legend-item"><span className="pin-legend-dot">💬</span>Has messages</span>
           </div>
         </div>

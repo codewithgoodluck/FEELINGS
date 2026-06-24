@@ -225,6 +225,18 @@ const PIN_STYLE = `
   @keyframes msgPop   { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   @keyframes msgPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(91,138,245,0.6); } 50% { box-shadow: 0 0 0 6px rgba(91,138,245,0); } }
 
+  /* ── Active chat badge (top-right, teal) ────────── */
+  .hay-chat-badge {
+    position: absolute; top: -6px; right: -6px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #06d6a0; border: 2px solid #0f1117;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #fff; pointer-events: none; z-index: 3;
+    animation: msgPop 0.3s cubic-bezier(0.22,1,0.36,1) both,
+               chatPulse 2s ease-in-out 0.3s infinite;
+  }
+  @keyframes chatPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(6,214,160,0.6); } 50% { box-shadow: 0 0 0 6px rgba(6,214,160,0); } }
+
   /* ── Mood badge (bottom-right corner of pin) ────── */
   .hay-pin-mood {
     position: absolute; bottom: -5px; right: -5px;
@@ -235,24 +247,74 @@ const PIN_STYLE = `
   }
 
   /* ── Cry for Help / SOS pin ─────────────────────── */
+  .hay-pin-wrap--sos {
+    transform: scale(1.4);
+    transform-origin: center bottom;
+    z-index: 20;
+  }
   .hay-pin-wrap--sos::before,
   .hay-pin-wrap--sos::after {
     content: '';
     position: absolute;
     border-radius: 50%;
     background: none !important;
-    border: 2px solid rgba(240, 80, 80, 0.55);
-    animation: sosRing 1.4s ease-out infinite;
+    border: 3px solid rgba(255, 30, 30, 0.9);
+    animation: sosRing 1.1s ease-out infinite;
     pointer-events: none;
     z-index: 0;
   }
-  .hay-pin-wrap--sos::before { inset: -9px; }
-  .hay-pin-wrap--sos::after  { inset: -18px; animation-delay: 0.38s; }
-  @keyframes sosRing {
-    0%   { opacity: 0.85; transform: scale(0.9); }
-    100% { opacity: 0;    transform: scale(1.5); }
+  .hay-pin-wrap--sos::before { inset: -14px; }
+  .hay-pin-wrap--sos::after  { inset: -28px; animation-delay: 0.275s; }
+  .hay-sos-ring3 {
+    position: absolute; inset: -44px; border-radius: 50%;
+    border: 2.5px solid rgba(255, 30, 30, 0.55);
+    animation: sosRing 1.1s ease-out 0.55s infinite;
+    pointer-events: none; z-index: 0;
   }
-  .hay-pin-wrap--sos .hay-pin { border-color: rgba(240, 90, 90, 0.92) !important; }
+  .hay-sos-ring4 {
+    position: absolute; inset: -62px; border-radius: 50%;
+    border: 2px solid rgba(255, 30, 30, 0.25);
+    animation: sosRing 1.1s ease-out 0.825s infinite;
+    pointer-events: none; z-index: 0;
+  }
+  .hay-sos-halo {
+    position: absolute; inset: -8px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,30,30,0.38) 0%, rgba(255,30,30,0) 72%);
+    animation: sosHalo 0.85s ease-in-out infinite;
+    pointer-events: none; z-index: 0;
+  }
+  @keyframes sosHalo {
+    0%,100% { opacity: 0.55; transform: scale(1); }
+    50%     { opacity: 1;    transform: scale(1.3); }
+  }
+  @keyframes sosRing {
+    0%   { opacity: 1; transform: scale(0.78); }
+    100% { opacity: 0; transform: scale(1.65); }
+  }
+  .hay-pin-wrap--sos .hay-pin {
+    background: linear-gradient(135deg, #ff2020, #b80000) !important;
+    border-color: rgba(255,255,255,0.95) !important;
+    animation: sosPinPulse 0.85s ease-in-out infinite;
+  }
+  @keyframes sosPinPulse {
+    0%,100% { box-shadow: 0 0 0 3px rgba(255,30,30,0.5), 0 0 16px rgba(255,30,30,0.6), 0 4px 14px rgba(0,0,0,0.55); }
+    50%     { box-shadow: 0 0 0 5px rgba(255,30,30,0.9), 0 0 36px rgba(255,30,30,1),   0 4px 14px rgba(0,0,0,0.55); }
+  }
+  .hay-sos-label {
+    position: absolute;
+    top: -28px; left: 50%; transform: translateX(-50%);
+    background: #d91010;
+    color: #fff; font-size: 9.5px; font-weight: 900;
+    padding: 3px 8px 3px 7px; border-radius: 4px; white-space: nowrap;
+    pointer-events: none; letter-spacing: 0.09em; text-transform: uppercase;
+    box-shadow: 0 2px 10px rgba(210,0,0,0.7);
+    animation: sosLabelPulse 0.85s ease-in-out infinite;
+    font-family: system-ui, sans-serif;
+  }
+  @keyframes sosLabelPulse {
+    0%,100% { background: #d91010; transform: translateX(-50%) scale(1); }
+    50%     { background: #ff1515; transform: translateX(-50%) scale(1.06); }
+  }
 
   /* ── Location preview pulse ─────────────────────── */
   .hay-preview-pin {
@@ -379,7 +441,7 @@ const PANEL_WIDTH = 480 // must match .pins-panel desktop width in App.css
 
 export default function MapView({
   onPinClick, onMapClick, onDeletePin,
-  userLocation, unreadPinIds, activePinId,
+  userLocation, unreadPinIds, activeChatPinIds, activePinId,
   onNeighbourhoodClick, onFirstPins, previewLocation, onHoldDrop,
   onFlyTo, theme, mapStyleUrl, fogPreset, panelOpen,
   rotateGlobe = true, clusterPins = true, showHeatmap = false,
@@ -390,7 +452,8 @@ export default function MapView({
   const previewMarkerRef  = useRef(null)
   const styleInjected     = useRef(false)
   const firstPinsFired    = useRef(false)
-  const unreadPinIdsRef   = useRef(unreadPinIds)
+  const unreadPinIdsRef      = useRef(unreadPinIds)
+  const activeChatPinIdsRef  = useRef(activeChatPinIds)
   const lastHoldDropAtRef = useRef(0)
   const knownPinIdsRef    = useRef(new Set())
   const seenFirstSnapshot = useRef(false)
@@ -675,6 +738,7 @@ export default function MapView({
       rafId: null, timerId: null, chargeEl: null,
       startPt: null, lngLat: null,
       startClientX: 0, startClientY: 0, downTime: 0,
+      pinWrap: null,  // non-null when a touch tap on a pin is in progress
     }
 
     function showHint(pt) {
@@ -749,11 +813,28 @@ export default function MapView({
         holdState.chargeEl.remove()
         holdState.chargeEl = null
       }
+      // Always clear so a stale lngLat can't trigger a false map-click after a cancelled gesture
+      holdState.downTime = 0
+      holdState.lngLat   = null
+      holdState.pinWrap  = null
     }
 
     function handlePointerDown(e) {
       if (e.button && e.button !== 0) return
-      if (e.target.closest('.hay-pin-wrap') ||
+      const pinWrap = e.target.closest('.hay-pin-wrap')
+      if (pinWrap) {
+        // Touch tap on a pin: track it so handlePointerUp can fire the action.
+        // Mouse clicks on pins are handled by the wrap's click listener instead.
+        if (e.pointerType === 'touch') {
+          holdState.pinWrap      = pinWrap
+          holdState.downTime     = performance.now()
+          holdState.startClientX = e.clientX
+          holdState.startClientY = e.clientY
+        }
+        return  // never start hold-to-drop for any pin press
+      }
+      holdState.pinWrap = null
+      if (e.target.closest('.mapboxgl-marker') ||
           e.target.closest('.mapboxgl-control-container') ||
           e.target.closest('.hay-mood-pop') ||
           e.target.closest('.hay-hint-toast')) return
@@ -803,20 +884,28 @@ export default function MapView({
     }
 
     function handlePointerUp() {
-      const elapsed = performance.now() - holdState.downTime
-      const lngLat  = holdState.lngLat
+      const elapsed  = performance.now() - holdState.downTime
+      const lngLat   = holdState.lngLat
+      const pinWrap  = holdState.pinWrap
       // Reset first so any duplicate / late pointerup is a safe no-op
       holdState.downTime = 0
       holdState.lngLat   = null
+      holdState.pinWrap  = null
       cancelCharge(true)
-      // Short tap — forward to map-click handler (e.g. close open panel)
+      // Touch tap on a pin — fire directly here rather than relying on the
+      // synthetic click which can be suppressed by Mapbox's gesture handling
+      if (pinWrap && elapsed < 400) {
+        pinWrap._pinClickFn?.()
+        return
+      }
+      // Short tap on map — forward to map-click handler (e.g. close open panel)
       if (elapsed < 200 && lngLat) {
         onMapClickRef.current?.({ lat: lngLat.lat, lng: lngLat.lng })
       }
     }
 
     function handlePointerMove(e) {
-      if (!holdState.chargeEl) return
+      if (!holdState.chargeEl && !holdState.pinWrap) return
       const dx = e.clientX - holdState.startClientX
       const dy = e.clientY - holdState.startClientY
       if (Math.sqrt(dx * dx + dy * dy) > 12) cancelCharge(false)
@@ -1052,7 +1141,25 @@ export default function MapView({
         const wrap = document.createElement('div')
         wrap.className = 'hay-pin-wrap'
         if (pin.hasStreak)    wrap.classList.add('hay-pin-wrap--streak')
-        if (pin.needsSupport) wrap.classList.add('hay-pin-wrap--sos')
+        if (pin.needsSupport) {
+          wrap.classList.add('hay-pin-wrap--sos')
+          // Halo glow (innermost, behind pin)
+          const halo = document.createElement('div')
+          halo.className = 'hay-sos-halo'
+          wrap.appendChild(halo)
+          // 4 expanding rings
+          const ring3 = document.createElement('div')
+          ring3.className = 'hay-sos-ring3'
+          wrap.appendChild(ring3)
+          const ring4 = document.createElement('div')
+          ring4.className = 'hay-sos-ring4'
+          wrap.appendChild(ring4)
+          // Label above the pin
+          const sosLabel = document.createElement('div')
+          sosLabel.className   = 'hay-sos-label'
+          sosLabel.textContent = '🆘 NEEDS HELP'
+          wrap.appendChild(sosLabel)
+        }
         if (isOwn)            wrap.classList.add('hay-pin-wrap--own')
         if (pin.message?.trim()) wrap.classList.add('hay-pin--has-message')
         wrap.setAttribute('role', 'button')
@@ -1072,7 +1179,7 @@ export default function MapView({
 
         const inner = document.createElement('span')
         inner.className   = 'hay-pin-inner'
-        inner.textContent = countryFlag(pin.country)
+        inner.textContent = pin.needsSupport ? '🆘' : countryFlag(pin.country)
         el.appendChild(inner)
         wrap.appendChild(el)
 
@@ -1150,11 +1257,15 @@ export default function MapView({
         })
         wrap.appendChild(delBtn)
 
-        // Touch stop-propagation (prevents Mapbox intercepting taps on markers)
-        wrap.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true })
-        wrap.addEventListener('touchend',   (e) => e.stopPropagation(), { passive: true })
+        // Callback used by handlePointerUp for touch taps (avoids synthetic-click issues)
+        wrap._pinClickFn = () => onPinClickRef.current(pin)
 
-        // Click → open chat
+        // Prevent Mapbox intercepting touch events on markers
+        wrap.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true })
+        // Suppress the synthetic click on mobile — touch taps are handled by
+        // handlePointerUp (capture phase) via _pinClickFn, not by synthetic click
+        wrap.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault() })
+        // Mouse clicks + keyboard (Enter/Space on focused button)
         wrap.addEventListener('click', (e) => {
           e.stopPropagation()
           onPinClickRef.current(pin)
@@ -1220,6 +1331,26 @@ export default function MapView({
       }
     })
   }, [unreadPinIds])
+
+  // ── Active chat badge updates (teal, shows when I've messaged this pin) ───
+
+  useEffect(() => {
+    activeChatPinIdsRef.current = activeChatPinIds
+    Object.entries(markersRef.current).forEach(([pinId, { wrap, uid }]) => {
+      const isOwn    = uid === user?.uid
+      const existing = wrap.querySelector('.hay-chat-badge')
+      if (!isOwn && activeChatPinIds?.has(pinId)) {
+        if (!existing) {
+          const badge = document.createElement('div')
+          badge.className   = 'hay-chat-badge'
+          badge.textContent = '💬'
+          wrap.appendChild(badge)
+        }
+      } else {
+        existing?.remove()
+      }
+    })
+  }, [activeChatPinIds, user?.uid])
 
   // ── Preview location marker (pulsing dot while check-in panel is open) ───
 
