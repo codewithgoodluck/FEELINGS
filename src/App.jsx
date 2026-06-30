@@ -16,7 +16,6 @@ import { getAnonColour, getAnonIdentity, getAvatar } from './utils/identity'
 import { recordCheckIn, getRecoveryProgress } from './utils/streak'
 import { initPresence, heartbeat, markInactive } from './utils/presence'
 import { useToast } from './contexts/ToastContext'
-import StatsPanel from './components/StatsPanel'
 import PinSearch from './components/PinSearch'
 import { useTheme } from './hooks/useTheme'
 import ProfilePanel from './components/ProfilePanel'
@@ -155,9 +154,14 @@ export default function App() {
     vv.addEventListener('resize', check)
     return () => vv.removeEventListener('resize', check)
   }, [])
+
+  // Live presence for the logo pill
+  useEffect(() => subscribeToLivePresence(setLiveUsers), [])
   useEffect(() => { window.__clearAllPins = clearAllPins }, [])
 
   // ── First-run state ────────────────────────────────────────────────────────
+  // Track whether mirror was already done before this render cycle (page reload / returning session)
+  const mirrorWasAlreadyDone = useRef(sessionStorage.getItem('hay_mirror_done') === '1')
   const [mirrorDone, setMirrorDone] = useState(
     () => sessionStorage.getItem('hay_mirror_done') === '1'
   )
@@ -292,6 +296,10 @@ export default function App() {
   const [blockedGhost,     setBlockedGhost]     = useState(null) // { x, y, mood }
   const [countryBadgeShow, setCountryBadgeShow] = useState(true)
 
+  // ── Live presence for logo pill ───────────────────────────────────────────
+  const [liveUsers, setLiveUsers]     = useState(null)
+  const [logoExpanded, setLogoExpanded] = useState(false)
+
   // ── Join / leave toast queue ──────────────────────────────────────────────
   const [jlQueue, setJlQueue] = useState([])
   const jlTimesRef = useRef([]) // recent event timestamps for throttle
@@ -332,6 +340,16 @@ export default function App() {
     const t = setTimeout(showTipFab, 1500)
     return () => clearTimeout(t)
   }, [mirrorDone]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-fly to user's location at city zoom once, right after they finish the mirror prompt
+  // Skipped on page reload (mirrorWasAlreadyDone) so we don't hijack deliberate map browsing
+  useEffect(() => {
+    if (mirrorWasAlreadyDone.current || !mirrorDone || !userLocation) return
+    const t = setTimeout(() => {
+      mapFlyTo.current?.({ center: [userLocation.lng, userLocation.lat], zoom: 12 })
+    }, 1600)
+    return () => clearTimeout(t)
+  }, [mirrorDone, userLocation]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Periodic "Tap any pin" hint — starts after 8 s, repeats every 30 s
   useEffect(() => {
@@ -841,7 +859,47 @@ export default function App() {
         onDequeue={() => setJlQueue(q => q.slice(1))}
       />
 
-      <StatsPanel />
+      {(() => {
+        const liveNow = liveUsers?.length ?? null
+        const byCountry = {}
+        ;(liveUsers ?? []).forEach(u => {
+          if (!u.country) return
+          byCountry[u.country] = byCountry[u.country] || { count: 0, name: u.countryName || u.country }
+          byCountry[u.country].count++
+        })
+        const countries = Object.entries(byCountry).sort((a, b) => b[1].count - a[1].count)
+        return (
+          <div className={`app-logo-pill${logoExpanded ? ' app-logo-pill--open' : ''}`}>
+            <button
+              className="app-logo-toggle"
+              onClick={() => setLogoExpanded(v => !v)}
+              aria-expanded={logoExpanded}
+              aria-label={logoExpanded ? 'Hide live users' : 'Show live users by country'}
+            >
+              <EchoLogo size={26} />
+              <span className="app-logo-wordmark">Echo</span>
+              {liveNow !== null && (
+                <span className="app-logo-live">
+                  <span className="app-logo-live-dot" aria-hidden="true" />
+                  {liveNow.toLocaleString()} online
+                </span>
+              )}
+              <span className="app-logo-chevron" aria-hidden="true">{logoExpanded ? '▲' : '▼'}</span>
+            </button>
+            {logoExpanded && countries.length > 0 && (
+              <div className="app-logo-dropdown">
+                {countries.map(([code, { count, name }]) => (
+                  <div key={code} className="app-logo-country">
+                    <span className="app-logo-country-flag" aria-hidden="true">{countryFlag(code)}</span>
+                    <span className="app-logo-country-name">{countryName(code) || name}</span>
+                    <span className="app-logo-country-count">{count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       <button
         className="profile-btn"
@@ -865,32 +923,56 @@ export default function App() {
         {theme === 'dark' ? '☀' : '🌙'}
       </button>
 
-      <button
-        className="search-btn"
-        onClick={() => setShowSearch((v) => !v)}
-        aria-label="Search pins"
-        aria-pressed={showSearch}
-      >
-        ⌕
-      </button>
-
-      <button
-        className="help-btn"
-        onClick={() => setPanel(p => p === PANEL.HELP ? PANEL.NONE : PANEL.HELP)}
-        aria-label="Help"
-      >
-        ?
-      </button>
-
-      <button
-        className={`globe-btn${showGlobeCustomizer ? ' globe-btn--on' : ''}`}
-        onClick={() => setShowGlobeCustomizer(v => !v)}
-        aria-label="Customize globe style"
-        aria-pressed={showGlobeCustomizer}
-        title="Globe style"
-      >
-        🌍
-      </button>
+      {/* Map toolbar — groups utility buttons into one clean pill */}
+      <div className="map-toolbar">
+        {userLocation && (
+          <button
+            className="map-tb-btn locate-btn"
+            onClick={() => mapFlyTo.current?.({ center: [userLocation.lng, userLocation.lat], zoom: 13 })}
+            aria-label="Go to my location"
+            title="My location"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+              <circle cx="12" cy="12" r="8"/>
+            </svg>
+          </button>
+        )}
+        <button
+          className={`map-tb-btn${showSearch ? ' map-tb-btn--on' : ''}`}
+          onClick={() => setShowSearch((v) => !v)}
+          aria-label="Search pins"
+          aria-pressed={showSearch}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+        <button
+          className="map-tb-btn help-btn"
+          onClick={() => setPanel(p => p === PANEL.HELP ? PANEL.NONE : PANEL.HELP)}
+          aria-label="Help"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </button>
+        <button
+          className={`map-tb-btn globe-btn${showGlobeCustomizer ? ' map-tb-btn--on' : ''}`}
+          onClick={() => setShowGlobeCustomizer(v => !v)}
+          aria-label="Customize globe style"
+          aria-pressed={showGlobeCustomizer}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+        </button>
+      </div>
 
       {showGlobeCustomizer && (
         <GlobeCustomizer

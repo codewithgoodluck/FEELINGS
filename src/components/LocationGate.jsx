@@ -221,13 +221,25 @@ export default function LocationGate({ onConfirm }) {
     <div className="loc-gate">
       <div className="loc-gate-bg" aria-hidden="true" />
 
+      {/* Floating mood emojis — ambient decoration showing the app's nature */}
+      <div className="loc-gate-floats" aria-hidden="true">
+        <span className="loc-gate-float">😊</span>
+        <span className="loc-gate-float">😢</span>
+        <span className="loc-gate-float">😌</span>
+        <span className="loc-gate-float">😤</span>
+        <span className="loc-gate-float">🥰</span>
+        <span className="loc-gate-float">😰</span>
+        <span className="loc-gate-float">😄</span>
+        <span className="loc-gate-float">😔</span>
+      </div>
+
       <div className="loc-gate-page">
         {/* ── Header ── */}
         <div className="loc-gate-header">
           <div className="loc-gate-icon">🌍</div>
           <h1 className="loc-gate-title">Where are you right now?</h1>
           <p className="loc-gate-body">
-            HowAreYou connects you with people feeling things nearby.
+            Echo connects you with people feeling things nearby.
             Your location is <strong>never stored exactly</strong> — blurred by a few km for privacy.
           </p>
         </div>
