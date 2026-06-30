@@ -1,25 +1,43 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getAnonIdentity } from '../utils/identity'
 import { useAuth } from '../contexts/AuthContext'
 import { ChatPanelContent } from './ChatPanel'
-import { deactivatePin, togglePinReaction } from '../utils/db'
+import { deactivatePin, togglePinReaction, subscribeToPinDoc } from '../utils/db'
 import TranslateButton from './TranslateButton'
 
-const REACTION_EMOJIS = ['💙', '🤝', '❤️']
+const REACTION_EMOJIS = ['❤️', '💙', '🙌', '✨']
 
 function PinReactions({ pin, user }) {
   const [reacts, setReacts] = useState(pin.reactions ?? {})
+  const [floats, setFloats] = useState([])   // floating emoji animations
   const uid = user?.uid
 
-  async function handleReact(emoji) {
+  // Live-sync reactions from Firestore so other users' taps appear instantly
+  useEffect(() => {
+    return subscribeToPinDoc(pin.id, updated => {
+      setReacts(updated.reactions ?? {})
+    })
+  }, [pin.id])
+
+  function handleReact(emoji) {
     if (!uid) return
     const current = reacts[emoji] ?? []
-    const mine = current.includes(uid)
+    const mine    = current.includes(uid)
+
+    // Optimistic update
     setReacts(prev => ({
       ...prev,
       [emoji]: mine ? current.filter(u => u !== uid) : [...current, uid],
     }))
-    try { await togglePinReaction(pin.id, uid, emoji) } catch {}
+
+    // Launch floating emoji only on "add" reaction
+    if (!mine) {
+      const id = Date.now() + Math.random()
+      setFloats(f => [...f, { emoji, id }])
+      setTimeout(() => setFloats(f => f.filter(x => x.id !== id)), 900)
+    }
+
+    try { togglePinReaction(pin.id, uid, emoji) } catch {}
   }
 
   const total = Object.values(reacts).reduce((s, a) => s + (Array.isArray(a) ? a.length : 0), 0)
@@ -38,13 +56,21 @@ function PinReactions({ pin, user }) {
               aria-pressed={!!mine}
               aria-label={`React with ${emoji}${count > 0 ? `, ${count}` : ''}`}
             >
-              {emoji}
+              <span className="pin-reaction-emoji">{emoji}</span>
               {count > 0 && <span className="pin-reaction-count">{count}</span>}
+
+              {/* Floating emoji burst anchored to this button */}
+              {floats
+                .filter(f => f.emoji === emoji)
+                .map(f => (
+                  <span key={f.id} className="reaction-float" aria-hidden="true">{emoji}</span>
+                ))
+              }
             </button>
           )
         })}
       </div>
-      {total > 0 && <span className="pin-reactions-total">{total} {total === 1 ? 'reaction' : 'reactions'}</span>}
+      {total > 0 && <p className="pin-reactions-total">{total} {total === 1 ? 'reaction' : 'reactions'}</p>}
     </div>
   )
 }
@@ -133,6 +159,26 @@ export default function PinSheet({ pin, mirrorMood, onClose, onDelete, onBlock }
                   aria-label="Remove your pin"
                 >
                   {deleting ? '…' : '🗑'}
+                </button>
+                <button
+                  className="btn btn--ghost pin-share-btn"
+                  onClick={async () => {
+                    const url = `${window.location.origin}/?pin=${pin.id}`
+                    const text = `I'm feeling ${pin.mood} right now${pin.message ? ` — "${pin.message}"` : ''}`
+                    try {
+                      if (navigator.share) {
+                        await navigator.share({ title: 'Echo', text, url })
+                      } else {
+                        await navigator.clipboard.writeText(url)
+                        // small inline feedback via aria-live
+                        document.dispatchEvent(new CustomEvent('hay:toast', { detail: { text: 'Link copied!', type: 'success' } }))
+                      }
+                    } catch {}
+                  }}
+                  aria-label="Share this pin"
+                  title="Share your pin"
+                >
+                  🔗
                 </button>
                 <button className="btn btn--primary hay-sheet-action-btn" onClick={handleAction}>
                   📬 See messages

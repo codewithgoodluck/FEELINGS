@@ -7,6 +7,7 @@ import {
   orderBy,
   limit,
   serverTimestamp,
+  Timestamp,
   doc,
   setDoc,
   updateDoc,
@@ -64,6 +65,30 @@ export function subscribeToPins(callback) {
   })
 }
 
+// Subscribe to recent pins with the same mood (for mood-match feature)
+export function subscribeToSameMoodPins(mood, excludeUid, callback) {
+  const q = query(
+    collection(db, 'pins'),
+    where('mood', '==', mood),
+    where('active', '==', true),
+    orderBy('createdAt', 'desc'),
+    limit(15)
+  )
+  return onSnapshot(q, snap => {
+    const cutoff = Date.now() - 45 * 60 * 1000 // last 45 minutes
+    const pins = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => {
+        if (p.uid === excludeUid) return false
+        const ts = p.createdAt?.seconds ? p.createdAt.seconds * 1000 : 0
+        if (ts < cutoff) return false
+        if (p.expiresAt && p.expiresAt.toDate() <= new Date()) return false
+        return true
+      })
+    callback(pins)
+  }, () => {})
+}
+
 // Subscribe to all pins by a single user (journal)
 export function subscribeToUserPins(uid, callback) {
   const q = query(
@@ -75,7 +100,7 @@ export function subscribeToUserPins(uid, callback) {
     const now = new Date()
     const pins = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
-      .filter(p => !p.expiresAt || p.expiresAt.toDate() > now || p.active === false)
+      .filter(p => p.active !== false && (!p.expiresAt || p.expiresAt.toDate() > now))
       .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))
     callback(pins)
   }, err => console.error('subscribeToUserPins:', err))
@@ -111,6 +136,13 @@ export async function getPin(pinId) {
   const snap = await getDoc(doc(db, 'pins', pinId))
   if (!snap.exists()) return null
   return { id: snap.id, ...snap.data() }
+}
+
+// Live-subscribe to a single pin document (used for real-time reaction updates)
+export function subscribeToPinDoc(pinId, callback) {
+  return onSnapshot(doc(db, 'pins', pinId), snap => {
+    if (snap.exists()) callback({ id: snap.id, ...snap.data() })
+  }, () => {})
 }
 
 // ─── CONVERSATIONS ────────────────────────────────────────────────────────────
@@ -284,6 +316,23 @@ export async function unrequestReveal(conversationId, uid) {
 
 // Writes a single system message marking the mutual reveal. Uses a fixed document ID
 // so concurrent calls from both clients are idempotent — no duplicate messages.
+// Subscribe to conversations globe-wide that have new messages from other users since `sinceMs`.
+// Used to drive the FAB global-activity badge.
+export function subscribeToGlobalNewMessages(sinceMs, excludeUid, callback) {
+  const since = Timestamp.fromMillis(sinceMs)
+  const q = query(
+    collection(db, 'conversations'),
+    where('lastMessageAt', '>', since),
+    orderBy('lastMessageAt', 'desc'),
+    limit(99)
+  )
+  return onSnapshot(q, snap => {
+    const docs = snap.docs.filter(d => d.data().lastMessageUid !== excludeUid)
+    const newest = docs[0] ? { id: docs[0].id, ...docs[0].data() } : null
+    callback({ count: docs.length, newest })
+  }, () => {})
+}
+
 export async function addRevealSystemMessage(conversationId) {
   await setDoc(
     doc(db, 'conversations', conversationId, 'messages', '_reveal'),
